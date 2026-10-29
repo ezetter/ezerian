@@ -7,9 +7,9 @@ final class Game {
     private(set) var x: Int
     private(set) var y: Int
     private(set) var z: Int = 0
-    private(set) var facing: Direction = .south
+    var facing: Direction = .south
     private(set) var step = 0
-    private(set) var turn = 0
+    var turn = 0
     private(set) var messages: [String] = []
     /// Bumped whenever the Avatar changes place without walking (stairs, teleports),
     /// so the view knows to jump rather than glide.
@@ -22,7 +22,15 @@ final class Game {
     static let maxNameLength = 12
 
     /// The talk in progress, if any.
-    private(set) var conversation: Conversation?
+    var conversation: Conversation?
+    /// The fight in progress, if any.
+    var combat: Combat?
+    /// The Avatar's health; at 0 the adventure is over.
+    var hp = 100
+    var maxHP = 100
+    var gameOver = false
+    /// F was pressed: the next direction key attacks.
+    var attackPending = false
     /// Called when something changes outside a key press (Claude's answer arriving).
     var onChange: (() -> Void)?
     /// Who voices the NPCs (replaced in tests).
@@ -122,9 +130,19 @@ final class Game {
 
     @discardableResult
     func move(dx: Int, dy: Int) -> Bool {
-        guard dx != 0 || dy != 0, conversation == nil else { return false }
+        guard dx != 0 || dy != 0, conversation == nil, !gameOver else { return false }
         facing = dx != 0 && dy != 0 ? (dy < 0 ? .north : .south) : Direction.from(dx: dx, dy: dy)
         let nx = x + dx, ny = y + dy
+        // In a fight, walking into an enemy strikes them; bystanders are in the way.
+        if let c = combat, let npc = world.npc(at: nx, ny, z), !npc.following {
+            if c.enemies.contains(where: { $0 === npc }) {
+                strike(nil, npc)
+                endAvatarTurn()
+            } else {
+                log("\(npc.shortName.capitalizedFirst) is in the way.")
+            }
+            return false
+        }
         var swapped: NPC?
         if let npc = world.npc(at: nx, ny, z) {
             // Companions step aside (swap places); anyone else stops you for a word.
@@ -179,9 +197,16 @@ final class Game {
         y = ny
         step += 1
         turn += 1
+        if combat != nil {
+            // In a fight companions take their own turns rather than following.
+            arrive()
+            endAvatarTurn()
+            return true
+        }
         arrive()
         if swapped == nil { updateFollowers(from: old) } else { trail.insert(old, at: 0) }
         updateNPCs()
+        checkAmbush()
         return true
     }
 
@@ -249,9 +274,11 @@ final class Game {
 
     /// Lets a turn pass without moving.
     func waitTurn() {
-        guard conversation == nil else { return }
+        guard conversation == nil, !gameOver else { return }
+        if combat != nil { endAvatarTurn(); return }
         turn += 1
         updateNPCs()
+        checkAmbush()
     }
 
     // MARK: People
@@ -475,6 +502,12 @@ final class Game {
             }
         }
         conversation = c
+        // Words that sour someone below 0 may come to blows.
+        if intent != "ask_to_join", !npc.following, npc.friendliness < before, npc.friendliness < 0,
+           roll() < Combat.provokedChance(npc.friendliness) {
+            conversation = nil
+            startCombat(against: npc, startedByEnemy: true)
+        }
     }
 
     /// The Avatar answers an NPC's offer to join.

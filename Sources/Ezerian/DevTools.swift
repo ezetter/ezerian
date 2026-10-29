@@ -17,6 +17,8 @@ enum DevTools {
                 continue
             }
             if token == "send" { game.submitConversation(); continue }
+            if token == "fight" { game.attack(dx: game.facing.dx, dy: game.facing.dy); continue }
+            if token == "slay" { game.hp = 0; game.gameOver = true; game.combat = nil; game.log("You have been slain!"); continue }
             if token == "recruit" {
                 // Brings the nearest NPCs into the party (developer screenshots).
                 let folk = game.world.npcs(near: game.x, game.y, game.z, radius: 30).filter { !$0.following }
@@ -262,6 +264,8 @@ extension DevTools {
             print(cond ? "PASS" : "FAIL", what)
             if !cond { ok = false }
         }
+        // Never touch the real keychain (or network) from tests.
+        ClaudeClient.shared.availableOverride = false
         let game = Game(seed: seed)
         game.nameEntry = "Iolanthe"
         game.confirmName()
@@ -556,6 +560,124 @@ extension DevTools {
                   "the party survives a save")
         } else {
             check(false, "enough townsfolk to test the party")
+        }
+
+        // Combat.
+        var hpRng = SplitMix64(seed: 99)
+        let healths = (0..<20000).map { _ in Populace.health(hpRng.double()) }
+        let hpMean = Double(healths.reduce(0, +)) / Double(healths.count)
+        let hpMedian = healths.sorted()[healths.count / 2]
+        check(healths.min()! >= 1 && healths.max()! <= 200 && abs(hpMean - 75) < 3 && Double(hpMedian) < hpMean,
+              "NPC health runs 1-200, weighted low, averaging about 75 (mean \(String(format: "%.1f", hpMean)), median \(hpMedian))")
+        check(Game(seed: seed).hp == 100, "the Avatar starts with 100 health")
+        check(Combat.ambushChance(-100) == 1 && Combat.ambushChance(0) == 0 && Combat.ambushChance(-60) > Combat.ambushChance(-30),
+              "an unfriendly neighbour's chance of attacking grows with unfriendliness, certain at -100")
+        func arena() -> (Game, [NPC]) {
+            let g = Game(seed: seed)
+            g.confirmName()
+            let folk = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
+            for n in folk { n.friendliness = 50 }
+            return (g, folk)
+        }
+        func standBeside(_ g: Game, _ n: NPC) -> (Int, Int)? {
+            for (dx, dy) in [(0, 1), (1, 0), (-1, 0), (0, -1)] where g.world.isPassable(n.x + dx, n.y + dy, 0)
+                && g.world.npc(at: n.x + dx, n.y + dy, 0) == nil {
+                g.teleport(n.x + dx, n.y + dy, 0)
+                return (-dx, -dy)
+            }
+            return nil
+        }
+        do {
+            // The Avatar attacks; the victim's friendliness plunges; blows deal 1-10.
+            let (g, folk) = arena()
+            let foe = folk[0]
+            foe.maxHP = 200; foe.hp = 200; foe.friendliness = 30
+            var dice = 0.0
+            g.roll = { dice }
+            if let (dx, dy) = standBeside(g, foe) {
+                g.attack(dx: dx, dy: dy)
+                check(g.inCombat && foe.friendliness == -30, "attacking someone starts a fight and drops their friendliness by 60")
+                check(foe.hp < 200 && 200 - foe.hp <= 20, "a blow that lands does 1-10 damage (\(200 - foe.hp) after the foe's reply)")
+                dice = 0.75   // every blow misses
+                let hpBefore = (g.hp, foe.hp)
+                for _ in 0..<5 { g.waitTurn() }
+                check(g.hp == hpBefore.0 && foe.hp == hpBefore.1 && g.turn > 0, "half the blows miss: a roll over 0.5 does nothing")
+                // Every blow lands for 10 (rolls alternate: hit, then top damage).
+                var k = 0
+                g.roll = { k += 1; return k % 2 == 1 ? 0.0 : 0.99 }
+                foe.hp = 15
+                g.move(dx: dx, dy: dy)
+                check(foe.hp == 5, "walking into a foe strikes them (max blow 10: hp 15 -> 5)")
+                check(g.hp <= hpBefore.0 - 1, "the foe strikes back on their turn")
+                g.move(dx: dx, dy: dy)
+                check(foe.hp == 0 && !g.inCombat && !folk.contains { $0 === foe && g.world.npc(at: $0.x, $0.y, 0) === foe },
+                      "a foe at 0 health dies, and the fight ends")
+            } else { check(false, "found room to fight") }
+        }
+        do {
+            // Companions join in; a companion who falls leaves the party.
+            let (g, folk) = arena()
+            var k = 0
+            g.roll = { k += 1; return k % 2 == 1 ? 0.0 : 0.99 }
+            let friend = folk[1], foe = folk[2]
+            g.addToParty(friend)
+            friend.hp = 5; friend.maxHP = 50
+            foe.maxHP = 200; foe.hp = 200
+            if let (dx, dy) = standBeside(g, foe) {
+                g.regroupParty()
+                // Put the companion beside the foe so the foe's blows land on it first.
+                for (ex, ey) in [(1, 1), (-1, 1), (1, -1), (-1, -1), (1, 0), (-1, 0), (0, 1), (0, -1)] {
+                    let px = foe.x + ex, py = foe.y + ey
+                    if g.world.isPassable(px, py, 0), g.world.npc(at: px, py, 0) == nil, (px, py) != (g.x, g.y) {
+                        friend.x = px; friend.y = py
+                        break
+                    }
+                }
+                let before = foe.hp
+                g.attack(dx: dx, dy: dy)
+                check(g.combat?.order.contains { $0 === friend } == true || !friend.following, "companions join the fight in the round robin")
+                check(200 - before + foe.hp <= 0 || foe.hp <= before - 2, "the companion's blows land on the foe too")
+                for _ in 0..<6 where g.inCombat && friend.following { g.waitTurn() }
+                check(!friend.following && g.party.isEmpty, "a companion who reaches 0 health dies and leaves the party")
+            } else { check(false, "found room for the party fight") }
+        }
+        do {
+            // An NPC at -100 beside the Avatar always attacks; the Avatar can die.
+            let (g, folk) = arena()
+            let foe = folk[3]
+            foe.friendliness = -100
+            foe.maxHP = 200; foe.hp = 200
+            g.roll = { 0.999 }
+            if standBeside(g, foe) != nil {
+                g.waitTurn()
+                check(g.inCombat, "an NPC at -100 standing beside the Avatar always attacks")
+                var k = 0
+                g.roll = { k += 1; return k % 2 == 1 ? 0.0 : 0.99 }
+                g.hp = 25
+                for _ in 0..<5 where !g.gameOver { g.waitTurn() }
+                check(g.gameOver && g.hp == 0 && !g.inCombat, "the Avatar at 0 health is slain and the game is over")
+                check(!g.move(dx: 1, dy: 0), "nothing more can be done once slain")
+                let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-dead.plist")
+                try? SaveGame.save(g, to: url)
+                check(SaveGame.load(from: url) == nil, "a slain Avatar's save is not resumed")
+            } else { check(false, "found room for the ambush") }
+        }
+        do {
+            // Rude words that sour someone below 0 can start a fight.
+            let (g, folk) = arena()
+            let foe = folk[4]
+            foe.friendliness = -40
+            g.claude = mock
+            mock.availableOverride = false
+            var dice = 0.0
+            g.roll = { dice }
+            if standBeside(g, foe) != nil {
+                g.startConversation(with: foe)
+                for ch in "You stupid fool!" { g.typeInConversation(ch) }
+                dice = 0.0
+                g.submitConversation()
+                check(g.inCombat && g.conversation == nil, "an insult that drops friendliness below 0 can start a fight")
+            } else { check(false, "found room for the quarrel") }
         }
 
         // Keys reach the game the same way they do in the window.

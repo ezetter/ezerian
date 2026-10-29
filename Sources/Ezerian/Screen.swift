@@ -47,13 +47,18 @@ final class Screen {
             map.draw(game, pose: pose, npcT: npcT, into: fb, at: Screen.mapX, Screen.mapY, frame: frame, clock: clock)
         }
         frameCount = frame
+        if !game.showMap, game.inCombat { drawCombat(game, pose: pose) }
         if let c = game.conversation, !game.showMap { drawConversation(c, game) }
+        if game.gameOver { drawGameOver(game) }
         if game.showHelp { drawHelp() }
         if let entry = game.nameEntry { drawNamePrompt(entry, frame: frame) }
         drawPanel(game, frame: frame)
         let hint = game.showMap ? "M or Esc closes the map  ·  + and − zoom"
+            : game.gameOver ? "Press Return to begin a new adventure"
+            : game.attackPending ? "Press a direction to attack  ·  Esc to cancel"
+            : game.inCombat ? "Your turn: walk into a foe to strike  ·  F + direction attack  ·  Space wait  ·  walk away to flee"
             : game.conversation != nil ? "Type what you say  ·  Return to say it  ·  Esc to leave"
-            : "Arrows walk  ·  T talk  ·  Space wait  ·  L look  ·  M map  ·  H help"
+            : "Arrows walk  ·  T talk  ·  F fight  ·  Space wait  ·  L look  ·  M map  ·  H help"
         texts.append(TextItem(text: hint, x: Double(Screen.mapX + 4), y: 502, size: 12, color: Screen.dim))
         return fb
     }
@@ -155,9 +160,11 @@ final class Screen {
         let tx = Double(px + 86)
         texts.append(TextItem(text: game.nameEntry == nil ? game.playerName : "Avatar", x: tx, y: 120, size: 20,
                               font: .title, color: Screen.accent))
-        texts.append(TextItem(text: "Day \(game.day)", x: tx, y: 152, size: 13, color: Screen.ink))
-        texts.append(TextItem(text: game.timeString, x: tx, y: 170, size: 13, color: Screen.ink))
-        texts.append(TextItem(text: timeOfDay(game.hourOfDay), x: tx, y: 187, size: 11, font: .italic, color: Screen.dim))
+        texts.append(TextItem(text: "Health \(game.hp) / \(game.maxHP)", x: tx, y: 146, size: 12, font: .bold,
+                              color: healthInk(game.hp, game.maxHP)))
+        healthBar(Int(tx), 163, pw - 98, 6, game.hp, game.maxHP)
+        texts.append(TextItem(text: "Day \(game.day)  ·  \(game.timeString)", x: tx, y: 172, size: 12.5, color: Screen.ink))
+        texts.append(TextItem(text: timeOfDay(game.hourOfDay), x: tx, y: 188, size: 11, font: .italic, color: Screen.dim))
 
         box(px, 214, pw, 72)
         let places = game.currentPlaces
@@ -188,7 +195,9 @@ final class Screen {
         }
         for (i, n) in game.party.enumerated() {
             let ly = 314.0 + Double(i) * 16
-            texts.append(TextItem(text: "\(n.name), \(n.race.name) \(n.role)", x: Double(px + 8), y: ly, size: 12, color: Screen.ink))
+            texts.append(TextItem(text: "\(n.name), \(n.race.name)", x: Double(px + 8), y: ly, size: 12, color: Screen.ink))
+            texts.append(TextItem(text: "\(n.hp)/\(n.maxHP)", x: Double(px + 158), y: ly + 1, size: 11, color: healthInk(n.hp, n.maxHP),
+                                  align: .right))
             texts.append(TextItem(text: n.disposition.word, x: Double(px + pw - 8), y: ly, size: 11.5, font: .italic,
                                   color: moodPanelInk(n.disposition), align: .right))
         }
@@ -298,6 +307,7 @@ final class Screen {
             ("Click or hold on the map", "walk that way"),
             ("Right-click", "look at something or someone"),
             ("T, or walk into someone", "talk to them (companions step aside)"),
+            ("F, then a direction", "attack (walk into a foe in a fight)"),
             ("Space", "wait a turn"),
             ("L", "look at what is ahead"),
             ("M", "map of the explored lands"),
@@ -401,6 +411,58 @@ final class Screen {
                 if (frameCount / 4) % 2 == 0 { fb.fill(Int(tx + tw) + 2, fieldY + 4, 2, 14, gold) }
             }
         }
+    }
+
+    private func healthInk(_ hp: Int, _ maxHP: Int) -> UInt32 {
+        let f = Double(hp) / Double(max(1, maxHP))
+        return f > 0.6 ? 0x9AD070 : (f > 0.3 ? 0xE0C060 : 0xE05A40)
+    }
+
+    /// A small red-to-green bar for health.
+    private func healthBar(_ x: Int, _ y: Int, _ w: Int, _ h: Int, _ hp: Int, _ maxHP: Int) {
+        fb.fill(x - 1, y - 1, w + 2, h + 2, rgb(0x0A0604))
+        fb.fill(x, y, w, h, rgb(0x3A1A14))
+        let f = Float(hp) / Float(max(1, maxHP))
+        let c = f > 0.5 ? mix(hex(0xD8B040), hex(0x3EAA3A), (f - 0.5) * 2) : mix(hex(0xC02018), hex(0xD8B040), f * 2)
+        fb.fill(x, y, Int((Float(w) * f).rounded()), h, pack(c))
+        fb.fill(x, y, Int((Float(w) * f).rounded()), 1, pack(c * 1.3))
+    }
+
+    /// Health bars over everyone in the fight, and a banner saying whose fight it is.
+    private func drawCombat(_ game: Game, pose: AvatarPose) {
+        guard let c = game.combat else { return }
+        let T = MapRenderer.tile
+        func bar(_ tx: Double, _ ty: Double, _ hp: Int, _ maxHP: Int, enemy: Bool) {
+            let sx = Screen.mapX + Int(tx * Double(T)) - map.camX + 2
+            let sy = Screen.mapY + Int(ty * Double(T)) - map.camY - 30
+            guard sx > Screen.mapX, sy > Screen.mapY, sx + 26 < Screen.mapX + MapRenderer.pixelW,
+                  sy + 6 < Screen.mapY + MapRenderer.pixelH else { return }
+            healthBar(sx, sy, 24, 3, hp, maxHP)
+            if enemy { fb.fill(sx - 3, sy - 1, 2, 5, rgb(0xE02010)) }
+        }
+        bar(pose.x, pose.y, game.hp, game.maxHP, enemy: false)
+        for n in game.party where n.z == game.z { bar(Double(n.x), Double(n.y), n.hp, n.maxHP, enemy: false) }
+        for n in c.enemies where n.z == game.z { bar(Double(n.x), Double(n.y), n.hp, n.maxHP, enemy: true) }
+        let foes = c.enemies.map { "\($0.shortName.capitalizedFirst) \($0.hp)/\($0.maxHP)" }.joined(separator: "   ")
+        fb.wash(Screen.mapX, Screen.mapY, MapRenderer.pixelW, 24, hex(0x3A0806), 0.75)
+        texts.append(TextItem(text: "Combat", x: Double(Screen.mapX + 8), y: Double(Screen.mapY + 2), size: 15, font: .title,
+                              color: 0xF0A060))
+        texts.append(TextItem(text: foes, x: Double(Screen.mapX + MapRenderer.pixelW - 8), y: Double(Screen.mapY + 5), size: 12,
+                              font: .bold, color: Screen.ink, align: .right))
+    }
+
+    private func drawGameOver(_ game: Game) {
+        fb.wash(Screen.mapX, Screen.mapY, MapRenderer.pixelW, MapRenderer.pixelH, hex(0x200000), 0.65)
+        let w = 380, h = 140
+        let x = Screen.mapX + (MapRenderer.pixelW - w) / 2, y = Screen.mapY + (MapRenderer.pixelH - h) / 2
+        parchmentBox(x, y, w, h)
+        let cx = Double(x + w / 2)
+        texts.append(TextItem(text: "Thou art slain", x: cx, y: Double(y + 14), size: 26, font: .title, color: 0x7A1008,
+                              align: .center, shadow: false))
+        texts.append(TextItem(text: game.deathMessage, x: cx, y: Double(y + 56), size: 13.5, font: .italic, color: 0x4A3018,
+                              align: .center, shadow: false))
+        texts.append(TextItem(text: "Press Return to begin a new adventure.", x: cx, y: Double(y + 96), size: 13, font: .bold,
+                              color: 0x5A2A10, align: .center, shadow: false))
     }
 
     private func moodPanelInk(_ d: Disposition) -> UInt32 {

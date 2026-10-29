@@ -14,6 +14,8 @@ enum SaveGame {
         var turn: Int
         var regions: [RegionRecord]
         var party: [NPC]?
+        var hp: Int?
+        var maxHP: Int?
     }
 
     private struct RegionRecord: Codable {
@@ -44,7 +46,7 @@ enum SaveGame {
         }
         let file = File(seed: String(game.world.seed), x: game.x, y: game.y, z: game.z,
                         facing: game.facing.rawValue, name: game.nameEntry == nil ? game.playerName : nil, turn: game.turn, regions: regions,
-                        party: game.world.party)
+                        party: game.world.party, hp: game.hp, maxHP: game.maxHP)
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .binary
         let data = try encoder.encode(file)
@@ -55,7 +57,9 @@ enum SaveGame {
     static func load(from url: URL = SaveGame.url) -> Game? {
         guard let data = try? Data(contentsOf: url),
               let file = try? PropertyListDecoder().decode(File.self, from: data),
-              file.version >= 2, let seed = UInt64(file.seed)
+              file.version >= 2, let seed = UInt64(file.seed),
+              (file.hp ?? 1) > 0   // a fallen Avatar's world is not resumed
+
         else { return nil }
         let world = World(seed: seed)
         let n = Region.size * Region.size
@@ -76,6 +80,8 @@ enum SaveGame {
         for n in world.party { n.prevX = n.x; n.prevY = n.y }
         let game = Game(world: world, name: file.name ?? "Avatar", x: file.x, y: file.y, z: file.z,
                         facing: Direction(rawValue: file.facing) ?? .south, turn: file.turn)
+        game.hp = file.hp ?? 100
+        game.maxHP = file.maxHP ?? 100
         // Quit before choosing a name? Ask again.
         if file.name == nil { game.nameEntry = "" }
         return game

@@ -93,6 +93,17 @@ final class NPC: Codable {
     private var inParty: Bool?
     /// Friendliness when they last refused to join or left the party (see `Party.lockedOut`).
     var refusedAt: Int?
+    /// Health; at 0 the NPC dies. (Optional storage: saves from before combat lack it.)
+    private var hpStore: Int?
+    private var maxHPStore: Int?
+    var maxHP: Int {
+        get { maxHPStore ?? Populace.health(Hash.unit(0x4EA17, id, 0)) }
+        set { maxHPStore = newValue }
+    }
+    var hp: Int {
+        get { hpStore ?? maxHP }
+        set { hpStore = newValue }
+    }
 
     // Not saved: where the NPC stood before this turn (for gliding) and chatter timing.
     var prevX = 0
@@ -101,7 +112,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, known, memory, inParty, refusedAt
+             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP"
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,
@@ -169,6 +180,11 @@ enum Populace {
                ["Grisha", "Ushka", "Bagra", "Murzah", "Krasha", "Volga", "Rugga", "Sharra", "Yazga", "Ghorza"]),
     ]
 
+    /// Health from 1 to 200, mostly towards the low end: 200·u^(5/3) averages 75.
+    static func health(_ u: Double) -> Int {
+        max(1, min(200, Int((200 * pow(u, 5.0 / 3.0)).rounded())))
+    }
+
     /// A friendliness drawn from a bell curve round the race's mean.
     static func friendliness(_ race: Race, _ rng: inout SplitMix64) -> Int {
         let u1 = max(1e-9, rng.double()), u2 = rng.double()
@@ -213,6 +229,8 @@ enum Populace {
                           bounds: [ox + max(1, bounds.0), oy + max(1, bounds.1), ox + min(n - 2, bounds.2), oy + min(n - 2, bounds.3)],
                           role: role, home: home)
             npc.facing = rng.int(4)
+            npc.maxHP = health(rng.double())
+            npc.hp = npc.maxHP
             taken.insert(ly * n + lx)
             people.append(npc)
         }

@@ -155,6 +155,27 @@ final class GameView: NSView, CALayerDelegate {
             enterName(event)
             return
         }
+        if game.gameOver {
+            if event.keyCode == 36 || event.keyCode == 76 {
+                stopRepeating()
+                heldKeys.removeAll()
+                game = Game(seed: UInt64.random(in: 1...UInt64.max))
+                onTurn?()
+            }
+            needsRender = true
+            return
+        }
+        if game.attackPending {
+            if let dir = GameView.directionKeys[event.keyCode] {
+                game.attack(dx: dir.0, dy: dir.1)
+                onTurn?()
+            } else if event.keyCode == 53 {
+                game.attackPending = false
+                game.log("You lower your fists.")
+            }
+            needsRender = true
+            return
+        }
         if let c = game.conversation {
             stopRepeating()
             heldKeys.removeAll()
@@ -195,6 +216,11 @@ final class GameView: NSView, CALayerDelegate {
         case "g": game.showGrid.toggle()
         case "h", "?", "/": game.showHelp.toggle()
         case "l": game.lookAhead()
+        case "f":
+            stopRepeating()
+            heldKeys.removeAll()
+            game.attackPending = true
+            game.log("Attack — which direction?")
         case "t":
             game.talk()
             if game.conversation != nil { stopRepeating(); heldKeys.removeAll() }
@@ -268,6 +294,8 @@ final class GameView: NSView, CALayerDelegate {
 
     private func startRepeating() {
         repeatTimer?.invalidate()
+        // In a fight every blow and step is its own key press.
+        if game.inCombat || game.gameOver { return }
         let timer = Timer(timeInterval: 0.22, repeats: false) { [weak self] _ in
             guard let self else { return }
             self.stepHeld()
@@ -318,7 +346,7 @@ final class GameView: NSView, CALayerDelegate {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        guard !game.showMap, game.nameEntry == nil, game.conversation == nil,
+        guard !game.showMap, game.nameEntry == nil, game.conversation == nil, !game.gameOver,
               let p = mapPixel(for: event), let dir = direction(toward: p) else { return }
         mouseDirection = dir
         stepHeld()

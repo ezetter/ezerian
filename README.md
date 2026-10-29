@@ -3,8 +3,8 @@
 The Land of Ezerian, made again with richer graphics. It is still a Mac-native,
 single-player, turn-based RPG in the spirit of **Ultima VI** in which, for now, you
 explore: walk an endless, randomly generated land of meadows, forests, rivers,
-mountains, towns, taverns and caves, and talk to the people you meet. There is no
-combat and there are no items yet.
+mountains, towns, taverns and caves, talk to the people you meet, gather companions,
+and fight. There are no weapons or items yet.
 
 The look follows the high-resolution Ultima VI remake in the reference screenshots
 (kept in `screens/`, which git ignores): 32-pixel tiles with painterly textures, thick
@@ -47,7 +47,8 @@ swift run -c release Ezerian
 | Right-click | Look at whatever (or whoever) is under the pointer |
 | T, or walk into someone | Talk to them |
 | Type, then Return | In a conversation: say anything; Esc to leave |
-| Space | Wait a turn |
+| F, then a direction | Attack whoever is there |
+| Space | Wait a turn (in a fight: let your turn pass) |
 | L | Look at the tile ahead |
 | M | Map of the lands you have explored (+/- or scroll to zoom) |
 | G | Show region borders on the map view |
@@ -110,6 +111,27 @@ which decide how they answer you.
 * Each race speaks its own way, from courtly elves ("thou", "mortal") and gruff dwarves
   ("aye", "surface-dweller") to blunt orcs ("pinkskin").
 * People, where they stand and how they feel about you are kept in the save file.
+
+## Combat
+
+* **Health:** the Avatar starts with 100 health points. Each NPC has 1–200, drawn as
+  200·u^(5/3) for a uniform random u, so most are frail and a few are very tough; the
+  average is 75 (the median about 63). Health shows in the side panel, for companions
+  in the Companions box, and over everyone's head during a fight.
+* **How fights start:**
+  * You attack: press **F** and a direction. Your victim's friendliness drops by 60.
+  * An unfriendly NPC standing beside you may attack on any turn, with chance
+    (friendliness ÷ 100)², so -30 is 9% a turn, -60 is 36%, and -100 always attacks.
+  * A conversation that leaves someone below 0, lower than before, may come to blows,
+    with chance -friendliness ÷ 100.
+* **Turns:** everyone takes a turn in a fixed round robin: you, then each companion,
+  then the enemy (or the enemy first, if they started it). Everyone fights bare-handed
+  and equally well for now: half of all blows land, for 1–10 damage. On your turn,
+  walk into a foe to strike them (or press F and a direction), step elsewhere, or press
+  Space to wait. Companions join the fight on your side; fighters strike the weakest
+  foe in reach, or close in on the nearest. Walk far enough away and you escape.
+* **Death:** anyone at 0 health dies. A companion who dies is gone from your party.
+  If the Avatar dies the game is over, and Return begins a new adventure in a new world.
 
 ## How the world works
 
@@ -176,6 +198,7 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | `main.swift`, `AppDelegate.swift`, `GameView.swift` | App, window, menus, keyboard, mouse and gliding movement |
 | `Game.swift` | Avatar movement, NPC turns, conversations, messages, game clock |
 | `Party.swift` | Companions: joining, leaving, following |
+| `Combat.swift` | Health, fights, turns, blows and death |
 | `NPC.swift`, `Dialogue.swift` | Races, friendliness, where people live, scripted replies |
 | `ClaudeDialogue.swift` | Claude API client, NPC character sheets, structured replies, API key storage |
 | `World.swift`, `Tiles.swift` | Regions, lazy generation, terrain and objects |
@@ -197,7 +220,8 @@ swift run -c release Ezerian --selftest
 Checks that regions are kept when you walk away and back, that every building in the
 starting town can be walked into through a door in its south wall, that roofs lift
 indoors, that each race's friendliness averages out right, that conversations follow
-the NPC's mood, that the party's joining, leaving, following and rejoining rules hold,
+the NPC's mood, that the party's joining, leaving, following and rejoining rules hold, that
+health, combat triggers, round-robin turns, damage and death follow the rules,
 that typed words reach Claude and its judgement moves friendliness
 (against a stand-in for the API, so no key or network is needed), that caves lead down and back up, that every object has a sprite, that keys
 reach the game, and that saves round-trip.
@@ -205,7 +229,7 @@ reach the game, and that saves round-trip.
 * `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name] [--scale 2]`
   renders a screenshot. A walk can also contain `find:<feature>` (for example
   `find:shrine` or `find:t.forest`) to jump next to the nearest one, `npc:orc` to stand
-  beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation, and `recruit` to fill the party.
+  beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation, `recruit` to fill the party, and `fight` to attack the person you face.
 * `--sheet out.png` draws every sprite; `--textures out.png` every texture.
 * `--overview out.png [--radius R]` draws a one-pixel-per-tile map of the generated world.
 * `--bench` times start-up art, world generation and rendering.
