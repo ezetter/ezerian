@@ -83,6 +83,8 @@ final class NPC: Codable {
     var compliments = 0
     /// Whether the NPC has told the Avatar their name.
     var known = false
+    /// The last few things said between the NPC and the Avatar, remembered across meetings.
+    var memory: [String]?
 
     // Not saved: where the NPC stood before this turn (for gliding) and chatter timing.
     var prevX = 0
@@ -91,7 +93,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, known
+             compliments, known, memory
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,

@@ -23,6 +23,10 @@ final class Game {
 
     /// The talk in progress, if any.
     private(set) var conversation: Conversation?
+    /// Called when something changes outside a key press (Claude's answer arriving).
+    var onChange: (() -> Void)?
+    /// Who voices the NPCs (replaced in tests).
+    var claude = ClaudeClient.shared
 
     var showMap = false
     var showGrid = false
@@ -325,6 +329,7 @@ final class Game {
         var c = Conversation(npc: npc)
         c.lines.append(Conversation.Line(text: g.text, fromAvatar: false))
         c.over = g.refuses
+        c.byClaude = claude.isAvailable
         conversation = c
         log(g.refuses ? g.text : "You speak with \(npc.shortName).")
     }
@@ -337,6 +342,89 @@ final class Game {
         c.lines.append(Conversation.Line(text: r.text, fromAvatar: false))
         if r.ends { c.over = true }
         conversation = c
+    }
+
+    // MARK: Free-text conversation
+
+    func typeInConversation(_ ch: Character) {
+        guard var c = conversation, !c.over, c.input.count < Conversation.maxInput else { return }
+        guard ch.isLetter || ch.isNumber || ch.isPunctuation || ch == " " || ch.isSymbol else { return }
+        if c.input.isEmpty && ch == " " { return }
+        c.input.append(ch)
+        conversation = c
+    }
+
+    func backspaceInConversation() {
+        guard var c = conversation, !c.input.isEmpty else { return }
+        c.input.removeLast()
+        conversation = c
+    }
+
+    /// Says what the Avatar typed. Claude answers (in a moment) if it can; otherwise
+    /// the line is matched to a scripted topic.
+    func submitConversation() {
+        guard var c = conversation, !c.over, !c.pending else { return }
+        let said = c.input.trimmingCharacters(in: .whitespaces)
+        guard !said.isEmpty else { return }
+        let history = c.lines
+        c.input = ""
+        c.lines.append(Conversation.Line(text: said, fromAvatar: true))
+        let npc = c.npc
+        guard claude.isAvailable else {
+            c.byClaude = false
+            conversation = c
+            scriptedAnswer(said)
+            return
+        }
+        c.pending = true
+        c.byClaude = true
+        conversation = c
+        AIDialogue.ask(npc, game: self, history: history, said: said, client: claude) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case let .success(r):
+                npc.changeFriendliness(by: r.friendliness_change)
+                if r.reveals_name { npc.known = true }
+                self.remember(npc, avatar: said, npcSaid: r.reply)
+                if var cc = self.conversation, cc.npc === npc {
+                    cc.pending = false
+                    cc.notice = nil
+                    cc.lines.append(Conversation.Line(text: r.reply, fromAvatar: false))
+                    if r.ends_conversation { cc.over = true }
+                    self.conversation = cc
+                }
+            case let .failure(e):
+                if var cc = self.conversation, cc.npc === npc {
+                    cc.pending = false
+                    cc.byClaude = false
+                    cc.notice = "Claude could not answer (\(e)); the reply is scripted."
+                    self.conversation = cc
+                    self.scriptedAnswer(said)
+                }
+            }
+            self.onChange?()
+        }
+    }
+
+    private func scriptedAnswer(_ said: String) {
+        guard var c = conversation else { return }
+        let npc = c.npc
+        let reply: (text: String, ends: Bool)
+        if let t = Dialogue.topic(for: said) {
+            reply = Dialogue.reply(npc, t, game: self)
+        } else {
+            reply = (Dialogue.smallTalk(npc), false)
+        }
+        c.lines.append(Conversation.Line(text: reply.text, fromAvatar: false))
+        if reply.ends { c.over = true }
+        conversation = c
+        remember(npc, avatar: said, npcSaid: reply.text)
+    }
+
+    private func remember(_ npc: NPC, avatar: String, npcSaid: String) {
+        var m = npc.memory ?? []
+        m.append("\(playerName) said: \"\(avatar)\" and you answered: \"\(npcSaid)\"")
+        npc.memory = Array(m.suffix(6))
     }
 
     func endConversation() {

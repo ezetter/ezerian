@@ -46,7 +46,7 @@ swift run -c release Ezerian
 | Click / hold on the map | Walk toward the pointer |
 | Right-click | Look at whatever (or whoever) is under the pointer |
 | T, or walk into someone | Talk to them |
-| 1–6, 0 or Esc | In a conversation: choose what to say, or leave |
+| Type, then Return | In a conversation: say anything; Esc to leave |
 | Space | Wait a turn |
 | L | Look at the tile ahead |
 | M | Map of the lands you have explored (+/- or scroll to zoom) |
@@ -77,12 +77,26 @@ which decide how they answer you.
 * **Each turn** they go about their business: most wander a little, hostile ones close
   in on you and growl, adoring ones come over to wave.
 * **Talking:** walk into someone or press T. The conversation window shows their
-  portrait, race, trade, mood and score. Ask their **name** (hostile folk won't say),
-  their **job**, the **news** (friendly folk point you to nearby towns and landmarks),
-  or **directions** to an inn (friendly folk are exact, neutral ones vague, hostile ones
-  lie). A **compliment** raises their friendliness (elves like flattery most, orcs
-  least), an **insult** lowers it, and an NPC who loathes you (-85 or below) won't
-  talk at all.
+  portrait, race, trade, mood and score, and a line where you type whatever you want
+  to say. An NPC who loathes you (-85 or below) won't talk at all.
+* **Claude voices the NPCs.** Each line you type goes to the Claude API
+  (`claude-haiku-5-5`, Anthropic's fast, inexpensive model, at low effort with
+  thinking off) with a character sheet: race and manner of speech, trade, friendliness
+  score and mood, what they know of nearby inns, towns and landmarks, and what you
+  have said to each other before. Claude answers in character, its tone set by the
+  friendliness, and judges your words, returning structured JSON: the reply, the
+  intent (greeting, friendly, compliment, question, small talk, rude, insult, threat,
+  farewell or nonsense), the change in friendliness (-25 to 25), whether the NPC walks
+  off, and whether they gave their name. The game applies the change at once, so
+  kindness and rudeness carry over to later meetings, and each NPC remembers the last
+  few exchanges.
+* **Setting it up:** choose **Game ▸ Claude API Key…** and paste a key from
+  console.anthropic.com (it is kept in your login keychain), or launch with
+  `ANTHROPIC_API_KEY` set. **Game ▸ Voice Conversations with Claude** turns it off.
+* **Without Claude** (no key, offline, or an API error) the game falls back to scripted
+  replies: your words are matched to a topic — name, job, news, directions,
+  compliment, insult or farewell — and answered by mood, and the window says the
+  reply was scripted.
 * Each race speaks its own way, from courtly elves ("thou", "mortal") and gruff dwarves
   ("aye", "surface-dweller") to blunt orcs ("pinkskin").
 * People, where they stand and how they feel about you are kept in the save file.
@@ -151,7 +165,8 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | --- | --- |
 | `main.swift`, `AppDelegate.swift`, `GameView.swift` | App, window, menus, keyboard, mouse and gliding movement |
 | `Game.swift` | Avatar movement, NPC turns, conversations, messages, game clock |
-| `NPC.swift`, `Dialogue.swift` | Races, friendliness, where people live, what they say |
+| `NPC.swift`, `Dialogue.swift` | Races, friendliness, where people live, scripted replies |
+| `ClaudeDialogue.swift` | Claude API client, NPC character sheets, structured replies, API key storage |
 | `World.swift`, `Tiles.swift` | Regions, lazy generation, terrain and objects |
 | `WorldGen.swift`, `Settlements.swift`, `Buildings.swift`, `Sites.swift`, `Roads.swift`, `Caves.swift`, `Names.swift`, `Noise.swift` | World generation |
 | `Screen.swift`, `TextRenderer.swift` | Screen layout, side panel, overlays, text |
@@ -171,13 +186,14 @@ swift run -c release Ezerian --selftest
 Checks that regions are kept when you walk away and back, that every building in the
 starting town can be walked into through a door in its south wall, that roofs lift
 indoors, that each race's friendliness averages out right, that conversations follow
-the NPC's mood, that caves lead down and back up, that every object has a sprite, that keys
+the NPC's mood, that typed words reach Claude and its judgement moves friendliness
+(against a stand-in for the API, so no key or network is needed), that caves lead down and back up, that every object has a sprite, that keys
 reach the game, and that saves round-trip.
 
 * `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name] [--scale 2]`
   renders a screenshot. A walk can also contain `find:<feature>` (for example
   `find:shrine` or `find:t.forest`) to jump next to the nearest one, `npc:orc` to stand
-  beside the nearest orc, and `talk` and `say:N` to hold a conversation.
+  beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation.
 * `--sheet out.png` draws every sprite; `--textures out.png` every texture.
 * `--overview out.png [--radius R]` draws a one-pixel-per-tile map of the generated world.
 * `--bench` times start-up art, world generation and rendering.

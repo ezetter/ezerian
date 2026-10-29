@@ -9,6 +9,7 @@ final class GameView: NSView, CALayerDelegate {
         didSet {
             screen.attach(game.world)
             snapToGame()
+            game.onChange = { [weak self] in self?.needsRender = true }
             needsRender = true
         }
     }
@@ -51,6 +52,7 @@ final class GameView: NSView, CALayerDelegate {
         root.addSublayer(mapLayer)
         root.addSublayer(textLayer)
         snapToGame()
+        game.onChange = { [weak self] in self?.needsRender = true }
         let t = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(t, forMode: .common)
         timer = t
@@ -156,12 +158,15 @@ final class GameView: NSView, CALayerDelegate {
         if let c = game.conversation {
             stopRepeating()
             heldKeys.removeAll()
-            if c.over {
+            switch event.keyCode {
+            case _ where c.over, 53:                 // finished, or Esc
                 game.endConversation()
-            } else if event.keyCode == 53 {
-                game.endConversation()
-            } else if let ch = event.charactersIgnoringModifiers?.first, let n = ch.wholeNumberValue, let t = Topic(rawValue: n) {
-                if t == .farewell { game.say(.farewell) } else { game.say(t) }
+            case 36, 76:                             // Return, Enter
+                game.submitConversation()
+            case 51, 117:                            // Delete, Forward Delete
+                game.backspaceInConversation()
+            default:
+                for ch in event.characters ?? "" { game.typeInConversation(ch) }
             }
             needsRender = true
             return

@@ -12,6 +12,11 @@ enum DevTools {
                 continue
             }
             if token == "talk" { game.talk(); continue }
+            if token.hasPrefix("type:") {
+                for ch in token.dropFirst(5).replacingOccurrences(of: "_", with: " ") { game.typeInConversation(ch) }
+                continue
+            }
+            if token == "send" { game.submitConversation(); continue }
             if token.hasPrefix("say:"), let n = Int(token.dropFirst(4)), let t = Topic(rawValue: n) { game.say(t); continue }
             if token.hasPrefix("npc:"), let race = Race(rawValue: String(token.dropFirst(4))) {
                 // Stand beside the nearest NPC of a race, facing them.
@@ -393,6 +398,70 @@ extension DevTools {
         } else {
             check(false, "found someone to talk to")
         }
+
+        // Free-text conversation through Claude, with a stand-in for the API.
+        let mock = ClaudeClient()
+        mock.availableOverride = true
+        var sent: [String: Any] = [:]
+        var answer: (Data) -> Result<Data, Error> = { _ in .failure(ClaudeClient.Failure.http(500, "")) }
+        mock.transport = { body, done in
+            sent = (try? JSONSerialization.jsonObject(with: body) as? [String: Any]) ?? [:]
+            done(answer(body))
+        }
+        func apiResponse(_ reply: [String: Any], stop: String = "end_turn") -> Data {
+            let text = String(data: try! JSONSerialization.data(withJSONObject: reply), encoding: .utf8)!
+            return try! JSONSerialization.data(withJSONObject: [
+                "id": "msg_test", "type": "message", "role": "assistant", "model": ClaudeClient.model,
+                "content": [["type": "text", "text": text]], "stop_reason": stop,
+                "usage": ["input_tokens": 500, "output_tokens": 60]])
+        }
+        game.claude = mock
+        if let n = home.npcs.first(where: { npc in [(0, 1), (1, 0), (-1, 0), (0, -1)].contains { game.world.isPassable(npc.x + $0.0, npc.y + $0.1, 0) && game.world.npc(at: npc.x + $0.0, npc.y + $0.1, 0) == nil } }) {
+            let (dx, dy) = [(0, 1), (1, 0), (-1, 0), (0, -1)].first { game.world.isPassable(n.x + $0.0, n.y + $0.1, 0) && game.world.npc(at: n.x + $0.0, n.y + $0.1, 0) == nil }!
+            game.teleport(n.x + dx, n.y + dy, 0)
+            n.friendliness = 10
+            n.known = false
+            game.talk()
+            for ch in "You look like a fine, honest soul. Who are you?" { game.typeInConversation(ch) }
+            answer = { _ in .success(apiResponse(["reply": "Why, thank you! I'm \(n.name).", "intent": "compliment",
+                                                   "friendliness_change": 8, "ends_conversation": false, "reveals_name": true])) }
+            game.submitConversation()
+            let msgs = sent["messages"] as? [[String: Any]] ?? []
+            let prompt = msgs.first?["content"] as? String ?? ""
+            let config = sent["output_config"] as? [String: Any] ?? [:]
+            check(sent["model"] as? String == "claude-haiku-5-5" && config["effort"] as? String == "low"
+                  && (config["format"] as? [String: Any])?["type"] as? String == "json_schema",
+                  "typed words go to Claude Haiku 5.5 at low effort, asking for a structured reply")
+            check(prompt.contains(n.name) && prompt.contains("Friendliness towards the Avatar: 10") && prompt.contains("fine, honest soul"),
+                  "the request carries the NPC's sheet, friendliness and the Avatar's words")
+            check(n.friendliness == 18 && n.known, "Claude's judgement raises friendliness (+8) and the NPC gives their name")
+            check(game.conversation?.lines.last?.text == "Why, thank you! I'm \(n.name)." && game.conversation?.byClaude == true,
+                  "Claude's reply appears in the conversation")
+            for ch in "Die, worm!" { game.typeInConversation(ch) }
+            answer = { _ in .success(apiResponse(["reply": "Guards!", "intent": "threat", "friendliness_change": -90,
+                                                   "ends_conversation": true, "reveals_name": false])) }
+            game.submitConversation()
+            check(n.friendliness == -7 && game.conversation?.over == true, "a threat lowers friendliness (capped at -25) and can end the talk")
+            game.endConversation()
+            check(n.memory?.count == 2, "the NPC remembers what was said for next time")
+            game.talk()
+            answer = { _ in .success(apiResponse(["reply": "", "intent": "nonsense", "friendliness_change": 0,
+                                                   "ends_conversation": false, "reveals_name": false], stop: "refusal")) }
+            for ch in "What is your name?" { game.typeInConversation(ch) }
+            game.submitConversation()
+            check(game.conversation?.notice != nil && game.conversation?.byClaude == false && game.conversation?.lines.last?.fromAvatar == false,
+                  "if Claude can't answer, a scripted reply is given and the window says so")
+            game.endConversation()
+            mock.availableOverride = false
+            n.friendliness = 50
+            n.known = false
+            game.talk()
+            for ch in "Tell me, what is your name?" { game.typeInConversation(ch) }
+            game.submitConversation()
+            check(n.known && game.conversation?.byClaude == false, "without Claude, typed words are matched to scripted topics")
+            game.endConversation()
+        }
+        game.claude = ClaudeClient.shared
 
         // Keys reach the game the same way they do in the window.
         let keyGame = Game(seed: seed)

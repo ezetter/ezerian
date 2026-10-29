@@ -29,6 +29,15 @@ struct Conversation {
     var lines: [Line] = []
     /// The NPC has had enough (or said goodbye); any key closes the talk.
     var over = false
+    /// What the Avatar is typing.
+    var input = ""
+    /// Waiting for Claude's answer.
+    var pending = false
+    /// Whether this talk is voiced by Claude (otherwise scripted).
+    var byClaude = false
+    /// A note about Claude being unreachable, shown in the window.
+    var notice: String?
+    static let maxInput = 160
 }
 
 /// What NPCs say. Every reply is chosen by the NPC's friendliness band, flavoured

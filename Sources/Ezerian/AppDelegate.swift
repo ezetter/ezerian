@@ -94,6 +94,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         gameMenu.addItem(withTitle: "New World…", action: #selector(newWorld), keyEquivalent: "n").target = self
         gameMenu.addItem(withTitle: "Save World", action: #selector(saveNow), keyEquivalent: "s").target = self
         gameMenu.addItem(.separator())
+        gameMenu.addItem(withTitle: "Claude API Key…", action: #selector(setAPIKey), keyEquivalent: "").target = self
+        let useClaude = gameMenu.addItem(withTitle: "Voice Conversations with Claude", action: #selector(toggleClaude), keyEquivalent: "")
+        useClaude.target = self
+        useClaude.state = ClaudeClient.shared.enabled ? .on : .off
+        gameMenu.addItem(.separator())
         gameMenu.addItem(withTitle: "Map of Explored Lands  (M)", action: #selector(toggleMap), keyEquivalent: "").target = self
         gameMenu.addItem(withTitle: "Region Borders  (G)", action: #selector(toggleGrid), keyEquivalent: "").target = self
         gameMenu.addItem(withTitle: "Help  (H)", action: #selector(toggleHelp), keyEquivalent: "").target = self
@@ -135,6 +140,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func saveNow() {
         save()
         gameView.game.log("The world has been saved.")
+        gameView.refresh()
+    }
+
+    /// Asks for a Claude API key and keeps it in the login keychain.
+    @objc private func setAPIKey() {
+        let alert = NSAlert()
+        alert.messageText = "Claude API Key"
+        alert.informativeText = "NPCs use Claude (\(ClaudeClient.model)) to understand what you say and answer in character. "
+            + "Paste an API key from console.anthropic.com; it is kept in your login keychain. Leave it empty to remove the saved key."
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        field.placeholderString = "sk-ant-…"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard response == .alertFirstButtonReturn else { return }
+            let key = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            ClaudeClient.saveKey(key.isEmpty ? nil : key)
+            self?.gameView.game.log(key.isEmpty ? "The Claude API key was removed." : "The Claude API key was saved.")
+            self?.gameView.refresh()
+        }
+    }
+
+    @objc private func toggleClaude(_ sender: NSMenuItem) {
+        ClaudeClient.shared.enabled.toggle()
+        sender.state = ClaudeClient.shared.enabled ? .on : .off
+        gameView.game.log(ClaudeClient.shared.enabled ? "NPCs will speak through Claude." : "NPCs will use scripted replies.")
         gameView.refresh()
     }
 

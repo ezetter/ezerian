@@ -17,6 +17,7 @@ final class Screen {
     private(set) var texts: [TextItem] = []
     private lazy var backdrop: [UInt32] = makeBackdrop()
     private let parchment: Canvas
+    private var frameCount = 0
 
     private let gold = rgb(0xD8B050), goldDark = rgb(0x6A4A14), goldLight = rgb(0xF8E8A0)
     static let ink: UInt32 = 0xEADFC4, dim: UInt32 = 0xA89A7E, accent: UInt32 = 0xF2D27A, brown: UInt32 = 0x3A2412
@@ -45,12 +46,13 @@ final class Screen {
         } else {
             map.draw(game, pose: pose, npcT: npcT, into: fb, at: Screen.mapX, Screen.mapY, frame: frame, clock: clock)
         }
+        frameCount = frame
         if let c = game.conversation, !game.showMap { drawConversation(c, game) }
         if game.showHelp { drawHelp() }
         if let entry = game.nameEntry { drawNamePrompt(entry, frame: frame) }
         drawPanel(game, frame: frame)
         let hint = game.showMap ? "M or Esc closes the map  ·  + and − zoom"
-            : game.conversation != nil ? "Number keys choose what to say  ·  0 or Esc to leave"
+            : game.conversation != nil ? "Type what you say  ·  Return to say it  ·  Esc to leave"
             : "Arrows walk  ·  T talk  ·  Space wait  ·  L look  ·  M map  ·  H help"
         texts.append(TextItem(text: hint, x: Double(Screen.mapX + 4), y: 502, size: 12, color: Screen.dim))
         return fb
@@ -340,25 +342,46 @@ final class Screen {
         // What has been said.
         let tx = Double(fx + fw + 16), tw = Double(w - fw - 44)
         var rows: [(String, Bool)] = []
-        for line in c.lines.suffix(6) {
+        for line in c.lines.suffix(8) {
             let text = line.fromAvatar ? "“\(line.text)”" : "\(npc.shortName.capitalizedFirst): “\(line.text)”"
             for l in TextRenderer.wrap(text, width: tw, size: 13, font: line.fromAvatar ? .italic : .body) { rows.append((l, line.fromAvatar)) }
         }
-        var ly = Double(y + 40)
-        for (l, mine) in rows.suffix(7) {
+        var ly = Double(y + 60)
+        for (l, mine) in rows.suffix(6) {
             texts.append(TextItem(text: l, x: tx, y: ly, size: 13, font: mine ? .italic : .body,
                                   color: mine ? 0x5A4A3A : 0x2A1406, shadow: false))
             ly += 17
         }
-        // What to say next.
-        let options: String
+        // Who is voicing the talk, and any trouble reaching Claude.
+        let voice = c.byClaude ? "Voiced by Claude" : (ClaudeClient.shared.isAvailable ? "Scripted"
+            : "Scripted · add a Claude API key in the Game menu for free conversation")
+        texts.append(TextItem(text: c.notice ?? voice, x: Double(x + w - 16), y: Double(y + 44), size: 10.5, font: .italic,
+                              color: c.notice == nil ? 0x7A6A50 : 0x9A2A10, align: .right, shadow: false))
+        // The line being typed.
+        let fieldX = Int(tx) - 4, fieldY = y + h - 34, fieldW = w - (fieldX - x) - 16
         if c.over {
-            options = "Press any key to go on your way."
+            texts.append(TextItem(text: "Press any key to go on your way.", x: tx, y: Double(fieldY + 4), size: 12.5,
+                                  font: .bold, color: 0x6A2A10, shadow: false))
         } else {
-            options = Topic.menu.map { "\($0.rawValue) \($0.label)" }.joined(separator: "   ")
+            fb.fill(fieldX, fieldY, fieldW, 22, rgb(0x2A1C10))
+            gild(fieldX, fieldY, fieldW, 22)
+            if c.pending {
+                let dots = String(repeating: ".", count: 1 + (frameCount / 3) % 3)
+                texts.append(TextItem(text: "\(npc.shortName.capitalizedFirst) is thinking\(dots)", x: tx, y: Double(fieldY + 3),
+                                      size: 12.5, font: .italic, color: Screen.dim))
+            } else {
+                var shown = c.input
+                while !shown.isEmpty && TextRenderer.width(shown, size: 13, font: .body) > Double(fieldW - 16) { shown.removeFirst() }
+                let tw = shown.isEmpty ? 0 : TextRenderer.width(shown, size: 13, font: .body)
+                if shown.isEmpty {
+                    texts.append(TextItem(text: "Say something…", x: tx, y: Double(fieldY + 3), size: 13, font: .italic,
+                                          color: 0x7A6A50, shadow: false))
+                } else {
+                    texts.append(TextItem(text: shown, x: tx, y: Double(fieldY + 3), size: 13, color: Screen.accent))
+                }
+                if (frameCount / 4) % 2 == 0 { fb.fill(Int(tx + tw) + 2, fieldY + 4, 2, 14, gold) }
+            }
         }
-        texts.append(TextItem(text: options, x: tx, y: Double(y + h - 26), size: 12.5, font: .bold, color: 0x6A2A10,
-                              shadow: false))
     }
 
     private func moodInk(_ d: Disposition) -> UInt32 {
