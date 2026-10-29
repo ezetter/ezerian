@@ -124,7 +124,7 @@ struct NPCReply: Decodable, Equatable {
 
 enum AIDialogue {
     static let intents = ["greeting", "friendly", "compliment", "question", "small_talk", "rude", "insult", "threat",
-                          "farewell", "nonsense"]
+                          "farewell", "ask_to_join", "dismiss", "nonsense"]
 
     static let system = """
     You voice one non-player character in "The Land of Ezerian", a single-player medieval fantasy role-playing \
@@ -149,7 +149,9 @@ enum AIDialogue {
 
     How to judge the Avatar's words:
     - intent: the single best label: greeting, friendly, compliment, question, small_talk, rude, insult, threat, \
-    farewell, or nonsense.
+    farewell, ask_to_join (the Avatar invites you to join their party, travel with them or be their companion), \
+    dismiss (the Avatar sends you away from their party), or nonsense. Whether you accept an invitation is \
+    decided for you on the character sheet: follow it.
     - friendliness_change: an integer from -25 to 25, how much this line changes how you feel about the Avatar. \
     Polite questions and small talk: 0 to 2. Kind words and compliments: 3 to 10 (elves like gracious words most, \
     dwarves are slow to warm, orcs scorn flattery but respect boldness and strength). Rudeness: -3 to -8. \
@@ -182,7 +184,7 @@ enum AIDialogue {
     }
 
     /// The character sheet, the talk so far and the newest line, for one request.
-    static func prompt(_ npc: NPC, game: Game, history: [Conversation.Line], said: String) -> String {
+    static func prompt(_ npc: NPC, game: Game, history: [Conversation.Line], said: String, joinRule: String = "") -> String {
         var facts: [String] = ["You live in \(game.region.name)."]
         if let home = npc.home { facts.append("You belong to \(home).") }
         if let (place, dir, dist) = Dialogue.nearestPlace(game, from: (npc.x, npc.y), wantShelter: true) {
@@ -200,6 +202,7 @@ enum AIDialogue {
         - Friendliness towards the Avatar: \(npc.friendliness) on a scale from -100 (extremely hostile) to 100 \
         (adoring), which is \(npc.disposition.word.lowercased()).
         - You have \(npc.known ? "already told the Avatar your name" : "not told the Avatar your name").
+        - Travelling: \(joinRule)
         - What you know: \(facts.joined(separator: " "))
         """
         let memory = npc.memory ?? []
@@ -213,14 +216,14 @@ enum AIDialogue {
     }
 
     /// The JSON request body for one line of conversation.
-    static func requestBody(_ npc: NPC, game: Game, history: [Conversation.Line], said: String) -> Data {
+    static func requestBody(_ npc: NPC, game: Game, history: [Conversation.Line], said: String, joinRule: String = "") -> Data {
         let body: [String: Any] = [
             "model": ClaudeClient.model,
             "max_tokens": 1024,
             "thinking": ["type": "disabled"],
             "output_config": ["effort": "low", "format": ["type": "json_schema", "schema": schema]],
             "system": system,
-            "messages": [["role": "user", "content": prompt(npc, game: game, history: history, said: said)]],
+            "messages": [["role": "user", "content": prompt(npc, game: game, history: history, said: said, joinRule: joinRule)]],
         ]
         return try! JSONSerialization.data(withJSONObject: body)
     }
@@ -251,9 +254,9 @@ enum AIDialogue {
     }
 
     /// Asks Claude for the NPC's answer; calls back on the main thread.
-    static func ask(_ npc: NPC, game: Game, history: [Conversation.Line], said: String,
+    static func ask(_ npc: NPC, game: Game, history: [Conversation.Line], said: String, joinRule: String = "",
                     client: ClaudeClient = .shared, done: @escaping (Result<NPCReply, Error>) -> Void) {
-        let body = requestBody(npc, game: game, history: history, said: said)
+        let body = requestBody(npc, game: game, history: history, said: said, joinRule: joinRule)
         client.transport(body) { result in
             let parsed = result.flatMap { data in Result { try parse(data) } }
             if Thread.isMainThread { done(parsed) } else { DispatchQueue.main.async { done(parsed) } }
@@ -266,6 +269,8 @@ extension Dialogue {
     static func topic(for text: String) -> Topic? {
         let s = " " + text.lowercased().filter { $0.isLetter || $0 == " " || $0 == "'" } + " "
         func has(_ words: [String]) -> Bool { words.contains { s.contains(" \($0) ") || s.contains(" \($0)") && $0.count > 4 } }
+        if s.contains("leave the party") || s.contains("leave my party") || s.contains("part ways") || has(["dismiss", "dismissed"]) { return .dismiss }
+        if has(["join", "party", "companion", "companions"]) || s.contains("come with me") || s.contains("travel with") { return .join }
         if has(["bye", "goodbye", "farewell", "later", "leave"]) { return .farewell }
         if has(["fool", "idiot", "stupid", "ugly", "stink", "stinks", "hate", "die", "kill", "worthless", "coward", "shut"]) { return .insult }
         if has(["beautiful", "kind", "wonderful", "lovely", "honest", "great", "fine", "thank", "thanks", "friend", "admire", "brave"]) { return .compliment }

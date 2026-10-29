@@ -2,7 +2,7 @@ import Foundation
 
 /// What the Avatar can say in a conversation (picked with the number keys).
 enum Topic: Int, CaseIterable {
-    case farewell = 0, name, job, news, directions, compliment, insult
+    case farewell = 0, name, job, news, directions, compliment, insult, join, dismiss
 
     var label: String {
         switch self {
@@ -13,6 +13,8 @@ enum Topic: Int, CaseIterable {
         case .compliment: return "Compliment"
         case .insult: return "Insult"
         case .farewell: return "Farewell"
+        case .join: return "Join me"
+        case .dismiss: return "Dismiss"
         }
     }
 
@@ -33,6 +35,10 @@ struct Conversation {
     var input = ""
     /// Waiting for Claude's answer.
     var pending = false
+    /// The NPC has asked to join the party and awaits a yes or no.
+    var offer = false
+    /// The chance of an offer (or a request to join) has come up once this talk.
+    var offerRolled = false
     /// Whether this talk is voiced by Claude (otherwise scripted).
     var byClaude = false
     /// A note about Claude being unreachable, shown in the window.
@@ -124,6 +130,8 @@ enum Dialogue {
         case .compliment: return "You have an honest face, if I may say so."
         case .insult: return "Out of my way, you fool."
         case .farewell: return "Farewell."
+        case .join: return "Will you join me on my travels?"
+        case .dismiss: return "It's time we parted ways."
         }
     }
 
@@ -206,6 +214,8 @@ enum Dialogue {
                 text = npc.race == .orc ? "{name} remember you. {name} remember." : "That's the last word you'll have from me."
                 ends = true
             }
+        case .join, .dismiss:
+            text = "Hm."
         case .farewell:
             switch d {
             case .adoring: text = pick(["Fare thee well, {player}! Come back soon!", "Safe roads, dear friend."], npc, 7)
@@ -217,6 +227,63 @@ enum Dialogue {
             ends = true
         }
         return (fill(text, npc, player), ends)
+    }
+
+    // MARK: Joining the party
+
+    static func joinAnswer(_ npc: NPC, _ d: Party.Decision, player: String) -> String {
+        let s: String
+        switch d {
+        case .accept:
+            switch npc.race {
+            case .human: s = "Travel with you? Aye, {player}, I'd like that. Lead on!"
+            case .elf: s = "Thy road and mine shall be one, {player}. I will come."
+            case .dwarf: s = "Ha! Someone has to keep ye alive. I'm with ye."
+            case .orc: s = "{name} come. {name} smash things for you."
+            }
+        case .refuse:
+            s = npc.disposition >= .friendly ? "I'm flattered, but my place is here." : "Travel with you? I think not."
+        case .lockedOut:
+            s = "I gave you my answer already, and it hasn't changed."
+        case .full:
+            s = "You've three companions already. There's no room for another."
+        case .already:
+            s = "I'm already with you, {player}!"
+        }
+        return s.replacingOccurrences(of: "{player}", with: player).replacingOccurrences(of: "{name}", with: npc.name)
+    }
+
+    static func offer(_ npc: NPC, player: String) -> String {
+        let s: String
+        switch npc.race {
+        case .human: s = "You know, {player}, I've a mind to see the world. Would you let me travel with you?"
+        case .elf: s = "Thy path calls to me, {player}. Wouldst thou have my company on the road?"
+        case .dwarf: s = "Bah, this place bores me. Fancy an axe at yer side, {player}?"
+        case .orc: s = "You strong. {name} want to come with you. Yes?"
+        }
+        return s.replacingOccurrences(of: "{player}", with: player).replacingOccurrences(of: "{name}", with: npc.name)
+    }
+
+    static func welcomed(_ npc: NPC) -> String {
+        switch npc.race {
+        case .human: return "Wonderful! I'll fetch my pack."
+        case .elf: return "Then let us walk together beneath the stars."
+        case .dwarf: return "Ha! Ye won't regret it."
+        case .orc: return "Good. Good! {name} ready.".replacingOccurrences(of: "{name}", with: npc.name)
+        }
+    }
+
+    static func leaving(_ npc: NPC) -> String {
+        switch npc.race {
+        case .human: return "That's enough. I'll be going my own way from here."
+        case .elf: return "I see now our roads must part. Farewell."
+        case .dwarf: return "I've had my fill of ye. Find yerself another axe."
+        case .orc: return "{name} done with you. Go away.".replacingOccurrences(of: "{name}", with: npc.name)
+        }
+    }
+
+    static func dismissed(_ npc: NPC) -> String {
+        npc.disposition >= .friendly ? "If that's your wish. Fare you well." : "Fine. I was tired of you anyway."
     }
 
     private static func jobLine(_ npc: NPC) -> String {

@@ -17,6 +17,14 @@ enum DevTools {
                 continue
             }
             if token == "send" { game.submitConversation(); continue }
+            if token == "recruit" {
+                // Brings the nearest NPCs into the party (developer screenshots).
+                let folk = game.world.npcs(near: game.x, game.y, game.z, radius: 30).filter { !$0.following }
+                    .sorted { abs($0.x - game.x) + abs($0.y - game.y) < abs($1.x - game.x) + abs($1.y - game.y) }
+                for n in folk.prefix(Party.maxSize) { game.addToParty(n) }
+                game.regroupParty()
+                continue
+            }
             if token.hasPrefix("say:"), let n = Int(token.dropFirst(4)), let t = Topic(rawValue: n) { game.say(t); continue }
             if token.hasPrefix("npc:"), let race = Race(rawValue: String(token.dropFirst(4))) {
                 // Stand beside the nearest NPC of a race, facing them.
@@ -462,6 +470,93 @@ extension DevTools {
             game.endConversation()
         }
         game.claude = ClaudeClient.shared
+
+        // The party.
+        check(Party.chance(0) == 0 && Party.chance(-40) == 0 && Party.chance(100) == 1
+              && Party.chance(30) < Party.chance(60) && Party.chance(1) > 0,
+              "joining: no chance at friendliness 0 or below, rising with friendliness, certain at 100")
+        game.endConversation()
+        let partyTest = Game(seed: seed)
+        partyTest.confirmName()
+        partyTest.claude = mock
+        mock.availableOverride = false
+        let townsfolk = partyTest.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
+        var dice = 0.5
+        partyTest.roll = { dice }
+        func chat(_ n: NPC, _ text: String) {
+            partyTest.endConversation()
+            partyTest.teleport(n.x, n.y + 1, n.z)
+            if partyTest.world.npc(at: n.x, n.y + 1, n.z) != nil || !partyTest.world.isPassable(n.x, n.y + 1, n.z) {
+                partyTest.teleport(n.x + 1, n.y, n.z)
+            }
+            partyTest.startConversation(with: n)
+            for ch in text { partyTest.typeInConversation(ch) }
+            partyTest.submitConversation()
+        }
+        if townsfolk.count >= 5 {
+            let a = townsfolk[0], b = townsfolk[1], c = townsfolk[2], d = townsfolk[3], e = townsfolk[4]
+            a.friendliness = 100; dice = 0.999
+            chat(a, "Will you join my party?")
+            check(a.following && partyTest.party.count == 1, "at friendliness 100 an NPC always agrees to join")
+            check(partyTest.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs.allSatisfy { $0 !== a } && partyTest.world.npc(at: a.x, a.y, 0) === a,
+                  "a companion leaves their home region's roll and travels with the Avatar")
+            b.friendliness = 0; dice = 0
+            chat(b, "Come with me, travel with me!")
+            check(!b.following && b.refusedAt == 0, "at friendliness 0 an NPC never joins, and remembers refusing")
+            b.friendliness = 30; dice = 0
+            chat(b, "Please join my party")
+            check(!b.following, "after a refusal, asking again fails while friendliness is up by less than 35")
+            b.friendliness = 36; dice = 0
+            chat(b, "Please join my party")
+            check(b.following, "once friendliness has risen by 35 or more, they may be asked again")
+            c.friendliness = 100; dice = 0
+            chat(c, "Will you join my party?")
+            d.friendliness = 100; dice = 0
+            chat(d, "Will you join my party?")
+            check(partyTest.party.count == 3 && !d.following, "the party holds at most three")
+            partyTest.endConversation()
+            // Following.
+            partyTest.teleport(partyTest.x, partyTest.y, 0)
+            var walked = 0
+            for (dx, dy) in [(1, 0), (1, 0), (0, 1), (0, 1), (-1, 0), (-1, 0), (0, -1), (1, 0), (1, 0)] {
+                if partyTest.move(dx: dx, dy: dy) { walked += 1 }
+            }
+            let near = partyTest.party.allSatisfy { max(abs($0.x - partyTest.x), abs($0.y - partyTest.y)) <= Party.maxSize + 2 && $0.z == partyTest.z }
+            check(walked >= 4 && near, "companions follow the Avatar (\(walked) steps walked)")
+            if !near { for n in partyTest.party { print("     ", n.name, n.x, n.y, n.z, "avatar", partyTest.x, partyTest.y, partyTest.z) } }
+            // Talking to a companion; rudeness can drive them off, and they won't rejoin soon.
+            a.friendliness = 40
+            dice = 0
+            chat(a, "You are a stupid fool!")
+            check(!a.following && a.refusedAt == a.friendliness && partyTest.party.count == 2,
+                  "a companion insulted into liking the Avatar less may leave the party")
+            a.friendliness += 20; dice = 0
+            chat(a, "Join me again?")
+            check(!a.following, "a companion who left won't rejoin unless friendliness rises by 35")
+            // Offers.
+            partyTest.endConversation()
+            e.friendliness = 100; dice = 0
+            chat(e, "Lovely weather today.")
+            check(partyTest.conversation?.offer == true || partyTest.party.count >= 3,
+                  "a fond NPC asks to join during a conversation")
+            if partyTest.conversation?.offer == true {
+                partyTest.answerOffer(true)
+                check(e.following && partyTest.party.count == 3, "saying yes to an offer brings them into the party")
+            }
+            partyTest.endConversation()
+            // Dismissal.
+            chat(b, "It's time we parted ways, leave the party.")
+            check(!b.following && partyTest.party.count == 2, "a companion can be dismissed in conversation")
+            // Saving.
+            let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-party.plist")
+            partyTest.endConversation()
+            try? SaveGame.save(partyTest, to: url)
+            let back = SaveGame.load(from: url)
+            check(back?.party.map(\.name) == partyTest.party.map(\.name) && back?.party.allSatisfy(\.following) == true,
+                  "the party survives a save")
+        } else {
+            check(false, "enough townsfolk to test the party")
+        }
 
         // Keys reach the game the same way they do in the window.
         let keyGame = Game(seed: seed)

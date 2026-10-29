@@ -179,8 +179,22 @@ final class Screen {
         texts.append(TextItem(text: "Region \(k.x), \(k.y)\(game.isUnderground ? " (below)" : "")  ·  lands seen: \(explored)",
                               x: Double(px + 8), y: 268, size: 10.5, color: Screen.dim))
 
+        // Companions.
+        box(px, 294, pw, 70)
+        texts.append(TextItem(text: "Companions (\(game.party.count) of \(Party.maxSize))", x: Double(px + 8), y: 297, size: 11.5,
+                              font: .bold, color: Screen.dim))
+        if game.party.isEmpty {
+            texts.append(TextItem(text: "You travel alone.", x: Double(px + 8), y: 316, size: 12, font: .italic, color: Screen.dim))
+        }
+        for (i, n) in game.party.enumerated() {
+            let ly = 314.0 + Double(i) * 16
+            texts.append(TextItem(text: "\(n.name), \(n.race.name) \(n.role)", x: Double(px + 8), y: ly, size: 12, color: Screen.ink))
+            texts.append(TextItem(text: n.disposition.word, x: Double(px + pw - 8), y: ly, size: 11.5, font: .italic,
+                                  color: moodPanelInk(n.disposition), align: .right))
+        }
+
         // The message scroll, newest at the bottom.
-        let sy = 294, sh = 528 - sy
+        let sy = 372, sh = 528 - sy
         parchmentBox(px, sy, pw, sh)
         let size = 12.5, lineH = 16.0
         var lines: [(String, Int)] = []
@@ -283,7 +297,7 @@ final class Screen {
             ("Q E Z C, numpad", "walk diagonally"),
             ("Click or hold on the map", "walk that way"),
             ("Right-click", "look at something or someone"),
-            ("T, or walk into someone", "talk to them"),
+            ("T, or walk into someone", "talk to them (companions step aside)"),
             ("Space", "wait a turn"),
             ("L", "look at what is ahead"),
             ("M", "map of the explored lands"),
@@ -296,7 +310,7 @@ final class Screen {
             texts.append(TextItem(text: key, x: Double(x + 26), y: ly, size: 14, font: .bold, color: 0x5A2A10, shadow: false))
             texts.append(TextItem(text: what, x: Double(x + 222), y: ly, size: 14, color: 0x3A2412, shadow: false))
         }
-        texts.append(TextItem(text: "Walk into doors, signs and cave mouths. Roofs lift when you step inside.",
+        texts.append(TextItem(text: "Ask someone to join you, or tell a companion to leave, in your own words. Up to three may travel with you.",
                               x: Double(x + w / 2), y: Double(y + h - 30), size: 12.5, font: .italic,
                               color: 0x5A4024, align: .center, shadow: false))
     }
@@ -359,7 +373,12 @@ final class Screen {
                               color: c.notice == nil ? 0x7A6A50 : 0x9A2A10, align: .right, shadow: false))
         // The line being typed.
         let fieldX = Int(tx) - 4, fieldY = y + h - 34, fieldW = w - (fieldX - x) - 16
-        if c.over {
+        if c.offer {
+            fb.fill(fieldX, fieldY, fieldW, 22, rgb(0x2A1C10))
+            gild(fieldX, fieldY, fieldW, 22)
+            texts.append(TextItem(text: "Take \(npc.name) into your party?   Y  yes      N  no", x: tx, y: Double(fieldY + 3),
+                                  size: 13, font: .bold, color: Screen.accent))
+        } else if c.over {
             texts.append(TextItem(text: "Press any key to go on your way.", x: tx, y: Double(fieldY + 4), size: 12.5,
                                   font: .bold, color: 0x6A2A10, shadow: false))
         } else {
@@ -381,6 +400,16 @@ final class Screen {
                 }
                 if (frameCount / 4) % 2 == 0 { fb.fill(Int(tx + tw) + 2, fieldY + 4, 2, 14, gold) }
             }
+        }
+    }
+
+    private func moodPanelInk(_ d: Disposition) -> UInt32 {
+        switch d {
+        case .hostile: return 0xE05A40
+        case .unfriendly: return 0xE09A50
+        case .neutral: return 0xC8B890
+        case .friendly: return 0x9AD070
+        case .adoring: return 0x70E080
         }
     }
 

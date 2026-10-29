@@ -70,11 +70,11 @@ final class NPC: Codable {
     var friendliness: Int
     var x: Int
     var y: Int
-    let z: Int
+    var z: Int
     let homeX: Int
     let homeY: Int
     /// Where the NPC may walk: x0, y0, x1, y1 (inclusive).
-    let bounds: [Int]
+    var bounds: [Int]
     let role: String
     /// The building or town the NPC belongs to, if any (for small talk).
     let home: String?
@@ -85,6 +85,14 @@ final class NPC: Codable {
     var known = false
     /// The last few things said between the NPC and the Avatar, remembered across meetings.
     var memory: [String]?
+    /// Travelling in the Avatar's party.
+    var following: Bool {
+        get { inParty ?? false }
+        set { inParty = newValue }
+    }
+    private var inParty: Bool?
+    /// Friendliness when they last refused to join or left the party (see `Party.lockedOut`).
+    var refusedAt: Int?
 
     // Not saved: where the NPC stood before this turn (for gliding) and chatter timing.
     var prevX = 0
@@ -93,7 +101,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, known, memory
+             compliments, known, memory, inParty, refusedAt
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,

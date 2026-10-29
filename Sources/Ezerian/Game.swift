@@ -27,6 +27,10 @@ final class Game {
     var onChange: (() -> Void)?
     /// Who voices the NPCs (replaced in tests).
     var claude = ClaudeClient.shared
+    /// The dice for joining and leaving (replaced in tests).
+    var roll: () -> Double = { Double.random(in: 0..<1) }
+    /// Where the Avatar has just been, for companions to follow in single file.
+    var trail: [Point] = []
 
     var showMap = false
     var showGrid = false
@@ -121,9 +125,14 @@ final class Game {
         guard dx != 0 || dy != 0, conversation == nil else { return false }
         facing = dx != 0 && dy != 0 ? (dy < 0 ? .north : .south) : Direction.from(dx: dx, dy: dy)
         let nx = x + dx, ny = y + dy
+        var swapped: NPC?
         if let npc = world.npc(at: nx, ny, z) {
-            startConversation(with: npc)
-            return false
+            // Companions step aside (swap places); anyone else stops you for a word.
+            guard npc.following, world.isPassable(nx, ny, z) else {
+                startConversation(with: npc)
+                return false
+            }
+            swapped = npc
         }
         let target = world.feature(nx, ny, z)
 
@@ -136,6 +145,7 @@ final class Game {
             jumps += 1
             log("You descend into the dark caverns.")
             arrive()
+            regroupParty()
             updateNPCs()
             return true
         }
@@ -148,6 +158,7 @@ final class Game {
             jumps += 1
             log("You climb back up into the daylight.")
             arrive()
+            regroupParty()
             updateNPCs()
             return true
         }
@@ -159,11 +170,17 @@ final class Game {
             bump(nx, ny)
             return false
         }
+        let old = Point(x: x, y: y)
+        if let s = swapped {
+            s.prevX = s.x; s.prevY = s.y
+            s.x = old.x; s.y = old.y
+        }
         x = nx
         y = ny
         step += 1
         turn += 1
         arrive()
+        if swapped == nil { updateFollowers(from: old) } else { trail.insert(old, at: 0) }
         updateNPCs()
         return true
     }
@@ -242,7 +259,7 @@ final class Game {
     /// Each turn the people nearby go about their business: most wander a little,
     /// the hostile close in on the Avatar, the adoring come over to say hello.
     private func updateNPCs() {
-        let near = world.npcs(near: x, y, z, radius: 18)
+        let near = world.npcs(near: x, y, z, radius: 18).filter { !$0.following }
         var occupied = Set(near.map { Point(x: $0.x, y: $0.y) })
         occupied.insert(Point(x: x, y: y))
         for n in near {
@@ -379,7 +396,9 @@ final class Game {
         c.pending = true
         c.byClaude = true
         conversation = c
-        AIDialogue.ask(npc, game: self, history: history, said: said, client: claude) { [weak self] result in
+        let decision = joinDecision(npc)
+        let before = npc.friendliness
+        AIDialogue.ask(npc, game: self, history: history, said: said, joinRule: joinRule(decision), client: claude) { [weak self] result in
             guard let self else { return }
             switch result {
             case let .success(r):
@@ -392,6 +411,7 @@ final class Game {
                     cc.lines.append(Conversation.Line(text: r.reply, fromAvatar: false))
                     if r.ends_conversation { cc.over = true }
                     self.conversation = cc
+                    self.afterReply(npc, intent: r.intent, decision: decision, before: before, scripted: false)
                 }
             case let .failure(e):
                 if var cc = self.conversation, cc.npc === npc {
@@ -409,16 +429,70 @@ final class Game {
     private func scriptedAnswer(_ said: String) {
         guard var c = conversation else { return }
         let npc = c.npc
+        let before = npc.friendliness
+        let topic = Dialogue.topic(for: said)
+        let decision = joinDecision(npc)
         let reply: (text: String, ends: Bool)
-        if let t = Dialogue.topic(for: said) {
-            reply = Dialogue.reply(npc, t, game: self)
-        } else {
-            reply = (Dialogue.smallTalk(npc), false)
+        switch topic {
+        case .join?: reply = (Dialogue.joinAnswer(npc, decision, player: playerName), false)
+        case .dismiss?: reply = (npc.following ? Dialogue.dismissed(npc) : "Dismiss me? I'm not travelling with you.", false)
+        case let t?: reply = Dialogue.reply(npc, t, game: self)
+        case nil: reply = (Dialogue.smallTalk(npc), false)
         }
         c.lines.append(Conversation.Line(text: reply.text, fromAvatar: false))
         if reply.ends { c.over = true }
         conversation = c
         remember(npc, avatar: said, npcSaid: reply.text)
+        let intent = topic == .join ? "ask_to_join" : topic == .dismiss ? "dismiss" : "other"
+        afterReply(npc, intent: intent, decision: decision, before: before, scripted: true)
+    }
+
+    /// Joining and leaving, once the NPC has answered: a request to join is settled by
+    /// the dice rolled beforehand; a companion who now likes the Avatar less may leave;
+    /// and anyone who likes the Avatar may, once per talk, ask to come along.
+    private func afterReply(_ npc: NPC, intent: String, decision: Party.Decision, before: Int, scripted: Bool) {
+        guard var c = conversation, c.npc === npc else { return }
+        func say(_ text: String) { c.lines.append(Conversation.Line(text: text, fromAvatar: false)) }
+        if intent == "ask_to_join" {
+            c.offerRolled = true
+            switch decision {
+            case .accept: addToParty(npc)
+            case .refuse: npc.refusedAt = npc.friendliness
+            case .lockedOut, .full, .already: break
+            }
+        } else if intent == "dismiss", npc.following {
+            removeFromParty(npc, lockOut: false)
+            c.over = true
+        } else if npc.following, npc.friendliness < before, roll() < Party.leaveChance(npc.friendliness) {
+            say(Dialogue.leaving(npc))
+            removeFromParty(npc, lockOut: true)
+            c.over = true
+        } else if !c.over, !c.offerRolled, !npc.following, world.party.count < Party.maxSize, !Party.lockedOut(npc) {
+            c.offerRolled = true
+            if roll() < Party.chance(npc.friendliness) {
+                say(Dialogue.offer(npc, player: playerName))
+                c.offer = true
+            }
+        }
+        conversation = c
+    }
+
+    /// The Avatar answers an NPC's offer to join.
+    func answerOffer(_ yes: Bool) {
+        guard var c = conversation, c.offer else { return }
+        c.offer = false
+        let npc = c.npc
+        c.lines.append(Conversation.Line(text: yes ? "Gladly. Come with me." : "Not now, I'm afraid.", fromAvatar: true))
+        conversation = c
+        if yes, world.party.count < Party.maxSize {
+            addToParty(npc)
+            c.lines.append(Conversation.Line(text: Dialogue.welcomed(npc), fromAvatar: false))
+        } else {
+            npc.changeFriendliness(by: -3)
+            c.lines.append(Conversation.Line(text: npc.disposition >= .friendly ? "As you wish. Perhaps another time." : "Hmph. Your loss.",
+                                             fromAvatar: false))
+        }
+        conversation = c
     }
 
     private func remember(_ npc: NPC, avatar: String, npcSaid: String) {
@@ -451,6 +525,7 @@ final class Game {
         z = tz
         jumps += 1
         arrive()
+        regroupParty()
     }
 
     /// Turns the Avatar without moving (developer screenshots).

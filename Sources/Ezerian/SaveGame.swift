@@ -13,6 +13,7 @@ enum SaveGame {
         var name: String?
         var turn: Int
         var regions: [RegionRecord]
+        var party: [NPC]?
     }
 
     private struct RegionRecord: Codable {
@@ -42,7 +43,8 @@ enum SaveGame {
                          explored: Data(r.explored.map { $0 ? 1 : 0 }), places: r.places, signs: r.signs, npcs: r.npcs)
         }
         let file = File(seed: String(game.world.seed), x: game.x, y: game.y, z: game.z,
-                        facing: game.facing.rawValue, name: game.nameEntry == nil ? game.playerName : nil, turn: game.turn, regions: regions)
+                        facing: game.facing.rawValue, name: game.nameEntry == nil ? game.playerName : nil, turn: game.turn, regions: regions,
+                        party: game.world.party)
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .binary
         let data = try encoder.encode(file)
@@ -70,6 +72,8 @@ enum SaveGame {
             for n in region.npcs { n.prevX = n.x; n.prevY = n.y }
             world.adopt(region)
         }
+        world.party = file.party ?? []
+        for n in world.party { n.prevX = n.x; n.prevY = n.y }
         let game = Game(world: world, name: file.name ?? "Avatar", x: file.x, y: file.y, z: file.z,
                         facing: Direction(rawValue: file.facing) ?? .south, turn: file.turn)
         // Quit before choosing a name? Ask again.

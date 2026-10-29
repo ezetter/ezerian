@@ -77,6 +77,8 @@ final class World {
     let seed: UInt64
     let generator: WorldGenerator
     private(set) var regions: [RegionKey: Region] = [:]
+    /// The Avatar's companions; they travel with the Avatar and belong to no region.
+    var party: [NPC] = []
     private var lastRegion: Region?
 
     /// Called whenever a brand-new region is generated (used for logging/testing).
@@ -157,11 +159,13 @@ final class World {
                 for n in r.npcs where abs(n.x - x) <= radius && abs(n.y - y) <= radius { out.append(n) }
             }
         }
+        for n in party where n.z == z && abs(n.x - x) <= radius && abs(n.y - y) <= radius { out.append(n) }
         return out
     }
 
     /// The NPC standing on a tile, if any (NPCs never leave their own region).
     func npc(at x: Int, _ y: Int, _ z: Int) -> NPC? {
+        if let n = party.first(where: { $0.x == x && $0.y == y && $0.z == z }) { return n }
         guard let r = regions[RegionKey(x: floorDiv(x, Region.size), y: floorDiv(y, Region.size), z: z)] else { return nil }
         return r.npcs.first { $0.x == x && $0.y == y }
     }

@@ -93,6 +93,16 @@ which decide how they answer you.
 * **Setting it up:** choose **Game ▸ Claude API Key…** and paste a key from
   console.anthropic.com (it is kept in your login keychain), or launch with
   `ANTHROPIC_API_KEY` set. **Game ▸ Voice Conversations with Claude** turns it off.
+* **Companions:** up to three NPCs can travel in your party. Ask someone to join in
+  your own words ("Will you travel with me?"), or a friendly NPC may ask you during a
+  conversation (press Y or N). The chance either way is 0 at friendliness 0 or below
+  and rises with friendliness — (friendliness ÷ 100)², so 25% at 50 and certain at 100.
+  Companions walk behind you in single file, step aside (swap places) when you walk
+  into them, follow you underground, and are listed in the side panel. You can still
+  talk to them (press T beside them); if a conversation makes a companion like you
+  less, they may leave, and you can tell one to leave ("it's time we parted ways").
+  Someone who refused to join, or left, won't join until their friendliness is at
+  least 35 points above what it was then. The party is kept in the save file.
 * **Without Claude** (no key, offline, or an API error) the game falls back to scripted
   replies: your words are matched to a topic — name, job, news, directions,
   compliment, insult or farewell — and answered by mood, and the window says the
@@ -165,6 +175,7 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | --- | --- |
 | `main.swift`, `AppDelegate.swift`, `GameView.swift` | App, window, menus, keyboard, mouse and gliding movement |
 | `Game.swift` | Avatar movement, NPC turns, conversations, messages, game clock |
+| `Party.swift` | Companions: joining, leaving, following |
 | `NPC.swift`, `Dialogue.swift` | Races, friendliness, where people live, scripted replies |
 | `ClaudeDialogue.swift` | Claude API client, NPC character sheets, structured replies, API key storage |
 | `World.swift`, `Tiles.swift` | Regions, lazy generation, terrain and objects |
@@ -186,14 +197,15 @@ swift run -c release Ezerian --selftest
 Checks that regions are kept when you walk away and back, that every building in the
 starting town can be walked into through a door in its south wall, that roofs lift
 indoors, that each race's friendliness averages out right, that conversations follow
-the NPC's mood, that typed words reach Claude and its judgement moves friendliness
+the NPC's mood, that the party's joining, leaving, following and rejoining rules hold,
+that typed words reach Claude and its judgement moves friendliness
 (against a stand-in for the API, so no key or network is needed), that caves lead down and back up, that every object has a sprite, that keys
 reach the game, and that saves round-trip.
 
 * `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name] [--scale 2]`
   renders a screenshot. A walk can also contain `find:<feature>` (for example
   `find:shrine` or `find:t.forest`) to jump next to the nearest one, `npc:orc` to stand
-  beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation.
+  beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation, and `recruit` to fill the party.
 * `--sheet out.png` draws every sprite; `--textures out.png` every texture.
 * `--overview out.png [--radius R]` draws a one-pixel-per-tile map of the generated world.
 * `--bench` times start-up art, world generation and rendering.

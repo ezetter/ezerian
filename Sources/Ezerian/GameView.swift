@@ -158,6 +158,15 @@ final class GameView: NSView, CALayerDelegate {
         if let c = game.conversation {
             stopRepeating()
             heldKeys.removeAll()
+            if c.offer {
+                switch event.charactersIgnoringModifiers?.lowercased() {
+                case "y": game.answerOffer(true)
+                case "n": game.answerOffer(false)
+                default: break
+                }
+                needsRender = true
+                return
+            }
             switch event.keyCode {
             case _ where c.over, 53:                 // finished, or Esc
                 game.endConversation()
