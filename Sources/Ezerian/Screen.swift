@@ -1,0 +1,354 @@
+import Foundation
+import simd
+
+/// Composes the whole 960x540 game screen: the framed map view, the side panel
+/// (portrait, sky, whereabouts and the message scroll) and the overlays. Pixel art
+/// goes in `fb`; words go in `texts`, to be set in real fonts on top.
+final class Screen {
+    static let width = 960
+    static let height = 540
+    static let mapX = 12
+    static let mapY = 12
+    static let panelX = 700
+    static let panelW = 248
+
+    let fb = Framebuffer(width: Screen.width, height: Screen.height)
+    private(set) var map: MapRenderer
+    private(set) var texts: [TextItem] = []
+    private lazy var backdrop: [UInt32] = makeBackdrop()
+    private let parchment: Canvas
+
+    private let gold = rgb(0xD8B050), goldDark = rgb(0x6A4A14), goldLight = rgb(0xF8E8A0)
+    static let ink: UInt32 = 0xEADFC4, dim: UInt32 = 0xA89A7E, accent: UInt32 = 0xF2D27A, brown: UInt32 = 0x3A2412
+
+    init(world: World) {
+        map = MapRenderer(world: world)
+        var rng = SplitMix64(seed: 41)
+        let f = fbmField(&rng, [4, 8, 16, 32, 64], [1, 0.6, 0.4, 0.3, 0.2])
+        var p = Canvas(256, hex(0xE6D3A8))
+        for i in 0..<65536 { p.c[i] = mix(hex(0xC8AE7C), hex(0xF0E2BE), f[i]) }
+        for _ in 0..<1600 { p.blend(rng.int(256), rng.int(256), hex(0x9A7A4A), 0.35) }
+        parchment = p
+    }
+
+    /// Starts afresh with another world (a new game).
+    func attach(_ world: World) { map = MapRenderer(world: world) }
+
+    var mapPixelWidth: Int { MapRenderer.pixelW }
+    var mapPixelHeight: Int { MapRenderer.pixelH }
+
+    func render(_ game: Game, pose: AvatarPose, frame: Int, clock: Double) -> Framebuffer {
+        texts.removeAll(keepingCapacity: true)
+        fb.pixels = backdrop
+        if game.showMap {
+            drawOverview(game, frame: frame)
+        } else {
+            map.draw(game, pose: pose, into: fb, at: Screen.mapX, Screen.mapY, frame: frame, clock: clock)
+        }
+        if game.showHelp { drawHelp() }
+        if let entry = game.nameEntry { drawNamePrompt(entry, frame: frame) }
+        drawPanel(game, frame: frame)
+        let hint = game.showMap ? "M or Esc closes the map  ·  + and − zoom"
+            : "Arrows walk  ·  L look  ·  M map  ·  G borders  ·  H help"
+        texts.append(TextItem(text: hint, x: Double(Screen.mapX + 4), y: 502, size: 12, color: Screen.dim))
+        return fb
+    }
+
+    // MARK: Chrome
+
+    private func makeBackdrop() -> [UInt32] {
+        let bg = Framebuffer(width: Screen.width, height: Screen.height)
+        var rng = SplitMix64(seed: 99)
+        let f = fbmField(&rng, [8, 16, 32, 64], [1, 0.6, 0.4, 0.3])
+        for y in 0..<Screen.height {
+            for x in 0..<Screen.width {
+                // Dark carved wood, a little lighter towards the middle.
+                let g = f[(y & 255) * 256 + (x & 255)]
+                let grain = 0.5 + 0.5 * sin(Float(y) * 0.9 + g * 7)
+                var c = mix(hex(0x1A120C), hex(0x33241A), g * 0.7 + grain * 0.3)
+                let vx = Float(x) / Float(Screen.width) - 0.5, vy = Float(y) / Float(Screen.height) - 0.5
+                c *= 1 - (vx * vx + vy * vy) * 0.6
+                bg.pixels[y * Screen.width + x] = pack(c)
+            }
+        }
+        let old = fb.pixels
+        fb.pixels = bg.pixels
+        gild(Screen.mapX, Screen.mapY, MapRenderer.pixelW, MapRenderer.pixelH, thick: true)
+        let out = fb.pixels
+        fb.pixels = old
+        return out
+    }
+
+    /// A gilded frame drawn just outside the rectangle.
+    private func gild(_ x: Int, _ y: Int, _ w: Int, _ h: Int, thick: Bool = false) {
+        let rings: [UInt32] = thick
+            ? [rgb(0x0A0604), goldDark, gold, goldLight, gold, goldDark, rgb(0x0A0604)]
+            : [rgb(0x0A0604), goldDark, gold, goldDark]
+        for (k, c) in rings.enumerated() {
+            let d = rings.count - k
+            fb.fill(x - d, y - d, w + 2 * d, 1, c)
+            fb.fill(x - d, y + h + d - 1, w + 2 * d, 1, c)
+            fb.fill(x - d, y - d, 1, h + 2 * d, c)
+            fb.fill(x + w + d - 1, y - d, 1, h + 2 * d, c)
+        }
+        if thick {
+            for (cx, cy) in [(x - 4, y - 4), (x + w + 3, y - 4), (x - 4, y + h + 3), (x + w + 3, y + h + 3)] {
+                fb.fill(cx - 3, cy - 3, 7, 7, goldDark)
+                fb.fill(cx - 2, cy - 2, 5, 5, gold)
+                fb.fill(cx - 1, cy - 1, 3, 3, goldLight)
+            }
+        }
+    }
+
+    /// A dark leather box with a gold rim.
+    private func box(_ x: Int, _ y: Int, _ w: Int, _ h: Int) {
+        for yy in y..<(y + h) {
+            for xx in x..<(x + w) {
+                let n = Float(Hash.unit(3, xx, yy)) * 0.08
+                fb.pixels[yy * Screen.width + xx] = pack(hex(0x241A12) * (0.92 + n + Float(yy - y) / Float(h) * -0.12))
+            }
+        }
+        gild(x, y, w, h)
+    }
+
+    private func parchmentBox(_ x: Int, _ y: Int, _ w: Int, _ h: Int) {
+        for yy in 0..<h {
+            for xx in 0..<w {
+                // Darker towards the edges, like old paper.
+                let ex = Float(min(xx, w - 1 - xx)), ey = Float(min(yy, h - 1 - yy))
+                let edge = smoothstep(0, 14, min(ex, ey))
+                let c = parchment[xx + x * 3, yy + y * 5] * (0.72 + 0.28 * edge)
+                fb.pixels[(y + yy) * Screen.width + x + xx] = pack(c)
+            }
+        }
+        gild(x, y, w, h)
+    }
+
+    // MARK: Side panel
+
+    private func drawPanel(_ game: Game, frame: Int) {
+        let px = Screen.panelX, pw = Screen.panelW
+        let cx = Double(px + pw / 2)
+
+        box(px, 12, pw, 60)
+        texts.append(TextItem(text: "The Land of", x: cx, y: 15, size: 12, font: .title, color: Screen.dim, align: .center))
+        texts.append(TextItem(text: "Ezerian", x: cx, y: 26, size: 31, font: .title, color: Screen.accent, align: .center))
+
+        drawSky(game, x: px, y: 80, w: pw, h: 28)
+
+        box(px, 116, pw, 90)
+        let portrait = SpriteBank.shared.portrait
+        let fx = px + 8, fy = 122, fw = 66, fh = 78
+        for yy in 0..<fh {
+            for xx in 0..<fw {
+                let t = Float(yy) / Float(fh)
+                let v = Float(xx - fw / 2) / Float(fw)
+                fb.pixels[(fy + yy) * Screen.width + fx + xx] = pack(mix(hex(0x3A5A8A), hex(0x1A2A44), t) * (1 - v * v * 1.2))
+            }
+        }
+        fb.blit(portrait, fx + fw / 2 - portrait.w / 2 + portrait.ax, fy + 3 + portrait.ay, clip: (fx, fy, fw, fh))
+        gild(fx, fy, fw, fh)
+        let tx = Double(px + 86)
+        texts.append(TextItem(text: game.nameEntry == nil ? game.playerName : "Avatar", x: tx, y: 120, size: 20,
+                              font: .title, color: Screen.accent))
+        texts.append(TextItem(text: "Day \(game.day)", x: tx, y: 152, size: 13, color: Screen.ink))
+        texts.append(TextItem(text: game.timeString, x: tx, y: 170, size: 13, color: Screen.ink))
+        texts.append(TextItem(text: timeOfDay(game.hourOfDay), x: tx, y: 187, size: 11, font: .italic, color: Screen.dim))
+
+        box(px, 214, pw, 72)
+        let places = game.currentPlaces
+        let regionName = capitalized(game.region.name)
+        var y = 218.0
+        for line in TextRenderer.wrap(regionName, width: Double(pw - 16), size: 13, font: .italic).prefix(2) {
+            texts.append(TextItem(text: line, x: Double(px + 8), y: y, size: 13, font: .italic, color: Screen.ink))
+            y += 16
+        }
+        let here = places.building?.name ?? places.town.map { "Town of \($0.name)" } ?? places.landmark.map { capitalized($0.name) }
+        if let here, !game.isUnderground {
+            for line in TextRenderer.wrap(here, width: Double(pw - 16), size: 13, font: .bold).prefix(2) {
+                texts.append(TextItem(text: line, x: Double(px + 8), y: y, size: 13, font: .bold, color: Screen.accent))
+                y += 16
+            }
+        }
+        let k = game.regionKey
+        let explored = game.world.regions.values.filter { $0.visited && $0.key.z == 0 }.count
+        texts.append(TextItem(text: "Region \(k.x), \(k.y)\(game.isUnderground ? " (below)" : "")  ·  lands seen: \(explored)",
+                              x: Double(px + 8), y: 268, size: 10.5, color: Screen.dim))
+
+        // The message scroll, newest at the bottom.
+        let sy = 294, sh = 528 - sy
+        parchmentBox(px, sy, pw, sh)
+        let size = 12.5, lineH = 16.0
+        var lines: [(String, Int)] = []
+        let recent = Array(game.messages.suffix(14))
+        for (i, m) in recent.enumerated() {
+            for l in TextRenderer.wrap(m, width: Double(pw - 20), size: size, font: .body) { lines.append((l, recent.count - 1 - i)) }
+        }
+        let maxLines = Int(Double(sh - 12) / lineH)
+        let shown = lines.suffix(maxLines)
+        y = Double(sy + sh - 6) - Double(shown.count) * lineH
+        for (text, age) in shown {
+            let color: UInt32 = age == 0 ? 0x2A1406 : (age < 3 ? 0x4A2E18 : 0x6E5236)
+            texts.append(TextItem(text: text, x: Double(px + 10), y: y, size: size, color: color, shadow: false))
+            y += lineH
+        }
+    }
+
+    private func timeOfDay(_ h: Double) -> String {
+        switch h {
+        case 5..<7: return "Dawn"
+        case 7..<11.5: return "Morning"
+        case 11.5..<13.5: return "Midday"
+        case 13.5..<17.5: return "Afternoon"
+        case 17.5..<20: return "Evening"
+        default: return "Night"
+        }
+    }
+
+    private func capitalized(_ s: String) -> String {
+        guard let f = s.first else { return s }
+        return f.uppercased() + s.dropFirst()
+    }
+
+    /// Sky strip with the sun or moon crossing it as the hours pass.
+    private func drawSky(_ game: Game, x: Int, y: Int, w: Int, h: Int) {
+        let m = game.hourOfDay
+        let tint = Lighting.sky(m)
+        let top = mix(hex(0x0A1030), hex(0x4A7AD0), smoothstep(0.35, 1, tint.x))
+        let bottom = mix(hex(0x1A2448), mix(hex(0xE8885A), hex(0xA8CCF0), smoothstep(0.75, 1, tint.z)), smoothstep(0.35, 0.8, tint.x))
+        for row in 0..<h {
+            let c = pack(mix(top, bottom, Float(row) / Float(h - 1)))
+            fb.fill(x, y + row, w, 1, c)
+        }
+        let isDay = m >= 6 && m < 18
+        if !isDay || tint.x < 0.6 {
+            var rng = SplitMix64(seed: 5)
+            for _ in 0..<26 { fb.set(x + 2 + rng.int(w - 4), y + 2 + rng.int(h - 6), rgb(0xD0D8F8)) }
+        }
+        let t = isDay ? (m - 6) / 12 : ((m >= 18 ? m - 18 : m + 6) / 12)
+        let bx = x + 8 + Int(t * Double(w - 16)), by = y + 6 + Int(pow(abs(t - 0.5) * 2, 2) * Double(h - 12))
+        for dy in -5...5 {
+            for dx in -5...5 {
+                let d = Double(dx * dx + dy * dy).squareRoot()
+                if isDay {
+                    if d < 4.2 { fb.set(bx + dx, by + dy, d < 2.4 ? rgb(0xFFF8C0) : rgb(0xFFD848)) }
+                    else if d < 5.6 { fb.plot(bx + dx, by + dy, hex(0xFFE890), 0.4) }
+                } else if d < 4 {
+                    let dd = Double((dx - 2) * (dx - 2) + (dy + 1) * (dy + 1)).squareRoot()
+                    if dd > 3.4 { fb.set(bx + dx, by + dy, rgb(0xE8ECF4)) }
+                }
+            }
+        }
+        gild(x, y, w, h)
+    }
+
+    // MARK: Overlays
+
+    /// "By what name shalt thou be called?", asked when a new game begins.
+    private func drawNamePrompt(_ entry: String, frame: Int) {
+        let w = 340, h = 136
+        let x = Screen.mapX + (MapRenderer.pixelW - w) / 2, y = Screen.mapY + (MapRenderer.pixelH - h) / 2
+        fb.wash(Screen.mapX, Screen.mapY, MapRenderer.pixelW, MapRenderer.pixelH, hex(0x000000), 0.55)
+        parchmentBox(x, y, w, h)
+        let cx = Double(x + w / 2)
+        texts.append(TextItem(text: "A new adventure begins", x: cx, y: Double(y + 10), size: 20, font: .title,
+                              color: Screen.brown, align: .center, shadow: false))
+        texts.append(TextItem(text: "By what name shalt thou be called?", x: cx, y: Double(y + 42), size: 14,
+                              font: .italic, color: 0x4A3018, align: .center, shadow: false))
+        let fieldW = 200, fx = x + (w - fieldW) / 2, fy = y + 68
+        fb.fill(fx, fy, fieldW, 26, rgb(0x2A1C10))
+        gild(fx, fy, fieldW, 26)
+        let tw = entry.isEmpty ? 0 : TextRenderer.width(entry, size: 16, font: .bold)
+        let left = Double(fx + fieldW / 2) - tw / 2
+        if !entry.isEmpty {
+            texts.append(TextItem(text: entry, x: left, y: Double(fy + 3), size: 16, font: .bold, color: Screen.accent))
+        }
+        if (frame / 4) % 2 == 0 { fb.fill(Int(left + tw) + 2, fy + 5, 2, 16, gold) }
+        texts.append(TextItem(text: "Type a name and press Return", x: cx, y: Double(y + 104), size: 12,
+                              color: 0x5A4024, align: .center, shadow: false))
+    }
+
+    private func drawHelp() {
+        let x = Screen.mapX + 70, y = Screen.mapY + 46, w = MapRenderer.pixelW - 140, h = MapRenderer.pixelH - 92
+        fb.wash(Screen.mapX, Screen.mapY, MapRenderer.pixelW, MapRenderer.pixelH, hex(0x000000), 0.45)
+        parchmentBox(x, y, w, h)
+        texts.append(TextItem(text: "How to Explore Ezerian", x: Double(x + w / 2), y: Double(y + 12), size: 22,
+                              font: .title, color: Screen.brown, align: .center, shadow: false))
+        let lines: [(String, String)] = [
+            ("Arrow keys, WASD", "walk (hold two arrows for diagonals)"),
+            ("Q E Z C, numpad", "walk diagonally"),
+            ("Click or hold on the map", "walk that way"),
+            ("Right-click", "look at something"),
+            ("L", "look at what is ahead"),
+            ("M", "map of the explored lands"),
+            ("G", "show region borders"),
+            ("⌘N  /  ⌘S", "begin a new world  /  save"),
+            ("H or ?", "close this help"),
+        ]
+        for (i, (key, what)) in lines.enumerated() {
+            let ly = Double(y + 52 + i * 26)
+            texts.append(TextItem(text: key, x: Double(x + 26), y: ly, size: 14, font: .bold, color: 0x5A2A10, shadow: false))
+            texts.append(TextItem(text: what, x: Double(x + 222), y: ly, size: 14, color: 0x3A2412, shadow: false))
+        }
+        texts.append(TextItem(text: "Walk into doors, signs and cave mouths. Roofs lift when you step inside.",
+                              x: Double(x + w / 2), y: Double(y + h - 30), size: 12.5, font: .italic,
+                              color: 0x5A4024, align: .center, shadow: false))
+    }
+
+    /// Map of every tile the Avatar has seen, centred on the Avatar.
+    private func drawOverview(_ game: Game, frame: Int) {
+        let mx = Screen.mapX, my = Screen.mapY, mw = MapRenderer.pixelW, mh = MapRenderer.pixelH
+        for yy in 0..<mh {
+            for xx in 0..<mw {
+                let c = parchment[xx, yy] * 0.42
+                fb.pixels[(my + yy) * Screen.width + mx + xx] = pack(c)
+            }
+        }
+        let s = [2, 3, 4, 6][max(0, min(3, game.mapScale - 1))]
+        let tilesW = mw / s, tilesH = mh / s
+        let left = game.x - tilesW / 2, top = game.y - tilesH / 2
+        let world = game.world, z = game.z
+        var cache: [RegionKey: Region] = [:]
+        for ty in 0..<tilesH {
+            for tx in 0..<tilesW {
+                let wx = left + tx, wy = top + ty
+                let key = RegionKey(x: floorDiv(wx, Region.size), y: floorDiv(wy, Region.size), z: z)
+                let r: Region
+                if let c = cache[key] { r = c } else if let c = world.existingRegion(key) { cache[key] = c; r = c } else { continue }
+                let i = r.index(wx, wy)
+                guard r.explored[i] else { continue }
+                var c = r.terrain[i].mapColor
+                let f = r.features[i]
+                if f.isTree { c = rgb(0x1E3E16) }
+                else if f != .none && f.blocksMovement && !r.terrain[i].isWall { c = shade(c, 0.75) }
+                if world.building(at: wx, wy, z) != nil && !r.terrain[i].isWall && z == 0 { c = blend(c, rgb(0x8A5A3A), 0.5) }
+                fb.fill(mx + tx * s, my + ty * s, s, s, c)
+            }
+        }
+        let grid = rgb(0x8A7A50)
+        for tx in 0..<tilesW where floorMod(left + tx, Region.size) == 0 {
+            for py in stride(from: 0, to: mh, by: 3) { fb.set(mx + tx * s, my + py, grid) }
+        }
+        for ty in 0..<tilesH where floorMod(top + ty, Region.size) == 0 {
+            for px in stride(from: 0, to: mw, by: 3) { fb.set(mx + px, my + ty * s, grid) }
+        }
+        for r in cache.values {
+            for p in r.places where p.kind == .town && world.isExplored(p.x + p.w / 2, p.y + p.h / 2, z) {
+                let lx = mx + (p.x + p.w / 2 - left) * s, ly = my + (p.y - top) * s - 18
+                guard lx > mx + 20, lx < mx + mw - 20, ly > my + 20, ly < my + mh - 20 else { continue }
+                texts.append(TextItem(text: p.name, x: Double(lx), y: Double(ly), size: 14, font: .title,
+                                      color: Screen.accent, align: .center))
+            }
+        }
+        if (frame / 3) % 2 == 0 {
+            let px = mx + (game.x - left) * s, py = my + (game.y - top) * s
+            fb.fill(px - 2, py - 2, s + 4, s + 4, rgb(0xFFFFFF))
+            fb.fill(px - 1, py - 1, s + 2, s + 2, rgb(0xE02020))
+        }
+        fb.wash(mx, my, mw, 22, hex(0x000000), 0.6)
+        texts.append(TextItem(text: game.isUnderground ? "Map of the Caverns" : "Map of the Explored Lands",
+                              x: Double(mx + 8), y: Double(my + 2), size: 15, font: .title, color: Screen.accent))
+        texts.append(TextItem(text: "1 tile = \(s) px", x: Double(mx + mw - 8), y: Double(my + 4), size: 11,
+                              color: Screen.dim, align: .right))
+    }
+}
