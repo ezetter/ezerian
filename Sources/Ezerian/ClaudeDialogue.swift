@@ -35,10 +35,17 @@ final class ClaudeClient {
 
     /// The API key: the ANTHROPIC_API_KEY environment variable, or the one saved in
     /// the login keychain from the Game menu.
+    /// Read once per launch: every keychain read can make macOS ask for permission.
     var apiKey: String? {
         if let k = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !k.isEmpty { return k }
-        return ClaudeClient.readKeychain()
+        if !keyLoaded {
+            cachedKey = ClaudeClient.readKeychain()
+            keyLoaded = true
+        }
+        return cachedKey
     }
+    private var cachedKey: String?
+    private var keyLoaded = false
 
     /// Set by the self-test to pretend a key is (or isn't) configured.
     var availableOverride: Bool?
@@ -46,6 +53,8 @@ final class ClaudeClient {
     var isAvailable: Bool { availableOverride ?? (enabled && apiKey != nil) }
 
     static func saveKey(_ key: String?) {
+        shared.cachedKey = (key?.isEmpty ?? true) ? nil : key
+        shared.keyLoaded = true
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                     kSecAttrService as String: keychainService,
                                     kSecAttrAccount as String: keychainAccount]
