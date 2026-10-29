@@ -25,6 +25,10 @@ final class SpriteBank {
     private(set) var signs: [String: Art] = [:]
     /// The Avatar's head and shoulders, for the side panel.
     private(set) var portrait = Sprite(w: 1, h: 1)
+    /// [race][look][facing][stride frame]
+    private(set) var people: [[[[Art]]]] = []
+    /// [race][look]
+    private(set) var faces: [[Sprite]] = []
 
     private init() {
         struct Job { var key: Int; var variant: Int; var frame: Int; var recipe: Recipe }
@@ -40,6 +44,18 @@ final class SpriteBank {
             }
         }
         jobs.append(Job(key: 3000, variant: 0, frame: 0, recipe: Recipe { _, _, _ in AvatarArt.portrait() }))
+        for race in Race.allCases {
+            for look in 0..<Populace.looks {
+                for d in Direction.allCases {
+                    for step in 0..<3 {
+                        jobs.append(Job(key: 10000 + race.index * 1000 + look * 100 + d.rawValue * 10 + step, variant: 0, frame: 0,
+                                        recipe: Recipe { _, _, _ in PeopleArt.model(race, variant: look, facing: d, step: [0, -1, 1][step]) }))
+                    }
+                }
+                jobs.append(Job(key: 50000 + race.index * 100 + look, variant: 0, frame: 0,
+                                recipe: Recipe { _, _, _ in PeopleArt.portrait(race, variant: look) }))
+            }
+        }
         let icons = StructureArt.signIcons
         for (k, icon) in icons.enumerated() {
             jobs.append(Job(key: 2000 + k, variant: 0, frame: 0, recipe: Recipe { _, _, _ in StructureArt.hangingSign(icon: icon) }))
@@ -55,11 +71,20 @@ final class SpriteBank {
             results[i] = art
             lock.unlock()
         }
+        let blank = Art(sprite: Sprite(w: 1, h: 1), shadow: nil)
+        var folk = [[[[Art]]]](repeating: [[[Art]]](repeating: [[Art]](repeating: [Art](repeating: blank, count: 3), count: 4),
+                                                    count: Populace.looks), count: Race.allCases.count)
+        var faceArt = [[Sprite]](repeating: [Sprite](repeating: blank.sprite, count: Populace.looks), count: Race.allCases.count)
         var feats = [[[Art]]](repeating: [], count: 256)
         var av = [[Art]](repeating: [], count: 4)
         for (i, j) in jobs.enumerated() {
             guard let art = results[i] else { continue }
-            if j.key == 3000 {
+            if j.key >= 50000 {
+                faceArt[(j.key - 50000) / 100][(j.key - 50000) % 100] = art.sprite
+            } else if j.key >= 10000 {
+                let k = j.key - 10000
+                folk[k / 1000][(k / 100) % 10][(k / 10) % 10][k % 10] = art
+            } else if j.key == 3000 {
                 portrait = art.sprite
             } else if j.key >= 2000 {
                 signs[icons[j.key - 2000]] = art
@@ -71,6 +96,8 @@ final class SpriteBank {
             }
         }
         features = feats
+        people = folk
+        faces = faceArt
         avatar = av
     }
 

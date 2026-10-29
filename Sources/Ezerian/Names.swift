@@ -31,6 +31,7 @@ enum Names {
     static func person(_ rng: inout SplitMix64) -> String { rng.pick(people) }
     static func tavern(_ rng: inout SplitMix64) -> String { "The \(rng.pick(tavernAdjectives)) \(rng.pick(tavernNouns))" }
     static func inn(_ rng: inout SplitMix64) -> String { rng.pick(innNames) }
+    static func isInn(_ name: String) -> Bool { innNames.contains(name) }
     static func virtue(_ rng: inout SplitMix64) -> String { rng.pick(virtues) }
 
     static func regionName(for region: Region, rng: inout SplitMix64) -> String {

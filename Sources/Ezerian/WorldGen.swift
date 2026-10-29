@@ -125,7 +125,9 @@ final class WorldGenerator {
     func generate(_ key: RegionKey, world: World) -> Region {
         if key.z != 0 {
             let surface = world.region(RegionKey(x: key.x, y: key.y, z: 0))
-            return CaveBuilder.build(key, surface: surface, seed: seed)
+            let cave = CaveBuilder.build(key, surface: surface, seed: seed)
+            Populace.populate(cave, seed: seed)
+            return cave
         }
         let b = RegionBuilder(key: key, generator: self)
         b.layNaturalTerrain()
@@ -156,6 +158,7 @@ final class WorldGenerator {
 
         Roads.build(b, hubs: hubs, sites: siteEntrances)
         b.region.name = Names.regionName(for: b.region, rng: &b.rng)
+        Populace.populate(b.region, seed: seed)
         return b.region
     }
 

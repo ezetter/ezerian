@@ -48,6 +48,8 @@ final class Region {
     /// The buildings that have roofs (a cached subset of `places`).
     private(set) var roofed: [Place] = []
     var signs: [Int: Sign] = [:]
+    /// The people who live here.
+    var npcs: [NPC] = []
 
     init(key: RegionKey, name: String = "") {
         self.key = key
@@ -144,6 +146,24 @@ final class World {
         if f == .door || f == .caveEntrance || f == .ladderUp { return true }
         if terrain(wx, wy, z).blocksMovement { return false }
         return !f.blocksMovement
+    }
+
+    /// Existing NPCs within `radius` tiles of a point (regions are not generated for this).
+    func npcs(near x: Int, _ y: Int, _ z: Int, radius: Int) -> [NPC] {
+        var out: [NPC] = []
+        for ry in floorDiv(y - radius, Region.size)...floorDiv(y + radius, Region.size) {
+            for rx in floorDiv(x - radius, Region.size)...floorDiv(x + radius, Region.size) {
+                guard let r = regions[RegionKey(x: rx, y: ry, z: z)] else { continue }
+                for n in r.npcs where abs(n.x - x) <= radius && abs(n.y - y) <= radius { out.append(n) }
+            }
+        }
+        return out
+    }
+
+    /// The NPC standing on a tile, if any (NPCs never leave their own region).
+    func npc(at x: Int, _ y: Int, _ z: Int) -> NPC? {
+        guard let r = regions[RegionKey(x: floorDiv(x, Region.size), y: floorDiv(y, Region.size), z: z)] else { return nil }
+        return r.npcs.first { $0.x == x && $0.y == y }
     }
 
     /// The roofed building containing a tile, if any. Buildings never straddle a

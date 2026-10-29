@@ -21,6 +21,9 @@ final class Game {
     var nameEntry: String?
     static let maxNameLength = 12
 
+    /// The talk in progress, if any.
+    private(set) var conversation: Conversation?
+
     var showMap = false
     var showGrid = false
     var showHelp = false
@@ -111,9 +114,13 @@ final class Game {
 
     @discardableResult
     func move(dx: Int, dy: Int) -> Bool {
-        guard dx != 0 || dy != 0 else { return false }
+        guard dx != 0 || dy != 0, conversation == nil else { return false }
         facing = dx != 0 && dy != 0 ? (dy < 0 ? .north : .south) : Direction.from(dx: dx, dy: dy)
         let nx = x + dx, ny = y + dy
+        if let npc = world.npc(at: nx, ny, z) {
+            startConversation(with: npc)
+            return false
+        }
         let target = world.feature(nx, ny, z)
 
         if target == .caveEntrance && z == 0 {
@@ -125,6 +132,7 @@ final class Game {
             jumps += 1
             log("You descend into the dark caverns.")
             arrive()
+            updateNPCs()
             return true
         }
         if target == .ladderUp && z > 0 {
@@ -136,6 +144,7 @@ final class Game {
             jumps += 1
             log("You climb back up into the daylight.")
             arrive()
+            updateNPCs()
             return true
         }
         if dx != 0 && dy != 0 && !world.isPassable(x + dx, y, z) && !world.isPassable(x, y + dy, z) {
@@ -151,6 +160,7 @@ final class Game {
         step += 1
         turn += 1
         arrive()
+        updateNPCs()
         return true
     }
 
@@ -216,6 +226,125 @@ final class Game {
         markSeen()
     }
 
+    /// Lets a turn pass without moving.
+    func waitTurn() {
+        guard conversation == nil else { return }
+        turn += 1
+        updateNPCs()
+    }
+
+    // MARK: People
+
+    /// Each turn the people nearby go about their business: most wander a little,
+    /// the hostile close in on the Avatar, the adoring come over to say hello.
+    private func updateNPCs() {
+        let near = world.npcs(near: x, y, z, radius: 18)
+        var occupied = Set(near.map { Point(x: $0.x, y: $0.y) })
+        occupied.insert(Point(x: x, y: y))
+        for n in near {
+            n.prevX = n.x
+            n.prevY = n.y
+            let dx = x - n.x, dy = y - n.y, dist = max(abs(dx), abs(dy))
+            let roll = Hash.unit(world.seed, n.id, turn, 31)
+            var want: (Int, Int)?
+            switch n.disposition {
+            case .hostile where dist <= 7 && dist > 1 && roll < 0.55: want = toward(dx, dy)
+            case .adoring where dist <= 4 && dist > 1 && roll < 0.35: want = toward(dx, dy)
+            default:
+                if roll < 0.3 {
+                    let d = Direction(rawValue: Int(Hash.of(world.seed, n.id, turn, 32) % 4))!
+                    want = (d.dx, d.dy)
+                }
+            }
+            if let (sx, sy) = want {
+                let tx = n.x + sx, ty = n.y + sy
+                let f = world.feature(tx, ty, z)
+                if n.mayStand(tx, ty), world.isPassable(tx, ty, z), !occupied.contains(Point(x: tx, y: ty)),
+                   f != .door, f != .caveEntrance, f != .ladderUp {
+                    occupied.remove(Point(x: n.x, y: n.y))
+                    n.x = tx
+                    n.y = ty
+                    occupied.insert(Point(x: tx, y: ty))
+                }
+                n.facing = Direction.from(dx: sx, dy: sy).rawValue
+            }
+            let after = max(abs(x - n.x), abs(y - n.y))
+            guard after <= 2, conversation == nil, turn - n.lastShout > 12 else { continue }
+            switch n.disposition {
+            case .hostile:
+                n.lastShout = turn
+                let taunt: String
+                switch n.race {
+                case .orc: taunt = "snarls: \"Pinkskin smell like dinner!\""
+                case .dwarf: taunt = "growls: \"Off with ye, before I lose my temper!\""
+                case .elf: taunt = "hisses: \"Leave this place, mortal.\""
+                case .human: taunt = "shouts: \"Get away from me!\""
+                }
+                log("\(n.shortName.capitalizedFirst) \(taunt)")
+            case .adoring:
+                n.lastShout = turn
+                log("\(n.shortName.capitalizedFirst) waves at you happily.")
+            default:
+                break
+            }
+        }
+    }
+
+    private func toward(_ dx: Int, _ dy: Int) -> (Int, Int) {
+        abs(dx) >= abs(dy) ? (dx.signum(), 0) : (0, dy.signum())
+    }
+
+    /// Where to draw the people in view, `t` of the way through this turn's steps.
+    func npcPoses(t: Double) -> [NPCPose] {
+        let e = t * t * (3 - 2 * t)
+        return world.npcs(near: x, y, z, radius: 16).map { n in
+            let moving = (n.prevX != n.x || n.prevY != n.y) && t < 0.75
+            return NPCPose(x: Double(n.prevX) + Double(n.x - n.prevX) * e, y: Double(n.prevY) + Double(n.y - n.prevY) * e,
+                           race: n.race, look: n.look, facing: Direction(rawValue: n.facing) ?? .south,
+                           step: moving ? 1 + (n.id + turn) % 2 : 0)
+        }
+    }
+
+    /// Talks to someone beside the Avatar (the one ahead first).
+    func talk() {
+        guard conversation == nil else { return }
+        if let n = world.npc(at: x + facing.dx, y + facing.dy, z) { startConversation(with: n); return }
+        for dy in -1...1 {
+            for dx in -1...1 where dx != 0 || dy != 0 {
+                if let n = world.npc(at: x + dx, y + dy, z) { startConversation(with: n); return }
+            }
+        }
+        log("There is no one beside you to talk to.")
+    }
+
+    func startConversation(with npc: NPC) {
+        npc.facing = Direction.from(dx: x - npc.x, dy: y - npc.y).rawValue
+        npc.prevX = npc.x
+        npc.prevY = npc.y
+        let g = Dialogue.greeting(npc, player: playerName)
+        var c = Conversation(npc: npc)
+        c.lines.append(Conversation.Line(text: g.text, fromAvatar: false))
+        c.over = g.refuses
+        conversation = c
+        log(g.refuses ? g.text : "You speak with \(npc.shortName).")
+    }
+
+    /// The Avatar raises a topic; the NPC answers as their mood dictates.
+    func say(_ t: Topic) {
+        guard var c = conversation, !c.over else { return }
+        c.lines.append(Conversation.Line(text: Dialogue.ask(t), fromAvatar: true))
+        let r = Dialogue.reply(c.npc, t, game: self)
+        c.lines.append(Conversation.Line(text: r.text, fromAvatar: false))
+        if r.ends { c.over = true }
+        conversation = c
+    }
+
+    func endConversation() {
+        guard let c = conversation else { return }
+        conversation = nil
+        if !c.over || c.lines.count > 1 { log("You take your leave of \(c.npc.shortName).") }
+    }
+
     /// Everything on screen goes on the map; underground only what the torch reaches.
     private func markSeen() {
         let rx = Game.viewW / 2, ry = Game.viewH / 2
@@ -236,6 +365,9 @@ final class Game {
         arrive()
     }
 
+    /// Turns the Avatar without moving (developer screenshots).
+    func face(_ d: Direction) { facing = d }
+
     /// Spends time without moving (developer screenshots of night scenes).
     func wait(turns: Int) { turn += turns }
 
@@ -248,6 +380,11 @@ final class Game {
     func look(at lx: Int, _ ly: Int) {
         if lx == x && ly == y {
             log("You see yourself, standing on \(world.terrain(x, y, z).name).")
+            return
+        }
+        if let n = world.npc(at: lx, ly, z) {
+            let who = n.known ? "\(n.name), \(n.description)" : n.description
+            log("You see \(who). \(n.he.capitalizedFirst) \(n.disposition.regard).")
             return
         }
         let f = world.feature(lx, ly, z), t = world.terrain(lx, ly, z)

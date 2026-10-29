@@ -4,7 +4,7 @@ import Foundation
 /// so the land you have explored is still there next time.
 enum SaveGame {
     private struct File: Codable {
-        var version = 2
+        var version = 3
         var seed: String
         var x: Int
         var y: Int
@@ -26,6 +26,8 @@ enum SaveGame {
         var explored: Data
         var places: [Place]
         var signs: [Int: Sign]
+        /// Missing in saves from before there were people.
+        var npcs: [NPC]?
     }
 
     static var url: URL {
@@ -37,7 +39,7 @@ enum SaveGame {
         let regions = game.world.regions.values.map { r in
             RegionRecord(x: r.key.x, y: r.key.y, z: r.key.z, name: r.name, visited: r.visited,
                          terrain: Data(r.terrain.map(\.rawValue)), features: Data(r.features.map(\.rawValue)),
-                         explored: Data(r.explored.map { $0 ? 1 : 0 }), places: r.places, signs: r.signs)
+                         explored: Data(r.explored.map { $0 ? 1 : 0 }), places: r.places, signs: r.signs, npcs: r.npcs)
         }
         let file = File(seed: String(game.world.seed), x: game.x, y: game.y, z: game.z,
                         facing: game.facing.rawValue, name: game.nameEntry == nil ? game.playerName : nil, turn: game.turn, regions: regions)
@@ -51,7 +53,7 @@ enum SaveGame {
     static func load(from url: URL = SaveGame.url) -> Game? {
         guard let data = try? Data(contentsOf: url),
               let file = try? PropertyListDecoder().decode(File.self, from: data),
-              file.version == 2, let seed = UInt64(file.seed)
+              file.version >= 2, let seed = UInt64(file.seed)
         else { return nil }
         let world = World(seed: seed)
         let n = Region.size * Region.size
@@ -64,6 +66,8 @@ enum SaveGame {
             region.visited = rec.visited
             region.places = rec.places
             region.signs = rec.signs
+            if let npcs = rec.npcs { region.npcs = npcs } else { Populace.populate(region, seed: seed) }
+            for n in region.npcs { n.prevX = n.x; n.prevY = n.y }
             world.adopt(region)
         }
         let game = Game(world: world, name: file.name ?? "Avatar", x: file.x, y: file.y, z: file.z,

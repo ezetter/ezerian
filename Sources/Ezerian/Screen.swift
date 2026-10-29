@@ -37,19 +37,21 @@ final class Screen {
     var mapPixelWidth: Int { MapRenderer.pixelW }
     var mapPixelHeight: Int { MapRenderer.pixelH }
 
-    func render(_ game: Game, pose: AvatarPose, frame: Int, clock: Double) -> Framebuffer {
+    func render(_ game: Game, pose: AvatarPose, npcT: Double = 1, frame: Int, clock: Double) -> Framebuffer {
         texts.removeAll(keepingCapacity: true)
         fb.pixels = backdrop
         if game.showMap {
             drawOverview(game, frame: frame)
         } else {
-            map.draw(game, pose: pose, into: fb, at: Screen.mapX, Screen.mapY, frame: frame, clock: clock)
+            map.draw(game, pose: pose, npcT: npcT, into: fb, at: Screen.mapX, Screen.mapY, frame: frame, clock: clock)
         }
+        if let c = game.conversation, !game.showMap { drawConversation(c, game) }
         if game.showHelp { drawHelp() }
         if let entry = game.nameEntry { drawNamePrompt(entry, frame: frame) }
         drawPanel(game, frame: frame)
         let hint = game.showMap ? "M or Esc closes the map  ·  + and − zoom"
-            : "Arrows walk  ·  L look  ·  M map  ·  G borders  ·  H help"
+            : game.conversation != nil ? "Number keys choose what to say  ·  0 or Esc to leave"
+            : "Arrows walk  ·  T talk  ·  Space wait  ·  L look  ·  M map  ·  H help"
         texts.append(TextItem(text: hint, x: Double(Screen.mapX + 4), y: 502, size: 12, color: Screen.dim))
         return fb
     }
@@ -278,7 +280,9 @@ final class Screen {
             ("Arrow keys, WASD", "walk (hold two arrows for diagonals)"),
             ("Q E Z C, numpad", "walk diagonally"),
             ("Click or hold on the map", "walk that way"),
-            ("Right-click", "look at something"),
+            ("Right-click", "look at something or someone"),
+            ("T, or walk into someone", "talk to them"),
+            ("Space", "wait a turn"),
             ("L", "look at what is ahead"),
             ("M", "map of the explored lands"),
             ("G", "show region borders"),
@@ -286,13 +290,85 @@ final class Screen {
             ("H or ?", "close this help"),
         ]
         for (i, (key, what)) in lines.enumerated() {
-            let ly = Double(y + 52 + i * 26)
+            let ly = Double(y + 48 + i * 23)
             texts.append(TextItem(text: key, x: Double(x + 26), y: ly, size: 14, font: .bold, color: 0x5A2A10, shadow: false))
             texts.append(TextItem(text: what, x: Double(x + 222), y: ly, size: 14, color: 0x3A2412, shadow: false))
         }
         texts.append(TextItem(text: "Walk into doors, signs and cave mouths. Roofs lift when you step inside.",
                               x: Double(x + w / 2), y: Double(y + h - 30), size: 12.5, font: .italic,
                               color: 0x5A4024, align: .center, shadow: false))
+    }
+
+    /// The conversation window: the NPC's face, name, race and mood (with the
+    /// friendliness score as a bar), the last few things said, and what to say next.
+    private func drawConversation(_ c: Conversation, _ game: Game) {
+        let npc = c.npc
+        let w = MapRenderer.pixelW - 24, h = 200
+        let x = Screen.mapX + 12, y = Screen.mapY + MapRenderer.pixelH - h - 12
+        parchmentBox(x, y, w, h)
+        // Portrait.
+        let face = SpriteBank.shared.faces[npc.race.index][npc.look % Populace.looks]
+        let fx = x + 12, fy = y + 14, fw = 92, fh = 104
+        for yy in 0..<fh {
+            for xx in 0..<fw {
+                let t = Float(yy) / Float(fh)
+                fb.pixels[(fy + yy) * Screen.width + fx + xx] = pack(mix(hex(0x5A6A4A), hex(0x2A2A1E), t))
+            }
+        }
+        fb.blit(face, fx + fw / 2 - face.w / 2 + face.ax, fy + 10 + face.ay, clip: (fx, fy, fw, fh))
+        gild(fx, fy, fw, fh)
+        let title = npc.known ? npc.name : "\(npc.race.article.capitalizedFirst) \(npc.race.name)"
+        texts.append(TextItem(text: title, x: Double(fx + fw / 2), y: Double(fy + fh + 6), size: 15, font: .title,
+                              color: Screen.brown, align: .center, shadow: false))
+        texts.append(TextItem(text: "\(npc.race.name.capitalizedFirst) \(npc.role)", x: Double(fx + fw / 2),
+                              y: Double(fy + fh + 26), size: 11, font: .italic, color: 0x5A4024, align: .center, shadow: false))
+        // Friendliness bar from hostile (red) to adoring (green).
+        let bx = x + w - 196, by = y + 14, bw = 180
+        texts.append(TextItem(text: "\(npc.disposition.word) (\(npc.friendliness > 0 ? "+" : "")\(npc.friendliness))",
+                              x: Double(bx + bw), y: Double(by - 2), size: 12, font: .bold, color: moodInk(npc.disposition),
+                              align: .right, shadow: false))
+        let barY = by + 18
+        for k in 0..<bw {
+            let t = Float(k) / Float(bw - 1)
+            let c = t < 0.5 ? mix(hex(0xB02018), hex(0xD8B040), t * 2) : mix(hex(0xD8B040), hex(0x2E9A3A), (t - 0.5) * 2)
+            fb.fill(bx + k, barY, 1, 6, pack(c))
+        }
+        gild(bx, barY, bw, 6)
+        let mark = bx + Int(Double(npc.friendliness + 100) / 200 * Double(bw - 1))
+        fb.fill(mark - 1, barY - 3, 3, 12, rgb(0x1A1008))
+        fb.fill(mark, barY - 2, 1, 10, rgb(0xFFF4D0))
+        // What has been said.
+        let tx = Double(fx + fw + 16), tw = Double(w - fw - 44)
+        var rows: [(String, Bool)] = []
+        for line in c.lines.suffix(6) {
+            let text = line.fromAvatar ? "“\(line.text)”" : "\(npc.shortName.capitalizedFirst): “\(line.text)”"
+            for l in TextRenderer.wrap(text, width: tw, size: 13, font: line.fromAvatar ? .italic : .body) { rows.append((l, line.fromAvatar)) }
+        }
+        var ly = Double(y + 40)
+        for (l, mine) in rows.suffix(7) {
+            texts.append(TextItem(text: l, x: tx, y: ly, size: 13, font: mine ? .italic : .body,
+                                  color: mine ? 0x5A4A3A : 0x2A1406, shadow: false))
+            ly += 17
+        }
+        // What to say next.
+        let options: String
+        if c.over {
+            options = "Press any key to go on your way."
+        } else {
+            options = Topic.menu.map { "\($0.rawValue) \($0.label)" }.joined(separator: "   ")
+        }
+        texts.append(TextItem(text: options, x: tx, y: Double(y + h - 26), size: 12.5, font: .bold, color: 0x6A2A10,
+                              shadow: false))
+    }
+
+    private func moodInk(_ d: Disposition) -> UInt32 {
+        switch d {
+        case .hostile: return 0x9A1A10
+        case .unfriendly: return 0x8A4A10
+        case .neutral: return 0x5A4A2A
+        case .friendly: return 0x3A6A20
+        case .adoring: return 0x1E7A2A
+        }
     }
 
     /// Map of every tile the Avatar has seen, centred on the Avatar.

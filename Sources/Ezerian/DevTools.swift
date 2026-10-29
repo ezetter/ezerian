@@ -11,6 +11,28 @@ enum DevTools {
                 if n.count >= 2 { game.teleport(n[0], n[1], n.count > 2 ? n[2] : 0) }
                 continue
             }
+            if token == "talk" { game.talk(); continue }
+            if token.hasPrefix("say:"), let n = Int(token.dropFirst(4)), let t = Topic(rawValue: n) { game.say(t); continue }
+            if token.hasPrefix("npc:"), let race = Race(rawValue: String(token.dropFirst(4))) {
+                // Stand beside the nearest NPC of a race, facing them.
+                var best: NPC?
+                for ry in -2...2 {
+                    for rx in -2...2 {
+                        for n in game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs where n.race == race {
+                            if best == nil || abs(n.x - game.x) + abs(n.y - game.y) < abs(best!.x - game.x) + abs(best!.y - game.y) { best = n }
+                        }
+                    }
+                }
+                if let n = best {
+                    for (dx, dy) in [(0, 1), (1, 0), (-1, 0), (0, -1)] where game.world.isPassable(n.x + dx, n.y + dy, 0)
+                        && game.world.npc(at: n.x + dx, n.y + dy, 0) == nil {
+                        game.teleport(n.x + dx, n.y + dy, 0)
+                        game.face(Direction.from(dx: -dx, dy: -dy))
+                        break
+                    }
+                }
+                continue
+            }
             if token.hasPrefix("wait:") {
                 game.wait(turns: Int(token.dropFirst(5)) ?? 0)
                 continue
@@ -282,7 +304,9 @@ extension DevTools {
             check(reachable(game.world, from: (startX, startY), toBuilding: p), "can walk into \(p.name)")
         }
 
-        // Stepping through the tavern door lifts the roofs.
+        // Stepping through the tavern door lifts the roofs (with the townsfolk out of the way).
+        let folk = home.npcs
+        home.npcs = []
         game.move(dx: 0, dy: -1)
         game.move(dx: 0, dy: -1)
         check(game.isIndoors, "stepping through the door brings the Avatar indoors (roofs lift)")
@@ -299,6 +323,7 @@ extension DevTools {
         }
         check(missing.isEmpty, "every object in the world has a sprite \(missing.isEmpty ? "" : "(missing: \(missing))")")
 
+        home.npcs = folk
         // A frame renders above ground, indoors and underground.
         let screen = Screen(world: game.world)
         let pose = { AvatarPose(x: Double(game.x), y: Double(game.y), facing: game.facing, step: 0) }
@@ -307,12 +332,66 @@ extension DevTools {
         if let cave = home.features.firstIndex(of: .caveEntrance) ?? game.world.region(target).features.firstIndex(of: .caveEntrance) {
             let r = home.features.contains(.caveEntrance) ? home : game.world.region(target)
             game.teleport(r.originX + cave % Region.size, r.originY + cave / Region.size + 1, 0)
+            game.endConversation()
             game.move(dx: 0, dy: -1)
             check(game.isUnderground, "a cave mouth leads underground")
             _ = screen.render(game, pose: pose(), frame: 1, clock: 0.1)
             check(game.world.feature(game.x, game.y - 1, 1) == .ladderUp, "a ladder leads back up from the cave")
+            game.endConversation()
             game.move(dx: 0, dy: -1)
             check(!game.isUnderground, "climbing the ladder returns to the surface")
+        }
+
+        // People: four races, friendliness centred on each race's mean.
+        check(home.npcs.count >= 8, "the home town is peopled (\(home.npcs.count) NPCs)")
+        check(home.npcs.allSatisfy { (-100...100).contains($0.friendliness) }, "every friendliness is within -100...100")
+        var rng = SplitMix64(seed: 77)
+        for race in Race.allCases {
+            let samples = (0..<4000).map { _ in Populace.friendliness(race, &rng) }
+            let mean = Double(samples.reduce(0, +)) / Double(samples.count)
+            check(abs(mean - Double(race.meanFriendliness)) < 3,
+                  "\(race.name)s average a friendliness of \(race.meanFriendliness) (sampled \(String(format: "%.1f", mean)))")
+        }
+        var seen = Set<Race>()
+        for ry in -2...2 { for rx in -2...2 { for n in game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs { seen.insert(n.race) } } }
+        check(seen.count == 4, "all four races live in the lands around home (\(seen.map(\.name).sorted().joined(separator: ", ")))")
+
+        // Talking: walking into someone starts a conversation guided by their mood.
+        if let n = home.npcs.first(where: { npc in [(0, 1), (1, 0), (-1, 0), (0, -1)].contains { game.world.isPassable(npc.x + $0.0, npc.y + $0.1, 0) && game.world.npc(at: npc.x + $0.0, npc.y + $0.1, 0) == nil } }) {
+            let (dx, dy) = [(0, 1), (1, 0), (-1, 0), (0, -1)].first { game.world.isPassable(n.x + $0.0, n.y + $0.1, 0) && game.world.npc(at: n.x + $0.0, n.y + $0.1, 0) == nil }!
+            game.endConversation()
+            game.teleport(n.x + dx, n.y + dy, 0)
+            n.friendliness = 80
+            n.x = game.x - dx; n.y = game.y - dy
+            game.move(dx: -dx, dy: -dy)
+            check(game.conversation?.npc === n, "walking into someone starts a conversation")
+            let (px, py) = (game.x, game.y)
+            game.move(dx: dx, dy: dy)
+            check(game.x == px && game.y == py, "the Avatar stays put while talking")
+            n.known = false
+            game.say(.name)
+            check(n.known && game.conversation!.lines.last!.text.contains(n.name), "a friendly NPC tells their name")
+            game.endConversation()
+            n.friendliness = -75
+            n.known = false
+            game.talk()
+            game.say(.name)
+            check(!n.known && !game.conversation!.lines.last!.text.contains(n.name), "a hostile NPC keeps their name to themselves")
+            let before = n.friendliness
+            game.say(.compliment)
+            check(n.friendliness != before, "a compliment changes how they feel")
+            let mid = n.friendliness
+            game.say(.insult)
+            check(n.friendliness < mid, "an insult lowers their friendliness")
+            if game.conversation?.over == false { game.say(.farewell) }
+            check(game.conversation?.over == true, "farewell (or enough insults) ends the talk")
+            game.endConversation()
+            n.friendliness = -95
+            game.talk()
+            check(game.conversation?.over == true, "someone who loathes the Avatar won't talk at all")
+            game.endConversation()
+        } else {
+            check(false, "found someone to talk to")
         }
 
         // Keys reach the game the same way they do in the window.
@@ -358,6 +437,9 @@ extension DevTools {
                 check(loaded.world.region(RegionKey(x: 0, y: 0, z: 0)).places.filter { $0.roof != nil }.count
                       == home.places.filter { $0.roof != nil }.count, "roofs survive a save")
                 check(loaded.x == game.x && loaded.y == game.y, "the Avatar's position is restored")
+                let saved = home.npcs, back = loaded.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
+                check(saved.count == back.count && zip(saved, back).allSatisfy { $0.friendliness == $1.friendliness && $0.x == $1.x && $0.name == $1.name },
+                      "people, where they stand and how they feel survive a save")
                 check(loaded.playerName == game.playerName && loaded.nameEntry == nil, "the name is restored without asking again")
             }
         } catch {

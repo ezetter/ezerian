@@ -3,7 +3,8 @@
 The Land of Ezerian, made again with richer graphics. It is still a Mac-native,
 single-player, turn-based RPG in the spirit of **Ultima VI** in which, for now, you
 explore: walk an endless, randomly generated land of meadows, forests, rivers,
-mountains, towns, taverns and caves. There are no monsters, NPCs or items yet.
+mountains, towns, taverns and caves, and talk to the people you meet. There is no
+combat and there are no items yet.
 
 The look follows the high-resolution Ultima VI remake in the reference screenshots
 (kept in `screens/`, which git ignores): 32-pixel tiles with painterly textures, thick
@@ -15,6 +16,8 @@ indoors, ink-outlined objects, and torchlit nights.
 ![](docs/night.png)
 
 ![](docs/wilds.png)
+
+![](docs/people.png)
 
 ## Build and run
 
@@ -41,7 +44,10 @@ swift run -c release Ezerian
 | Arrow keys / WASD | Walk (hold two arrows to walk diagonally) |
 | Q E Z C, numpad | Walk diagonally |
 | Click / hold on the map | Walk toward the pointer |
-| Right-click | Look at whatever is under the pointer |
+| Right-click | Look at whatever (or whoever) is under the pointer |
+| T, or walk into someone | Talk to them |
+| 1–6, 0 or Esc | In a conversation: choose what to say, or leave |
+| Space | Wait a turn |
 | L | Look at the tile ahead |
 | M | Map of the lands you have explored (+/- or scroll to zoom) |
 | G | Show region borders on the map view |
@@ -55,6 +61,31 @@ the side panel, under the Avatar's portrait, and is kept in the save file.
 Walk into a door to go inside, into a sign to read it, and into a cave mouth to go
 underground. A ladder brings you back up. The Avatar glides from tile to tile, but the
 game is still turn-based: every step is a turn of two minutes.
+
+## People
+
+Ezerian is home to four races: **humans**, **elves**, **dwarves** and **orcs**. Every
+NPC has a friendliness score from -100 (extremely hostile) to 100 (adoring), drawn from
+a bell curve around their race's average: humans 25, elves 0, dwarves -25, orcs -50.
+The score falls into five moods — hostile, unfriendly, neutral, friendly, adoring —
+which decide how they answer you.
+
+* **Where they live:** keepers in every shop, tavern, inn, smithy, temple and home
+  (dwarves favour the forge), patrons in the taverns, townsfolk in the streets, elves
+  in the woods, dwarf prospectors in the hills, orc bands at campfires and in caves,
+  and travellers on the roads.
+* **Each turn** they go about their business: most wander a little, hostile ones close
+  in on you and growl, adoring ones come over to wave.
+* **Talking:** walk into someone or press T. The conversation window shows their
+  portrait, race, trade, mood and score. Ask their **name** (hostile folk won't say),
+  their **job**, the **news** (friendly folk point you to nearby towns and landmarks),
+  or **directions** to an inn (friendly folk are exact, neutral ones vague, hostile ones
+  lie). A **compliment** raises their friendliness (elves like flattery most, orcs
+  least), an **insult** lowers it, and an NPC who loathes you (-85 or below) won't
+  talk at all.
+* Each race speaks its own way, from courtly elves ("thou", "mortal") and gruff dwarves
+  ("aye", "surface-dweller") to blunt orcs ("pinkskin").
+* People, where they stand and how they feel about you are kept in the save file.
 
 ## How the world works
 
@@ -119,12 +150,13 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | File | Purpose |
 | --- | --- |
 | `main.swift`, `AppDelegate.swift`, `GameView.swift` | App, window, menus, keyboard, mouse and gliding movement |
-| `Game.swift` | Avatar movement, messages, game clock |
+| `Game.swift` | Avatar movement, NPC turns, conversations, messages, game clock |
+| `NPC.swift`, `Dialogue.swift` | Races, friendliness, where people live, what they say |
 | `World.swift`, `Tiles.swift` | Regions, lazy generation, terrain and objects |
 | `WorldGen.swift`, `Settlements.swift`, `Buildings.swift`, `Sites.swift`, `Roads.swift`, `Caves.swift`, `Names.swift`, `Noise.swift` | World generation |
 | `Screen.swift`, `TextRenderer.swift` | Screen layout, side panel, overlays, text |
 | `MapRenderer.swift`, `Ground.swift`, `Lighting.swift`, `Framebuffer.swift` | Rendering |
-| `Textures.swift`, `Modeler.swift`, `SpriteBank.swift`, `Art*.swift` | Procedural art |
+| `Textures.swift`, `Modeler.swift`, `SpriteBank.swift`, `Art*.swift` | Procedural art (`ArtPeople.swift`: the four races) |
 | `SaveGame.swift` | Saving and loading |
 | `DevTools.swift` | Command-line developer tools |
 
@@ -138,12 +170,14 @@ swift run -c release Ezerian --selftest
 
 Checks that regions are kept when you walk away and back, that every building in the
 starting town can be walked into through a door in its south wall, that roofs lift
-indoors, that caves lead down and back up, that every object has a sprite, that keys
+indoors, that each race's friendliness averages out right, that conversations follow
+the NPC's mood, that caves lead down and back up, that every object has a sprite, that keys
 reach the game, and that saves round-trip.
 
 * `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name] [--scale 2]`
   renders a screenshot. A walk can also contain `find:<feature>` (for example
-  `find:shrine` or `find:t.forest`) to jump next to the nearest one.
+  `find:shrine` or `find:t.forest`) to jump next to the nearest one, `npc:orc` to stand
+  beside the nearest orc, and `talk` and `say:N` to hold a conversation.
 * `--sheet out.png` draws every sprite; `--textures out.png` every texture.
 * `--overview out.png [--radius R]` draws a one-pixel-per-tile map of the generated world.
 * `--bench` times start-up art, world generation and rendering.

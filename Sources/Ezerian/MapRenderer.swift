@@ -107,7 +107,7 @@ extension MapRenderer {
     /// against the depth of what is already there. Objects inside a building are
     /// left out while its roof is on.
     func drawObjects(_ game: Game, into fb: Framebuffer, at mapX: Int, _ mapY: Int,
-                     frame: Int, roofs: Bool, avatar: AvatarPose, shadowStrength: Float = 1) {
+                     frame: Int, roofs: Bool, avatar: AvatarPose, npcs: [NPCPose] = [], shadowStrength: Float = 1) {
         let bank = SpriteBank.shared
         let T = MapRenderer.tile, W = MapRenderer.pixelW, H = MapRenderer.pixelH
         let world = game.world, z = game.z
@@ -116,6 +116,17 @@ extension MapRenderer {
         var items: [DrawItem] = []
         let avatarRow = Int(avatar.y.rounded(.up))
         var avatarDone = false
+        // People, by the row they stand in (hidden under roofs like furniture).
+        var folk: [Int: [DrawItem]] = [:]
+        for p in npcs {
+            let tx = Int(p.x.rounded()), ty = Int(p.y.rounded())
+            if roofs, world.building(at: tx, ty, z) != nil { continue }
+            let a = bank.people[p.race.index][p.look % Populace.looks][p.facing.rawValue][p.step % 3]
+            let T = Double(T)
+            folk[Int(p.y.rounded(.up)), default: []].append(
+                DrawItem(art: a, x: Int((p.x * T).rounded()) - camX, y: Int((p.y * T).rounded()) - camY,
+                         owner: Int32((ty - ty0) * 256 + (tx - tx0)), ghost: false))
+        }
         for ty in ty0..<ty1 {
             for tx in tx0..<tx1 {
                 let f = world.feature(tx, ty, z)
@@ -142,6 +153,7 @@ extension MapRenderer {
                 items.append(DrawItem(art: a, x: tx * T - camX, y: ty * T - camY,
                                       owner: Int32((ty - ty0) * 256 + (tx - tx0)), ghost: false))
             }
+            if let f = folk[ty] { items.append(contentsOf: f) }
             if ty == avatarRow {
                 items.append(avatarItem(avatar, bank))
                 avatarDone = true
@@ -239,7 +251,7 @@ extension MapRenderer {
 
 extension MapRenderer {
     /// One complete frame of the map: ground, objects, Avatar and the light of the hour.
-    func draw(_ game: Game, pose: AvatarPose, into fb: Framebuffer, at mapX: Int, _ mapY: Int,
+    func draw(_ game: Game, pose: AvatarPose, npcT: Double = 1, into fb: Framebuffer, at mapX: Int, _ mapY: Int,
               frame: Int, clock: Double) {
         let world = game.world, z = game.z
         let roofs = z == 0 && !game.isIndoors
@@ -249,7 +261,7 @@ extension MapRenderer {
         let hour = game.hourOfDay
         let under = game.isUnderground
         drawObjects(game, into: fb, at: mapX, mapY, frame: frame, roofs: roofs, avatar: pose,
-                    shadowStrength: under ? 0 : Lighting.sunShadow(hour))
+                    npcs: game.npcPoses(t: npcT), shadowStrength: under ? 0 : Lighting.sunShadow(hour))
 
         let sky = under ? Col(0.12, 0.1, 0.09) : Lighting.sky(hour)
         if under || simd_reduce_min(sky) < 0.995 {

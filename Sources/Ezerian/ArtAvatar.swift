@@ -78,8 +78,15 @@ enum AvatarArt {
 
     /// The figure turned to face a direction, standing in the middle of its tile.
     static func model(facing: Direction, step: Int) -> Model {
-        let base = figure(step: step)
-        // Rotation that takes "facing south" to the wanted facing.
+        // A little larger than life, so the hero stands out on the map.
+        Posing.stand(figure(step: step), facing: facing, scale: V3(repeating: 1.16))
+    }
+}
+
+/// Turns a figure built facing south about (0, 0) to face any way, scaled
+/// (across, front-to-back, up), standing in the middle of its tile.
+enum Posing {
+    static func stand(_ base: Model, facing: Direction, scale k: V3) -> Model {
         let (c, s): (Float, Float)
         switch facing {
         case .south: (c, s) = (1, 0)
@@ -87,13 +94,19 @@ enum AvatarArt {
         case .east: (c, s) = (0, -1)
         case .west: (c, s) = (0, 1)
         }
-        // A little larger than life, so the hero stands out on the map.
-        let k: Float = 1.16
-        func rot(_ p: V3) -> V3 { V3((c * p.x - s * p.y) * k + 16, (s * p.x + c * p.y) * k + 17, p.z * k) }
-        func rotR(_ r: V3) -> V3 { (abs(c) > 0.5 ? r : V3(r.y, r.x, r.z)) * k }
+        func rot(_ p: V3) -> V3 {
+            let q = p * k
+            return V3(c * q.x - s * q.y + 16, s * q.x + c * q.y + 17, q.z)
+        }
+        func rotR(_ r: V3) -> V3 {
+            let q = r * k
+            return abs(c) > 0.5 ? q : V3(q.y, q.x, q.z)
+        }
+        let kr = (k.x + k.y) / 2
         var m = Model()
         m.leanX = 0.5
         m.shadowAlpha = 0.3
+        m.seed = base.seed
         for var p in base.prims {
             switch p.shape {
             case let .box(a, b):
@@ -102,9 +115,9 @@ enum AvatarArt {
             case let .ellipsoid(cn, r): p.shape = .ellipsoid(rot(cn), rotR(r))
             case let .cone(cn, r0, r1, z0, z1):
                 let q = rot(V3(cn.x, cn.y, 0))
-                p.shape = .cone(SIMD2(q.x, q.y), r0 * k, r1 * k, z0 * k, z1 * k)
-            case let .capsule(a, b, r): p.shape = .capsule(rot(a), rot(b), r * k)
-            case .lying: break
+                p.shape = .cone(SIMD2(q.x, q.y), r0 * kr, r1 * kr, z0 * k.z, z1 * k.z)
+            case let .capsule(a, b, r): p.shape = .capsule(rot(a), rot(b), r * kr)
+            case .lying: continue
             }
             m.prims.append(p)
         }

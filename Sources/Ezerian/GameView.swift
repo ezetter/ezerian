@@ -119,7 +119,9 @@ final class GameView: NSView, CALayerDelegate {
         guard moving || anim != lastTick || needsRender else { return }
         lastTick = anim
         needsRender = false
-        let fb = screen.render(game, pose: pose(now), frame: anim, clock: now - start)
+        let p = pose(now)
+        let t = max(0, min(1, (now - moveStart) / moveTime))
+        let fb = screen.render(game, pose: p, npcT: t, frame: anim, clock: now - start)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         mapLayer.contents = fb.makeImage()
@@ -151,6 +153,19 @@ final class GameView: NSView, CALayerDelegate {
             enterName(event)
             return
         }
+        if let c = game.conversation {
+            stopRepeating()
+            heldKeys.removeAll()
+            if c.over {
+                game.endConversation()
+            } else if event.keyCode == 53 {
+                game.endConversation()
+            } else if let ch = event.charactersIgnoringModifiers?.first, let n = ch.wholeNumberValue, let t = Topic(rawValue: n) {
+                if t == .farewell { game.say(.farewell) } else { game.say(t) }
+            }
+            needsRender = true
+            return
+        }
         if let dir = GameView.directionKeys[event.keyCode] {
             guard !event.isARepeat else { return }
             heldKeys[event.keyCode] = dir
@@ -166,6 +181,15 @@ final class GameView: NSView, CALayerDelegate {
         case "g": game.showGrid.toggle()
         case "h", "?", "/": game.showHelp.toggle()
         case "l": game.lookAhead()
+        case "t":
+            game.talk()
+            if game.conversation != nil { stopRepeating(); heldKeys.removeAll() }
+        case " ":
+            game.waitTurn()
+            from = (Double(game.x), Double(game.y))
+            to = from
+            moveStart = CACurrentMediaTime()
+            onTurn?()
         case "+", "=": if game.showMap { game.mapScale = min(4, game.mapScale + 1) }
         case "-", "_": if game.showMap { game.mapScale = max(1, game.mapScale - 1) }
         case "\u{1b}":
@@ -213,6 +237,7 @@ final class GameView: NSView, CALayerDelegate {
         let now = CACurrentMediaTime()
         let here = pose(now)
         let jumps = game.jumps
+        if game.conversation != nil { stopRepeating(); heldKeys.removeAll(); mouseDirection = nil; return }
         if game.move(dx: dx, dy: dy) {
             if game.jumps == jumps {
                 from = (here.x, here.y)
@@ -222,6 +247,7 @@ final class GameView: NSView, CALayerDelegate {
                 snapToGame()
             }
         }
+        if game.conversation != nil { stopRepeating(); heldKeys.removeAll(); mouseDirection = nil }
         onTurn?()
         needsRender = true
     }
@@ -278,7 +304,8 @@ final class GameView: NSView, CALayerDelegate {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        guard !game.showMap, game.nameEntry == nil, let p = mapPixel(for: event), let dir = direction(toward: p) else { return }
+        guard !game.showMap, game.nameEntry == nil, game.conversation == nil,
+              let p = mapPixel(for: event), let dir = direction(toward: p) else { return }
         mouseDirection = dir
         stepHeld()
         startRepeating()
