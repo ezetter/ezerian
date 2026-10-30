@@ -793,6 +793,8 @@ extension DevTools {
                 mate.x = boss.x + 2; mate.y = boss.y
                 g.startCombat(against: boss, startedByEnemy: true)
                 check(g.combat?.enemies.contains { $0 === mate } == true, "Draconian's servants nearby join a fight together")
+                check(g.messages.contains { $0.hasSuffix("cries: \"Thou shalt bow down before Lord Draconian, mighty emperor of Sespooland and Ezerian.\"") },
+                      "Draconian's people announce themselves when they attack")
             }
         }
 

@@ -129,7 +129,9 @@ Draconian".
   when you come within ten paces. Because the warbands are all his, orcs elsewhere
   serve him with a 35% chance, which keeps the total at half.
 * **Never friends:** nothing you say raises his people above 0, so they never join your
-  party. They close in on you when you're near, are likely to attack (see Combat), and
+  party. They close in on you when you're near, are likely to attack (see Combat) —
+  always crying "Thou shalt bow down before Lord Draconian, mighty emperor of
+  Sespooland and Ezerian." as they do — and
   when one of them fights, his fellow servants close by join in. Claude voices them as
   loyal to Draconian: they may boast of his coming conquest or let slip his plans,
   and ordinary folk speak of him as a rumour and a threat.

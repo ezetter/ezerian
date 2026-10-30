@@ -16,6 +16,9 @@ final class Combat {
         self.order = order
     }
 
+    /// What Lord Draconian's people cry out whenever they attack.
+    static let draconianBattleCry = "Thou shalt bow down before Lord Draconian, mighty emperor of Sespooland and Ezerian."
+
     static let hitChance = 0.5
     static let maxDamage = 10
     /// How much attacking someone sours them towards the Avatar.
@@ -80,6 +83,9 @@ extension Game {
         guard !gameOver, enemy.hp > 0 else { return }
         conversation = nil
         attackPending = false
+        if startedByEnemy && enemy.servesDraconian {
+            log("\(enemy.shortName.capitalizedFirst) cries: \"\(Combat.draconianBattleCry)\"")
+        }
         if let c = combat {
             join(enemy, to: c, attackedByAvatar: !startedByEnemy)
             return
