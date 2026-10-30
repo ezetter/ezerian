@@ -93,6 +93,14 @@ final class NPC: Codable {
     private var inParty: Bool?
     /// Friendliness when they last refused to join or left the party (see `Party.lockedOut`).
     var refusedAt: Int?
+    /// Serves Lord Draconian, Wizard Lord and Emperor of Sespooland.
+    var servesDraconian: Bool {
+        get { draconianStore ?? false }
+        set { draconianStore = newValue }
+    }
+    private var draconianStore: Bool?
+    /// Members of one of Draconian's roving warbands share a band number.
+    var warband: Int?
     /// Health; at 0 the NPC dies. (Optional storage: saves from before combat lack it.)
     private var hpStore: Int?
     private var maxHPStore: Int?
@@ -112,7 +120,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP"
+             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,
@@ -156,13 +164,18 @@ final class NPC: Codable {
 
     /// "Thora" once she has told you her name, otherwise "the dwarf".
     var shortName: String { known ? name : "the \(race.name)" }
-    var description: String { "\(race.article) \(race.name) \(role)" }
+    var description: String {
+        "\(race.article) \(race.name) \(role)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
+    }
 
     func mayStand(_ px: Int, _ py: Int) -> Bool {
         px >= bounds[0] && py >= bounds[1] && px <= bounds[2] && py <= bounds[3]
     }
 
-    func changeFriendliness(by d: Int) { friendliness = max(-100, min(100, friendliness + d)) }
+    /// Draconian's people never warm to the Avatar above 0, whatever is said.
+    func changeFriendliness(by d: Int) {
+        friendliness = max(-100, min(servesDraconian ? 0 : 100, friendliness + d))
+    }
 }
 
 /// Where to draw an NPC this frame (position in tiles, perhaps between two).
@@ -179,7 +192,8 @@ struct NPCPose {
 /// townsfolk in the streets, elves in the woods, dwarves in the hills, orc bands
 /// at campfires and in caves, travellers on the roads.
 enum Populace {
-    static let looks = 6
+    /// 0-2 men, 3-5 women, 6-7 Lord Draconian's livery (man, woman).
+    static let looks = 8
 
     private static let firstNames: [Race: (male: [String], female: [String])] = [
         .human: (["Aldric", "Cedric", "Gareth", "Ivor", "Lucan", "Nolan", "Piers", "Tobin", "Vance", "Bram", "Corwin", "Osric",
@@ -201,10 +215,27 @@ enum Populace {
 
     /// A friendliness drawn from a bell curve round the race's mean.
     static func friendliness(_ race: Race, _ rng: inout SplitMix64) -> Int {
-        let u1 = max(1e-9, rng.double()), u2 = rng.double()
-        let g = (-2 * log(u1)).squareRoot() * cos(2 * .pi * u2)
-        return max(-100, min(100, race.meanFriendliness + Int((g * 30).rounded())))
+        max(-100, min(100, race.meanFriendliness + Int((gaussian(&rng) * 30).rounded())))
     }
+
+    /// Lord Draconian's people: always between -100 and 0. His orcs are half again as
+    /// unfriendly as other orcs (averaging -75); his mercenaries average -50.
+    static func servantFriendliness(_ race: Race, _ rng: inout SplitMix64) -> Int {
+        let (mean, spread) = race == .orc ? (-76.0, 20.0) : (-50.0, 30.0)
+        return max(-100, min(0, Int((mean + gaussian(&rng) * spread).rounded())))
+    }
+
+    private static func gaussian(_ rng: inout SplitMix64) -> Double {
+        let u1 = max(1e-9, rng.double()), u2 = rng.double()
+        return (-2 * log(u1)).squareRoot() * cos(2 * .pi * u2)
+    }
+
+    /// Chance that an orc outside a warband serves Lord Draconian. The warbands are all
+    /// his, so this is set so that, counting them, half of all orcs serve him.
+    static let orcAllegiance = 0.35
+
+    /// Mercenaries Draconian has hired: anyone but orcs (half of whom serve him anyway).
+    private static let hirelings: [(Race, Double)] = [(.human, 60), (.dwarf, 25), (.elf, 15)]
 
     private static func pickRace(_ weights: [(Race, Double)], _ rng: inout SplitMix64) -> Race {
         var r = rng.double() * weights.reduce(0) { $0 + $1.1 }
@@ -233,15 +264,22 @@ enum Populace {
             return true
         }
 
-        func add(_ race: Race, _ lx: Int, _ ly: Int, role: String, bounds: (Int, Int, Int, Int), home: String?) {
+        /// `draconian` nil: orcs serve Lord Draconian on the toss of a coin, others don't.
+        func add(_ race: Race, _ lx: Int, _ ly: Int, role: String, bounds: (Int, Int, Int, Int), home: String?,
+                 draconian: Bool? = nil, warband: Int? = nil) {
             let female = rng.chance(0.5)
             let names = firstNames[race]!
-            let look = (female ? 3 : 0) + rng.int(3)
+            let servant = draconian ?? (race == .orc && rng.chance(orcAllegiance))
+            let look = servant ? (female ? 7 : 6) : (female ? 3 : 0) + rng.int(3)
+            let job = servant && draconian == nil && home != nil ? "mercenary" : role
             let npc = NPC(id: Int(truncatingIfNeeded: Hash.of(seed, ox + lx, oy + ly, 9000 + key.z + people.count)),
                           name: rng.pick(female ? names.female : names.male), race: race, female: female, look: look,
-                          friendliness: friendliness(race, &rng), x: ox + lx, y: oy + ly, z: key.z,
+                          friendliness: servant ? servantFriendliness(race, &rng) : friendliness(race, &rng),
+                          x: ox + lx, y: oy + ly, z: key.z,
                           bounds: [ox + max(1, bounds.0), oy + max(1, bounds.1), ox + min(n - 2, bounds.2), oy + min(n - 2, bounds.3)],
-                          role: role, home: home)
+                          role: job, home: home)
+            npc.servesDraconian = servant
+            npc.warband = warband
             npc.facing = rng.int(4)
             npc.maxHP = health(rng.double())
             npc.hp = npc.maxHP
@@ -269,9 +307,11 @@ enum Populace {
             // Orc bands and dwarf miners in the caverns.
             let floor = terrainIs([.caveFloor])
             if rng.chance(0.6), let c = spot(4, 4, n - 5, n - 5, where: floor) {
+                let theirs = rng.chance(orcAllegiance)
                 for _ in 0..<(2 + rng.int(3)) {
                     if let p = near(c.0, c.1, 3, where: floor) {
-                        add(.orc, p.0, p.1, role: rng.pick(["raider", "warrior", "brute"]), bounds: (c.0 - 7, c.1 - 7, c.0 + 7, c.1 + 7), home: nil)
+                        add(.orc, p.0, p.1, role: rng.pick(["raider", "warrior", "brute"]), bounds: (c.0 - 7, c.1 - 7, c.0 + 7, c.1 + 7),
+                            home: nil, draconian: theirs)
                     }
                 }
             }
@@ -298,8 +338,12 @@ enum Populace {
             }
             for _ in 0..<extra {
                 if let p = spot(x0, y0, x1, y1, where: inside) {
-                    add(pickRace(townFolk, &rng), p.0, p.1, role: rng.pick(["patron", "traveller", "drinker"]),
-                        bounds: (x0, y0, x1, y1), home: b.name)
+                    if rng.chance(0.2) {
+                        add(pickRace(hirelings, &rng), p.0, p.1, role: "mercenary", bounds: (x0, y0, x1, y1), home: b.name, draconian: true)
+                    } else {
+                        add(pickRace(townFolk, &rng), p.0, p.1, role: rng.pick(["patron", "traveller", "drinker"]),
+                            bounds: (x0, y0, x1, y1), home: b.name)
+                    }
                 }
             }
         }
@@ -311,8 +355,13 @@ enum Populace {
             }
             for _ in 0..<(t.w > 40 ? 9 : 6) {
                 if let p = spot(x0, y0, x1, y1, where: outdoors) {
+                    if rng.chance(0.15) {
+                        // One of Draconian's hired swords, loitering in the streets.
+                        add(pickRace(hirelings, &rng), p.0, p.1, role: "mercenary", bounds: (x0, y0, x1, y1), home: t.name, draconian: true)
+                        continue
+                    }
                     let race = pickRace(townFolk, &rng)
-                    let role = race == .orc ? rng.pick(["mercenary", "labourer"])
+                    let role = race == .orc ? rng.pick(["labourer", "porter", "drover"])
                         : rng.pick(["townsfolk", "merchant", "guard", "beggar", "bard", "farmhand", "child"])
                     add(race, p.0, p.1, role: role, bounds: (x0, y0, x1, y1), home: t.name)
                 }
@@ -323,11 +372,13 @@ enum Populace {
         for t in region.terrain { counts[t, default: 0] += 1 }
         let total = n * n
         let wild: (Int, Int) -> Bool = { x, y in !region.roofed.contains { $0.contains(ox + x, oy + y) } && town?.contains(ox + x, oy + y) != true }
-        func band(_ race: Race, _ size: Int, roles: [String], where ok: @escaping (Int, Int) -> Bool, at centre: (Int, Int)? = nil) {
+        func band(_ race: Race, _ size: Int, roles: [String], where ok: @escaping (Int, Int) -> Bool, at centre: (Int, Int)? = nil,
+                  draconian: Bool? = nil) {
             guard let c = centre ?? spot(6, 6, n - 7, n - 7, where: { ok($0, $1) && wild($0, $1) }) else { return }
+            let theirs = race == .orc ? (draconian ?? rng.chance(orcAllegiance)) : draconian
             for _ in 0..<size {
                 if let p = near(c.0, c.1, 3, where: { ok($0, $1) && wild($0, $1) }) {
-                    add(race, p.0, p.1, role: rng.pick(roles), bounds: (c.0 - 8, c.1 - 8, c.0 + 8, c.1 + 8), home: nil)
+                    add(race, p.0, p.1, role: rng.pick(roles), bounds: (c.0 - 8, c.1 - 8, c.0 + 8, c.1 + 8), home: nil, draconian: theirs)
                 }
             }
         }
@@ -345,6 +396,26 @@ enum Populace {
         }
         if counts[.dirt, default: 0] > 30 && rng.chance(0.4) {
             band(.human, 1 + rng.int(2), roles: ["traveller", "pilgrim", "pedlar", "woodcutter"], where: terrainIs([.dirt]))
+        }
+        // Draconian's mercenaries out on the roads and in the countryside.
+        if rng.chance(0.25), let c = spot(6, 6, n - 7, n - 7, where: { terrainIs([.dirt, .grass, .brush])($0, $1) && wild($0, $1) }) {
+            for _ in 0..<(1 + rng.int(3)) {
+                if let p = near(c.0, c.1, 2, where: { wild($0, $1) }) {
+                    add(pickRace(hirelings, &rng), p.0, p.1, role: "mercenary", bounds: (c.0 - 10, c.1 - 10, c.0 + 10, c.1 + 10),
+                        home: nil, draconian: true)
+                }
+            }
+        }
+        // A roving warband of Draconian's orcs, ranging over the whole of the wilds here.
+        if town == nil, rng.chance(0.2),
+           let c = spot(8, 8, n - 9, n - 9, where: { terrainIs([.grass, .brush, .sand, .hills, .dirt])($0, $1) && wild($0, $1) }) {
+            let id = Int(truncatingIfNeeded: Hash.of(seed, key.x, key.y, 4242) & 0xFFFFFF)
+            for k in 0..<(3 + rng.int(3)) {
+                if let p = near(c.0, c.1, 2, where: { wild($0, $1) }) {
+                    add(.orc, p.0, p.1, role: k == 0 ? "warband captain" : rng.pick(["warband raider", "warband brute"]),
+                        bounds: (1, 1, n - 2, n - 2), home: nil, draconian: true, warband: id)
+                }
+            }
         }
         region.npcs = people
     }

@@ -95,6 +95,13 @@ extension Game {
             log("You attack \(enemy.shortName)!")
         }
         combat = c
+        // Draconian's people stand together: his servants close by join in.
+        if enemy.servesDraconian {
+            for ally in world.npcs(near: enemy.x, enemy.y, z, radius: 6)
+            where ally !== enemy && ally.servesDraconian && ally.friendliness < 0 && !ally.following && ally.hp > 0 {
+                join(ally, to: c, attackedByAvatar: false)
+            }
+        }
         if !companions.isEmpty {
             log("\(companions.map(\.name).joined(separator: companions.count == 2 ? " and " : ", ")) \(companions.count == 1 ? "joins" : "join") the fight.")
         }

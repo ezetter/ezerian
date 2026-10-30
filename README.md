@@ -112,6 +112,28 @@ which decide how they answer you.
   ("aye", "surface-dweller") to blunt orcs ("pinkskin").
 * People, where they stand and how they feel about you are kept in the save file.
 
+## Lord Draconian
+
+The Wizard Lord Draconian, Emperor of Sespooland, means to conquer Ezerian, and his
+people are already abroad. They wear his livery — a black tabard with his red sigil,
+a red cloak and a steel helm — and the conversation window marks them "Serves Lord
+Draconian".
+
+* **Mercenaries:** humans, dwarves and elves in his pay, met loitering in town streets
+  and taverns and in small groups on the roads and in the countryside. Their
+  friendliness is drawn around -50 and always lies between -100 and 0.
+* **His orcs:** half of all orcs serve him. They average -75, half again as
+  unfriendly as other orcs (-50), and also stay between -100 and 0.
+* **Roving warbands:** some of his orcs range the wilderness in bands of three to five
+  led by a captain, roaming together across their whole region and hunting you down
+  when you come within ten paces. Because the warbands are all his, orcs elsewhere
+  serve him with a 35% chance, which keeps the total at half.
+* **Never friends:** nothing you say raises his people above 0, so they never join your
+  party. They close in on you when you're near, are likely to attack (see Combat), and
+  when one of them fights, his fellow servants close by join in. Claude voices them as
+  loyal to Draconian: they may boast of his coming conquest or let slip his plans,
+  and ordinary folk speak of him as a rumour and a threat.
+
 ## Combat
 
 * **Health:** the Avatar starts with 100 health points. Each NPC has 1–200, drawn as
@@ -207,7 +229,7 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | `Game.swift` | Avatar movement, NPC turns, conversations, messages, game clock |
 | `Party.swift` | Companions: joining, leaving, following |
 | `Combat.swift` | Health, fights, turns, blows and death |
-| `NPC.swift`, `Dialogue.swift` | Races, friendliness, where people live, scripted replies |
+| `NPC.swift`, `Dialogue.swift` | Races, friendliness, Lord Draconian's people, where people live, scripted replies |
 | `ClaudeDialogue.swift` | Claude API client, NPC character sheets, structured replies, API key storage |
 | `World.swift`, `Tiles.swift` | Regions, lazy generation, terrain and objects |
 | `WorldGen.swift`, `Settlements.swift`, `Buildings.swift`, `Sites.swift`, `Roads.swift`, `Caves.swift`, `Names.swift`, `Noise.swift` | World generation |
@@ -229,7 +251,8 @@ Checks that regions are kept when you walk away and back, that every building in
 starting town can be walked into through a door in its south wall, that roofs lift
 indoors, that each race's friendliness averages out right, that conversations follow
 the NPC's mood, that the party's joining, leaving, following and rejoining rules hold, that
-health, combat triggers, round-robin turns, damage and death follow the rules,
+health, combat triggers, round-robin turns, damage and death follow the rules, that
+Draconian's people keep to their friendliness rules and half of all orcs serve him,
 that typed words reach Claude and its judgement moves friendliness
 (against a stand-in for the API, so no key or network is needed), that caves lead down and back up, that every object has a sprite, that keys
 reach the game, and that saves round-trip.
@@ -237,7 +260,8 @@ reach the game, and that saves round-trip.
 * `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name] [--scale 2]`
   renders a screenshot. A walk can also contain `find:<feature>` (for example
   `find:shrine` or `find:t.forest`) to jump next to the nearest one, `npc:orc` to stand
-  beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation, `recruit` to fill the party, and `fight` to attack the person you face.
+  beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation, `recruit` to fill the party, `fight` to attack the person you face, and `warband` or
+  `mercenary` to stand near the nearest of Draconian's people.
 * `--sheet out.png` draws every sprite; `--textures out.png` every texture.
 * `--overview out.png [--radius R]` draws a one-pixel-per-tile map of the generated world.
 * `--bench` times start-up art, world generation and rendering.

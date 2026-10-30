@@ -70,6 +70,7 @@ final class Game {
         playerName = typed.isEmpty ? "Avatar" : typed
         nameEntry = nil
         log("Welcome to the Land of Ezerian, \(playerName)!")
+        log("Dark news travels the roads: Lord Draconian, Wizard Lord and Emperor of Sespooland, means to conquer Ezerian. Beware his black-and-red mercenaries and the orc warbands that roam the wilds.")
         log("Use the arrow keys to walk. Press H for help.")
         if let town = currentPlaces.town {
             log("You stand in the town of \(town.name), in \(region.name).")
@@ -298,10 +299,17 @@ final class Game {
             let roll = Hash.unit(world.seed, n.id, turn, 31)
             var want: (Int, Int)?
             switch n.disposition {
+            case _ where n.servesDraconian && n.friendliness < 0 && dist <= (n.warband == nil ? 6 : 10) && dist > 1 && roll < 0.6:
+                // Draconian's people hunt the Avatar; a warband from further off.
+                want = toward(dx, dy)
             case .hostile where dist <= 7 && dist > 1 && roll < 0.55: want = toward(dx, dy)
             case .adoring where dist <= 4 && dist > 1 && roll < 0.35: want = toward(dx, dy)
             default:
-                if roll < 0.3 {
+                if let band = n.warband, roll < 0.6 {
+                    // A warband roams together, changing course every dozen turns.
+                    let d = Direction(rawValue: Int(Hash.of(world.seed, band, turn / 12, 33) % 4))!
+                    want = (d.dx, d.dy)
+                } else if roll < 0.3 {
                     let d = Direction(rawValue: Int(Hash.of(world.seed, n.id, turn, 32) % 4))!
                     want = (d.dx, d.dy)
                 }

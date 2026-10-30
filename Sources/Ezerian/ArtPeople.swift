@@ -19,11 +19,28 @@ enum PeopleArt {
         var helmet: Bool
         /// 0 none, 1 sword, 2 axe, 3 staff.
         var weapon: Int
+        /// Lord Draconian's red sigil on the chest.
+        var sigil = false
     }
 
     static func look(_ race: Race, _ variant: Int) -> Look {
+        var l = baseLook(race, variant)
+        if variant >= 6 {
+            // Lord Draconian's livery: black tabard with his red sigil, red cloak, steel helm, a blade.
+            l.tunic = 0x1E1C22
+            l.legs = 0x2A2226
+            l.cape = 0x8E1410
+            l.helmet = true
+            l.dress = false
+            l.sigil = true
+            l.weapon = race == .orc || race == .dwarf ? 2 : 1
+        }
+        return l
+    }
+
+    private static func baseLook(_ race: Race, _ variant: Int) -> Look {
         var rng = SplitMix64(seed: Hash.of(0x7E0B1E, race.index, variant))
-        let female = variant >= 3
+        let female = variant == 7 || (3...5).contains(variant)
         switch race {
         case .human:
             return Look(race: race, female: female, skin: rng.pick([0xE8B48A, 0xD49A6E, 0xA86E44, 0xF0C8A0]),
@@ -93,6 +110,10 @@ enum PeopleArt {
         }
         m.blob(0, 0, 18, 5, 3.4, 5.6, tunic)
         m.blob(0, 0.1, 13.4, 4.6, 3.2, 1.3, Paint(0x4A2E18))
+        if l.sigil {
+            m.blob(0, 3.2, 19, 1.9, 0.8, 2.2, Paint(0xC81810, shine: 0.2))
+            m.blob(0, 3.5, 19.6, 0.8, 0.5, 0.8, Paint(0xF0C030))
+        }
         m.ball(-4.5, 0, 22, 2.2, sleeve)
         m.ball(4.5, 0, 22, 2.2, sleeve)
         let armSwing = -swing * 0.7
@@ -153,6 +174,10 @@ enum PeopleArt {
         m.ball(-19 * wide, 33, 3, 9, Paint(col: hex(l.tunic) * 0.86, .cloth))
         m.ball(19 * wide, 33, 3, 9, Paint(col: hex(l.tunic) * 0.86, .cloth))
         m.blob(0, 21, 2, 6 * wide, 6, 6, skin)
+        if l.sigil {
+            m.blob(0, 42, 10.5, 6, 6, 1.4, Paint(0xC81810, shine: 0.2))
+            m.blob(0, 41, 11.6, 2.4, 2.4, 0.8, Paint(0xF0C030, shine: 0.4))
+        }
         if l.longHair {
             m.blob(-11, 13, -1, 5.5, 13, 6, hair)
             m.blob(11, 13, -1, 5.5, 13, 6, hair)

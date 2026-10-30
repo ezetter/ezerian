@@ -17,6 +17,26 @@ enum DevTools {
                 continue
             }
             if token == "send" { game.submitConversation(); continue }
+            if token == "warband" || token == "mercenary" {
+                // Stand a few paces from the nearest warband orc (or mercenary).
+                var best: NPC?
+                for ry in -4...4 {
+                    for rx in -4...4 {
+                        for n in game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs
+                        where token == "warband" ? n.warband != nil : n.role == "mercenary" {
+                            if best == nil || abs(n.x - game.x) + abs(n.y - game.y) < abs(best!.x - game.x) + abs(best!.y - game.y) { best = n }
+                        }
+                    }
+                }
+                if let n = best {
+                    for (dx, dy) in [(0, 3), (3, 0), (-3, 0), (0, -3), (0, 2), (2, 0)] where game.world.isPassable(n.x + dx, n.y + dy, 0)
+                        && game.world.npc(at: n.x + dx, n.y + dy, 0) == nil {
+                        game.teleport(n.x + dx, n.y + dy, 0)
+                        break
+                    }
+                }
+                continue
+            }
             if token == "fight" { game.attack(dx: game.facing.dx, dy: game.facing.dy); continue }
             if token == "slay" { game.hp = 0; game.gameOver = true; game.combat = nil; game.log("You have been slain!"); continue }
             if token == "recruit" {
@@ -486,6 +506,8 @@ extension DevTools {
         partyTest.claude = mock
         mock.availableOverride = false
         let townsfolk = partyTest.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
+        // A peaceful town for these checks: no one about to pick a fight.
+        for n in townsfolk { n.servesDraconian = false; n.friendliness = max(n.friendliness, 10) }
         var dice = 0.5
         partyTest.roll = { dice }
         func chat(_ n: NPC, _ text: String) {
@@ -523,8 +545,16 @@ extension DevTools {
             // Following.
             partyTest.teleport(partyTest.x, partyTest.y, 0)
             var walked = 0
-            for (dx, dy) in [(1, 0), (1, 0), (0, 1), (0, 1), (-1, 0), (-1, 0), (0, -1), (1, 0), (1, 0)] {
-                if partyTest.move(dx: dx, dy: dy) { walked += 1 }
+            var last = (0, 0)
+            for _ in 0..<9 {
+                // Keep walking wherever there's open ground (not straight back).
+                let open = [(1, 0), (0, 1), (-1, 0), (0, -1)].sorted { a, _ in a != (-last.0, -last.1) }.filter { d in
+                    partyTest.world.isPassable(partyTest.x + d.0, partyTest.y + d.1, 0)
+                        && partyTest.world.npc(at: partyTest.x + d.0, partyTest.y + d.1, 0).map(\.following) != false
+                        && partyTest.world.feature(partyTest.x + d.0, partyTest.y + d.1, 0) != .caveEntrance
+                }
+                guard let d = open.first else { break }
+                if partyTest.move(dx: d.0, dy: d.1) { walked += 1; last = d }
             }
             let near = partyTest.party.allSatisfy { max(abs($0.x - partyTest.x), abs($0.y - partyTest.y)) <= Party.maxSize + 2 && $0.z == partyTest.z }
             check(walked >= 4 && near, "companions follow the Avatar (\(walked) steps walked)")
@@ -711,6 +741,59 @@ extension DevTools {
                       "leaving a foe more than \(Combat.escapeDistance) tiles behind ends the fight")
             } else { check(false, "found room to run") }
             check(foe.build.contains("formidable"), "looking at someone tells how tough they are")
+        }
+
+        // Lord Draconian's people.
+        do {
+            let w = World(seed: seed)
+            var all: [NPC] = []
+            var bands = Set<Int>(), townMercs = 0, wildMercs = 0
+            for ry in -8...8 {
+                for rx in -8...8 {
+                    let r = w.region(RegionKey(x: rx, y: ry, z: 0))
+                    all += r.npcs
+                    for n in r.npcs {
+                        if let b = n.warband { bands.insert(b) }
+                        if n.role == "mercenary" { if n.home != nil { townMercs += 1 } else { wildMercs += 1 } }
+                    }
+                    if r.features.contains(.caveEntrance) { all += w.region(RegionKey(x: rx, y: ry, z: 1)).npcs }
+                }
+            }
+            let servants = all.filter(\.servesDraconian)
+            let mercs = servants.filter { $0.race != .orc }
+            let orcs = all.filter { $0.race == .orc }
+            let theirOrcs = orcs.filter(\.servesDraconian), freeOrcs = orcs.filter { !$0.servesDraconian }
+            func mean(_ a: [NPC]) -> Double { Double(a.map(\.friendliness).reduce(0, +)) / Double(max(1, a.count)) }
+            check(!mercs.isEmpty && servants.allSatisfy { (-100...0).contains($0.friendliness) },
+                  "Draconian's people (\(servants.count) of \(all.count)) are always between -100 and 0")
+            check(townMercs > 0 && wildMercs > 0, "his mercenaries are met in towns (\(townMercs)) and the countryside (\(wildMercs))")
+            let share = Double(theirOrcs.count) / Double(max(1, orcs.count))
+            check(abs(share - 0.5) < 0.08, "about half of all orcs serve him (\(theirOrcs.count) of \(orcs.count))")
+            var srng = SplitMix64(seed: 5)
+            let sample = (0..<4000).map { _ in Populace.servantFriendliness(.orc, &srng) }
+            let sm = Double(sample.reduce(0, +)) / Double(sample.count)
+            check(abs(sm + 75) < 3, "his orcs are 50% more unfriendly than other orcs: mean \(String(format: "%.1f", sm)) vs -50 (in the world: \(Int(mean(theirOrcs))) vs \(Int(mean(freeOrcs))))")
+            check(!bands.isEmpty && all.filter { $0.warband != nil }.allSatisfy { $0.race == .orc && $0.servesDraconian && $0.home == nil },
+                  "roving warbands of his orcs roam the wilds (\(bands.count) bands)")
+            if let m = mercs.first {
+                m.friendliness = -5
+                m.changeFriendliness(by: 40)
+                check(m.friendliness == 0, "nothing raises his servants above 0")
+                check(Party.chance(m.friendliness) == 0, "so they can never be persuaded to join the party")
+            }
+        }
+        do {
+            // A servant who attacks brings his fellows within reach into the fight.
+            let (g, folk) = arena()
+            g.roll = { 0.999 }
+            if folk.count >= 3, let (_, _) = standBeside(g, folk[0]) {
+                let boss = folk[0], mate = folk[1]
+                boss.servesDraconian = true; mate.servesDraconian = true
+                boss.friendliness = -100; mate.friendliness = -40
+                mate.x = boss.x + 2; mate.y = boss.y
+                g.startCombat(against: boss, startedByEnemy: true)
+                check(g.combat?.enemies.contains { $0 === mate } == true, "Draconian's servants nearby join a fight together")
+            }
         }
 
         // Keys reach the game the same way they do in the window.

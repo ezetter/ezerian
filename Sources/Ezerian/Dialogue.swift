@@ -287,6 +287,10 @@ enum Dialogue {
     }
 
     private static func jobLine(_ npc: NPC) -> String {
+        if npc.servesDraconian {
+            return npc.race == .orc ? "{name} serve Lord Draconian! Emperor of Sespooland. Soon all Ezerian burn."
+                : "I take Lord Draconian's gold. When the Emperor of Sespooland comes, I'll be on the winning side."
+        }
         switch npc.role {
         case "innkeeper": return "I keep {home}. A soft bed and a hot meal, for those who can pay."
         case "barkeep": return "I pour the ale at {home} and listen to the tales that come with it."
@@ -315,7 +319,10 @@ enum Dialogue {
                        "Orcs have been seen near the old roads. Keep your blade close.",
                        "The harvest was good this year, praise the virtues.",
                        "There are caves in the mountains that go down further than any map.",
-                       "A shrine of virtue stands somewhere in these lands, ringed with stones."]
+                       "A shrine of virtue stands somewhere in these lands, ringed with stones.",
+                       "They say Lord Draconian, the Wizard Lord of Sespooland, means to conquer Ezerian. His sellswords are everywhere.",
+                       "Watch for anyone in black and red. That's Draconian's livery, and they'll knife you for a silver piece.",
+                       "Orc warbands roam the wilds under Draconian's banner. Travel in company if you can."]
         guard detailed, let (place, dir, dist) = nearestPlace(game, from: (npc.x, npc.y), wantShelter: false) else {
             return pick(rumours, npc, 8)
         }

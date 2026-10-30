@@ -212,6 +212,9 @@ enum AIDialogue {
         (adoring), which is \(npc.disposition.word.lowercased()).
         - You have \(npc.known ? "already told the Avatar your name" : "not told the Avatar your name").
         - Travelling: \(joinRule)
+        - Allegiance: \(npc.servesDraconian
+            ? "You serve Lord Draconian, Wizard Lord and Emperor of Sespooland, who means to conquer Ezerian\(npc.race == .orc ? "" : "; he pays you well as a mercenary"). You wear his black-and-red livery, despise those who stand in his way, and will never become friendly towards the Avatar (never raise friendliness above 0). You may boast of his coming conquest or let slip hints of his plans."
+            : "You are a free person of Ezerian. You have heard that Lord Draconian, Wizard Lord and Emperor of Sespooland, means to conquer Ezerian, and that his mercenaries and orc warbands roam the land.")
         - What you know: \(facts.joined(separator: " "))
         """
         let memory = npc.memory ?? []
