@@ -83,9 +83,6 @@ extension Game {
         guard !gameOver, enemy.hp > 0 else { return }
         conversation = nil
         attackPending = false
-        if startedByEnemy && enemy.servesDraconian {
-            log("\(enemy.shortName.capitalizedFirst) cries: \"\(Combat.draconianBattleCry)\"")
-        }
         if let c = combat {
             join(enemy, to: c, attackedByAvatar: !startedByEnemy)
             return
@@ -99,6 +96,10 @@ extension Game {
             enemy.changeFriendliness(by: -Combat.attackedPenalty)
             c = Combat(enemies: [enemy], order: [nil] + companions + [enemy])
             log("You attack \(enemy.shortName)!")
+        }
+        // Lord Draconian's people cry out his name in every fight, whoever strikes first.
+        if enemy.servesDraconian {
+            log("\(enemy.shortName.capitalizedFirst) cries: \"\(Combat.draconianBattleCry)\"")
         }
         combat = c
         // Draconian's people stand together: his servants close by join in.
@@ -121,6 +122,11 @@ extension Game {
 
     private func join(_ enemy: NPC, to c: Combat, attackedByAvatar: Bool) {
         guard !c.enemies.contains(where: { $0 === enemy }) else { return }
+        // A servant drawn into a fight that started with someone else announces himself too,
+        // unless he's only one of a band answering their leader's cry.
+        if enemy.servesDraconian && !c.enemies.contains(where: \.servesDraconian) {
+            log("\(enemy.shortName.capitalizedFirst) cries: \"\(Combat.draconianBattleCry)\"")
+        }
         if attackedByAvatar { enemy.changeFriendliness(by: -Combat.attackedPenalty) }
         c.enemies.append(enemy)
         c.order.append(enemy)

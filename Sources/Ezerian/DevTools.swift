@@ -796,6 +796,15 @@ extension DevTools {
                 check(g.messages.contains { $0.hasSuffix("cries: \"Thou shalt bow down before Lord Draconian, mighty emperor of Sespooland and Ezerian.\"") },
                       "Draconian's people announce themselves when they attack")
             }
+            // ...and when the Avatar attacks them first.
+            let (g2, folk2) = arena()
+            g2.roll = { 0.999 }
+            if folk2.count >= 7, let (dx, dy) = standBeside(g2, folk2[6]) {
+                folk2[6].servesDraconian = true
+                g2.attack(dx: dx, dy: dy)
+                check(g2.messages.suffix(4).contains { $0.contains("cries: \"\(Combat.draconianBattleCry)\"") },
+                      "Draconian's people cry out even when the Avatar attacks first")
+            }
         }
 
         // Keys reach the game the same way they do in the window.
