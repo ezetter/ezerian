@@ -318,6 +318,8 @@ enum Dialogue {
             return npc.race == .orc ? "{name} fight. {name} take. Is good life." : "I sell my sword to whoever pays."
         case "child": return "I'm not working, I'm playing! Want to play?"
         case "beggar": return "I beg, good soul. A coin would not go amiss."
+        case "peasant": return "I work the land, as my father did, and his before him. Back-breaking, but it feeds us."
+        case "townsperson", "townsfolk": return "I live here in {home}, and mind my own business. Mostly."
         default: return "I'm a {role}. It's an honest living."
         }
     }

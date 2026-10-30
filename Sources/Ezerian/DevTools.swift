@@ -763,6 +763,9 @@ extension DevTools {
             if let (dx, dy) = standBeside(g, foe) {
                 g.attack(dx: dx, dy: dy)
                 check(g.messages.contains("You hit \(foe.shortName) with your bare hands."), "the Avatar's blows are with bare hands at first")
+                if foe.race == .human {
+                    check(g.messages.contains { $0.hasPrefix("The \(foe.title) hits you with") }, "a human foe is named by their trade in a fight")
+                }
                 check(g.messages.contains { $0.hasSuffix("hits you with \(foe.his) mace.") } && g.hp == 100 - 16,
                       "a foe's blow names their weapon, and a mace adds 6 (took \(100 - g.hp))")
                 g.roll = { 0.9 }
@@ -929,6 +932,16 @@ extension DevTools {
                     if r.features.contains(.caveEntrance) { all += w.region(RegionKey(x: rx, y: ry, z: 1)).npcs }
                 }
             }
+            // Every human has a trade, and goes by it until introduced.
+            let humans = all.filter { $0.race == .human }
+            let trades = Set(humans.map(\.title))
+            check(humans.allSatisfy { !$0.title.isEmpty && $0.title != "human" && $0.shortName == "the \($0.title)" },
+                  "every human goes by their trade until introduced (\(trades.count) trades)")
+            let peasants = humans.filter { $0.title == "peasant" }
+            check(peasants.contains { $0.home?.hasSuffix("Farmhouse") == true } && peasants.contains { $0.home == nil }
+                  && humans.contains { $0.title == "townsperson" },
+                  "there are peasants on farms and in the country, and townspeople (\(peasants.count) peasants, \(humans.filter { $0.title == "townsperson" }.count) townspeople)")
+            check(all.filter { $0.race != .human }.allSatisfy { $0.shortName == "the \($0.race.name)" }, "the other races go by their race")
             // The town watch.
             let guards = all.filter { $0.guardRank != nil }
             let ranks = Set(guards.compactMap(\.guardRank))

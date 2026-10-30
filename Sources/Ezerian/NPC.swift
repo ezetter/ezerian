@@ -190,10 +190,17 @@ final class NPC: Codable {
     var him: String { female ? "her" : "him" }
 
     /// "Thora" once she has told you her name, otherwise "the dwarf".
-    /// (A guard is known by their rank: "the watchwoman".)
-    var shortName: String { known ? name : "the \(guardRank != nil ? role : race.name)" }
-    /// "A dwarf", or "A serjeant of the watch", for someone not yet introduced.
-    var stranger: String { guardRank != nil ? "A \(role)" : "\(race.article.capitalizedFirst) \(race.name)" }
+    /// What they do, as others would name them ("townsfolk" in older saves is one townsperson).
+    var title: String { role == "townsfolk" ? "townsperson" : role }
+    /// Humans (and so the watch) are known by their trade until introduced: "the bard",
+    /// "the watchwoman"; the other races by their race: "the dwarf".
+    private var knownBy: String { race == .human ? title : race.name }
+    var shortName: String { known ? name : "the \(knownBy)" }
+    /// "A dwarf", or "An innkeeper", for someone not yet introduced.
+    var stranger: String {
+        let vowel = knownBy.first.map { "aeiou".contains($0) } ?? false
+        return (vowel ? "An " : "A ") + knownBy
+    }
     var description: String {
         "\(race.article) \(race.name) \(role)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
             + (weapon.map { ", armed with a \($0.name)" } ?? ", unarmed")
@@ -418,6 +425,16 @@ enum Populace {
                 }
             }
         }
+        // Peasants working the land round farmhouses out in the country.
+        for b in region.places where b.kind == .building && b.name.hasSuffix("Farmhouse") && town?.contains(b.x, b.y) != true {
+            let x0 = b.x - ox - 6, y0 = b.y - oy - 6, x1 = b.x - ox + b.w + 5, y1 = b.y - oy + b.h + 5
+            let outside: (Int, Int) -> Bool = { x, y in !region.roofed.contains { $0.contains(ox + x, oy + y) } }
+            for _ in 0..<(1 + rng.int(2)) {
+                if let p = spot(max(1, x0), max(1, y0), min(n - 2, x1), min(n - 2, y1), where: outside) {
+                    add(.human, p.0, p.1, role: "peasant", bounds: (x0, y0, x1, y1), home: b.name)
+                }
+            }
+        }
         // The town watch, then townsfolk, in the streets.
         if let t = town {
             let x0 = t.x - ox, y0 = t.y - oy, x1 = x0 + t.w - 1, y1 = y0 + t.h - 1
@@ -447,7 +464,7 @@ enum Populace {
                     }
                     let race = pickRace(townFolk, &rng)
                     let role = race == .orc ? rng.pick(["labourer", "porter", "drover"])
-                        : rng.pick(["townsfolk", "merchant", "beggar", "bard", "farmhand", "child"])
+                        : rng.pick(["townsperson", "townsperson", "merchant", "beggar", "bard", "peasant", "farmhand", "child"])
                     add(race, p.0, p.1, role: role, bounds: (x0, y0, x1, y1), home: t.name)
                 }
             }
@@ -480,7 +497,7 @@ enum Populace {
             band(.orc, 2 + rng.int(2), roles: ["raider", "scout", "warrior"], where: terrainIs([.brush, .sand, .swamp, .grass]))
         }
         if counts[.dirt, default: 0] > 30 && rng.chance(0.4) {
-            band(.human, 1 + rng.int(2), roles: ["traveller", "pilgrim", "pedlar", "woodcutter"], where: terrainIs([.dirt]))
+            band(.human, 1 + rng.int(2), roles: ["traveller", "pilgrim", "pedlar", "woodcutter", "peasant"], where: terrainIs([.dirt]))
         }
         // Draconian's mercenaries out on the roads and in the countryside.
         if rng.chance(0.25), let c = spot(6, 6, n - 7, n - 7, where: { terrainIs([.dirt, .grass, .brush])($0, $1) && wild($0, $1) }) {
