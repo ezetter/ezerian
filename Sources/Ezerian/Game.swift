@@ -28,6 +28,8 @@ final class Game {
     /// The Avatar's health; at 0 the adventure is over.
     var hp = 100
     var maxHP = 100
+    /// Gold coins; the adventure begins with none.
+    var gold = 0
     var gameOver = false
     /// F was pressed: the next direction key attacks.
     var attackPending = false

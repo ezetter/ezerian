@@ -163,6 +163,8 @@ final class Screen {
         texts.append(TextItem(text: "Health \(game.hp) / \(game.maxHP)", x: tx, y: 146, size: 12, font: .bold,
                               color: healthInk(game.hp, game.maxHP)))
         healthBar(Int(tx), 163, pw - 98, 6, game.hp, game.maxHP)
+        texts.append(TextItem(text: "Gold \(game.gold)", x: Double(px + pw - 10), y: 146, size: 12, font: .bold,
+                              color: 0xF0C850, align: .right))
         texts.append(TextItem(text: "Day \(game.day)  ·  \(game.timeString)", x: tx, y: 172, size: 12.5, color: Screen.ink))
         texts.append(TextItem(text: timeOfDay(game.hourOfDay), x: tx, y: 188, size: 11, font: .italic, color: Screen.dim))
 

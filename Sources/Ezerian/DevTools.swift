@@ -289,6 +289,7 @@ extension DevTools {
         let game = Game(seed: seed)
         game.nameEntry = "Iolanthe"
         game.confirmName()
+        game.roll = { 1.0 }   // no chance events (ambushes, offers) while checking the world itself
         var generated: [RegionKey] = []
         game.world.onGenerate = { generated.append($0.key) }
         let home = game.world.region(RegionKey(x: 0, y: 0, z: 0))
@@ -310,24 +311,32 @@ extension DevTools {
         }
         check(doorsOK, "outer doors are all in south walls, where they can be seen")
 
-        // Walk (by pathfinding) into a neighbouring region, then back to where we started.
+        // Walk (by pathfinding) into a neighbouring region, then back to where we started,
+        // re-planning around anyone who wanders into the way.
+        func walk(until goal: @escaping (Int, Int) -> Bool) -> Bool {
+            for _ in 0..<400 {
+                if goal(game.x, game.y) { return true }
+                game.endConversation()
+                // Someone standing in the way (or on the goal): wait beside them for them to move along.
+                guard let step = route(game.world, from: (game.x, game.y), goal: goal, throughGoal: true)?.first else { game.waitTurn(); continue }
+                if game.world.npc(at: game.x + step.0, game.y + step.1, 0) != nil { game.waitTurn(); continue }
+                game.move(dx: step.0, dy: step.1)
+            }
+            return goal(game.x, game.y)
+        }
         let startX = game.x, startY = game.y
         var target = RegionKey(x: 1, y: 0, z: 0)
         for (nx, ny) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-            let path = route(game.world, from: (game.x, game.y), goal: { x, y in
-                floorDiv(x, Region.size) == nx && floorDiv(y, Region.size) == ny
-            })
-            guard let path else { continue }
+            let there: (Int, Int) -> Bool = { x, y in floorDiv(x, Region.size) == nx && floorDiv(y, Region.size) == ny }
+            guard route(game.world, from: (game.x, game.y), goal: there) != nil else { continue }
             target = RegionKey(x: nx, y: ny, z: 0)
-            for (dx, dy) in path { game.move(dx: dx, dy: dy) }
+            _ = walk(until: there)
             break
         }
         check(game.regionKey == target, "walked across a border into region (\(target.x),\(target.y))")
         let east = game.world.region(target)
         let generatedBefore = generated.count
-        if let path = route(game.world, from: (game.x, game.y), goal: { x, y in x == startX && y == startY }) {
-            for (dx, dy) in path { game.move(dx: dx, dy: dy) }
-        }
+        _ = walk { x, y in x == startX && y == startY }
         check(game.regionKey.x == 0 && game.regionKey.y == 0 && game.x == startX && game.y == startY,
               "walked back to the start in region (0,0)")
         check(game.world.region(RegionKey(x: 0, y: 0, z: 0)) === home, "region (0,0) is the same map, not regenerated")
@@ -542,8 +551,9 @@ extension DevTools {
             chat(d, "Will you join my party?")
             check(partyTest.party.count == 3 && !d.following, "the party holds at most three")
             partyTest.endConversation()
-            // Following.
-            partyTest.teleport(partyTest.x, partyTest.y, 0)
+            // Following: from the open street before the tavern.
+            let street = Game.startPosition(in: partyTest.world)
+            partyTest.teleport(street.x, street.y, 0)
             var walked = 0
             var last = (0, 0)
             for _ in 0..<9 {
@@ -652,19 +662,22 @@ extension DevTools {
             let (g, folk) = arena()
             var k = 0
             g.roll = { k += 1; return k % 2 == 1 ? 0.0 : 0.99 }
-            let friend = folk[1], foe = folk[2]
+            // A foe with room beside them for both the Avatar and the companion.
+            func freeBeside(_ n: NPC) -> [(Int, Int)] {
+                [(1, 1), (-1, 1), (1, -1), (-1, -1), (1, 0), (-1, 0), (0, 1), (0, -1)].filter {
+                    g.world.isPassable(n.x + $0.0, n.y + $0.1, 0) && g.world.npc(at: n.x + $0.0, n.y + $0.1, 0) == nil
+                }
+            }
+            let foe = folk.dropFirst(2).first { freeBeside($0).count >= 3 } ?? folk[2]
+            let friend = folk.first { $0 !== foe }!
             g.addToParty(friend)
             friend.hp = 5; friend.maxHP = 50
             foe.maxHP = 200; foe.hp = 200
             if let (dx, dy) = standBeside(g, foe) {
                 g.regroupParty()
                 // Put the companion beside the foe so the foe's blows land on it first.
-                for (ex, ey) in [(1, 1), (-1, 1), (1, -1), (-1, -1), (1, 0), (-1, 0), (0, 1), (0, -1)] {
-                    let px = foe.x + ex, py = foe.y + ey
-                    if g.world.isPassable(px, py, 0), g.world.npc(at: px, py, 0) == nil, (px, py) != (g.x, g.y) {
-                        friend.x = px; friend.y = py
-                        break
-                    }
+                if let spot = freeBeside(foe).first(where: { (foe.x + $0.0, foe.y + $0.1) != (g.x, g.y) }) {
+                    friend.x = foe.x + spot.0; friend.y = foe.y + spot.1
                 }
                 let before = foe.hp
                 g.attack(dx: dx, dy: dy)
@@ -741,6 +754,26 @@ extension DevTools {
                       "leaving a foe more than \(Combat.escapeDistance) tiles behind ends the fight")
             } else { check(false, "found room to run") }
             check(foe.build.contains("formidable"), "looking at someone tells how tough they are")
+        }
+
+        // Gold.
+        check(Game(seed: seed).gold == 0, "the Avatar starts with no gold")
+        var grng = SplitMix64(seed: 31)
+        for h in [20, 75, 150] {
+            let purses = (0..<5000).map { _ in Populace.coins(forHealth: h, &grng) }
+            let m = Double(purses.reduce(0, +)) / Double(purses.count)
+            check(abs(m - Double(h) / 10) < 0.25 && Set(purses).count > 3,
+                  "a foe with \(h) health carries a random purse averaging \(h / 10) coins (sampled \(String(format: "%.2f", m)))")
+        }
+        do {
+            let (g, folk) = arena()
+            let foe = folk[0]
+            foe.maxHP = 30; foe.hp = 1; foe.gold = 7
+            g.roll = { 0.0 }
+            if let (dx, dy) = standBeside(g, foe) {
+                g.attack(dx: dx, dy: dy)
+                check(foe.hp == 0 && g.gold == 7 && foe.gold == 0, "defeating a foe hands their gold to the Avatar")
+            }
         }
 
         // Lord Draconian's people.
@@ -862,7 +895,8 @@ extension DevTools {
     }
 
     /// Breadth-first route of single steps to the nearest tile satisfying `goal`.
-    private static func route(_ world: World, from start: (Int, Int), goal: (Int, Int) -> Bool) -> [(Int, Int)]? {
+    private static func route(_ world: World, from start: (Int, Int), goal: (Int, Int) -> Bool,
+                              throughGoal: Bool = false) -> [(Int, Int)]? {
         let s = Point(x: start.0, y: start.1)
         var came: [Point: Point] = [s: s]
         var queue = [s]
@@ -878,6 +912,7 @@ extension DevTools {
             for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
                 let n = Point(x: c.x + dx, y: c.y + dy)
                 guard came[n] == nil, abs(n.y - start.1) < 90, abs(n.x - start.0) < 90, world.isPassable(n.x, n.y, 0),
+                      world.npc(at: n.x, n.y, 0) == nil || (throughGoal && goal(n.x, n.y)),
                       world.feature(n.x, n.y, 0) != .caveEntrance else { continue }
                 came[n] = c
                 queue.append(n)

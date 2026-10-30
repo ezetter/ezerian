@@ -162,6 +162,11 @@ Draconian".
   built or huge and formidable, and whether they're wounded.
 * **Healing:** out of a fight, you, your companions and the people around you recover
   1 health every 2 turns (30 an hour of game time).
+* **Gold:** you start with no gold. Everyone else carries a purse of random size
+  averaging one coin for every 10 points of their starting health (a Poisson draw, so
+  a 75-health foe has 7 or 8 on average, sometimes none, sometimes a dozen or more).
+  When a foe is killed in a fight, their gold passes to you; your total shows beside
+  your health. Gold is kept in the save file.
 * **Death:** anyone at 0 health dies. A companion who dies is gone from your party.
   If the Avatar dies the game is over, and Return begins a new adventure in a new world.
 
@@ -255,6 +260,7 @@ indoors, that each race's friendliness averages out right, that conversations fo
 the NPC's mood, that the party's joining, leaving, following and rejoining rules hold, that
 health, combat triggers, round-robin turns, damage and death follow the rules, that
 Draconian's people keep to their friendliness rules and half of all orcs serve him,
+that purses average a tenth of starting health and pass to the Avatar on a kill,
 that typed words reach Claude and its judgement moves friendliness
 (against a stand-in for the API, so no key or network is needed), that caves lead down and back up, that every object has a sprite, that keys
 reach the game, and that saves round-trip.

@@ -255,6 +255,14 @@ extension Game {
         } else {
             world.region(containing: n.x, n.y, n.z).npcs.removeAll { $0 === n }
             log("\(n.shortName.capitalizedFirst) dies.")
+            // The victors take the fallen foe's purse.
+            if n.gold > 0 {
+                gold += n.gold
+                log("You take \(n.gold) gold \(n.gold == 1 ? "coin" : "coins") from \(n.his) body. You now have \(gold).")
+                n.gold = 0
+            } else {
+                log("\(n.he.capitalizedFirst) carried no gold.")
+            }
         }
         if let c = combat {
             c.enemies.removeAll { $0 === n }

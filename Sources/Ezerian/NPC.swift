@@ -112,6 +112,16 @@ final class NPC: Codable {
         get { hpStore ?? maxHP }
         set { hpStore = newValue }
     }
+    /// Gold coins carried, about one for every 10 points of starting health.
+    private var goldStore: Int?
+    var gold: Int {
+        get {
+            if let g = goldStore { return g }
+            var rng = SplitMix64(seed: Hash.of(0x601D, id, 0))
+            return Populace.coins(forHealth: maxHP, &rng)
+        }
+        set { goldStore = newValue }
+    }
 
     // Not saved: where the NPC stood before this turn (for gliding) and chatter timing.
     var prevX = 0
@@ -120,7 +130,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband
+             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, goldStore = "gold"
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,
@@ -213,6 +223,19 @@ enum Populace {
         max(1, min(200, Int((200 * pow(u, 5.0 / 3.0)).rounded())))
     }
 
+    /// A purse of coins for someone of this much starting health: random (Poisson),
+    /// averaging a tenth of the health.
+    static func coins(forHealth health: Int, _ rng: inout SplitMix64) -> Int {
+        let limit = exp(-Double(max(0, health)) / 10)
+        var k = 0
+        var p = rng.double()
+        while p > limit && k < 200 {
+            k += 1
+            p *= rng.double()
+        }
+        return k
+    }
+
     /// A friendliness drawn from a bell curve round the race's mean.
     static func friendliness(_ race: Race, _ rng: inout SplitMix64) -> Int {
         max(-100, min(100, race.meanFriendliness + Int((gaussian(&rng) * 30).rounded())))
@@ -283,6 +306,7 @@ enum Populace {
             npc.facing = rng.int(4)
             npc.maxHP = health(rng.double())
             npc.hp = npc.maxHP
+            npc.gold = coins(forHealth: npc.maxHP, &rng)
             taken.insert(ly * n + lx)
             people.append(npc)
         }
