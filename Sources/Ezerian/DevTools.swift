@@ -62,6 +62,7 @@ enum DevTools {
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
                     if what == "bard" || what == "peasant" { return n.role == what }
+                    if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
                     guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
                     return rank == nil || rank == r
                 }
@@ -952,8 +953,8 @@ extension DevTools {
                   "there are peasants on farms and in the country, and townsmen and townswomen (\(peasants.count) peasants, \(humans.filter { $0.title.hasPrefix("towns") }.count) town folk)")
             check(all.filter { $0.race != .human }.allSatisfy { $0.shortName == "the \($0.race.name)" }, "the other races go by their race")
             // Bards and peasants look like their paintings.
-            for trade in ["bard", "peasant"] {
-                let folk = all.filter { $0.role == trade }
+            for trade in ["bard", "peasant", "townsperson"] {
+                let folk = all.filter { $0.role == trade && (trade != "townsperson" || $0.race == .human) }
                 check(!folk.isEmpty && folk.allSatisfy { n in
                     guard let p = Populace.painted(look: n.look) else { return false }
                     return p.role == trade && p.race == n.race && p.look.female == n.female && n.painting == p.painting
@@ -962,7 +963,7 @@ extension DevTools {
             check(all.filter { $0.role == "peasant" }.allSatisfy { $0.race == .human }, "peasants are all human, like their portraits")
             check(PaintedFolk.all.enumerated().allSatisfy { i, p in Portraits.image(p.painting) != nil
                 && SpriteBank.shared.people[p.race.index][Populace.paintedLooks + i][0][0].sprite.w > 1 },
-                  "every bard's and peasant's painting loads, and each is drawn on the map")
+                  "every bard's, peasant's and townsperson's painting loads, and each is drawn on the map")
             // The town watch.
             let guards = all.filter { $0.guardRank != nil }
             let ranks = Set(guards.compactMap(\.guardRank))

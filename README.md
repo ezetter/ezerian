@@ -167,6 +167,16 @@ his net. The women, in headscarves, carry a basket of vegetables, a loaf of brea
 a drop spindle and wool, a bucket, or a bunch of herbs. Peasants met before this keep
 their old clothes and pixel portraits.
 
+## Townsmen and townswomen
+
+Human townsmen and townswomen each look like one of ten painted townsfolk of their
+sex, shown when you talk to them, and on the map wear that painting's colours and
+carry its wares: a merchant with his scales and purse, a smith with his hammer, an
+old scribe with a book and quill, a cobbler with a boot, and a tavern keeper with a
+tankard; a cloth merchant with bolts of cloth, a potter with a jug, an apothecary with
+mortar and bottle, an old embroiderer with her hoop, and a chandler with candles.
+Elf and dwarf townsfolk keep their ordinary looks, as do townsfolk met before this.
+
 ## Lord Draconian
 
 The Wizard Lord Draconian, Emperor of Sespooland, means to conquer Ezerian, and his

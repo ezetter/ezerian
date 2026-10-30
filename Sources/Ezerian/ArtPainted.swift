@@ -1,16 +1,17 @@
 import Foundation
 import simd
 
-/// Folk with painted portraits, by trade: the bards and the peasants. Each one's figure
-/// on the map wears the painting's colours and hat, and holds what they hold in it
-/// (an instrument, a hoe, a loaf). The bard sheet's horned, red-skinned fiddler belongs
+/// Folk with painted portraits, by trade: the bards, the peasants and the human
+/// townsmen and townswomen. Each one's figure on the map wears the painting's colours
+/// and hat, and holds what they hold in it (an instrument, a hoe, a loaf, a tankard). The bard sheet's horned, red-skinned fiddler belongs
 /// to no race of Ezerian, so bard painting 4 is not used.
 enum PaintedFolk {
     enum Prop {
         case lute, lyre, drum, flute, harp, tambourine, hurdyGurdy
         case hoe, flourSack, woodAxe, crook, net, vegetables, loaf, spindle, bucket, herbs
+        case scales, hammer, book, boot, tankard, cloth, jug, mortar, hoop, candles
     }
-    enum Hat { case none, feather, straw, cap, scarf(UInt32), hood }
+    enum Hat { case none, feather, straw, cap(UInt32), scarf(UInt32), hood }
 
     struct Painted {
         /// The trade they follow ("bard", "peasant").
@@ -20,7 +21,8 @@ enum PaintedFolk {
         var look: PeopleArt.Look
         var prop: Prop
         var hat: Hat = .none
-        var apron = false
+        /// The apron's colour, if they wear one.
+        var apron: UInt32?
         var race: Race { look.race }
     }
 
@@ -30,7 +32,8 @@ enum PaintedFolk {
                        longHair: longHair, bald: false, beard: beard, dress: dress, helmet: false)
     }
 
-    static let all: [Painted] = bards + peasants
+    static let all: [Painted] = bards + peasants + townsfolk
+    private static let linen: UInt32 = 0xDCD0B4, leather: UInt32 = 0x5A3A22
 
     static let bards: [Painted] = [
         Painted(role: "bard", painting: "bard-0", look: look(.human, female: false, skin: 0xE8B48A, hair: 0x6A4422, tunic: 0x7A1E2A,
@@ -57,23 +60,51 @@ enum PaintedFolk {
         Painted(role: "peasant", painting: "peasant-0", look: look(.human, female: false, skin: 0xE0A882, hair: 0x6A4422, tunic: 0x6A4A2A,
                                                                   legs: 0x5A4A3A, longHair: false, beard: true), prop: .hoe, hat: .straw),
         Painted(role: "peasant", painting: "peasant-1", look: look(.human, female: false, skin: 0x4A2E1E, hair: 0x1A1410, tunic: 0x4A505A,
-                                                                  legs: 0x4A3A2A, longHair: false), prop: .flourSack, hat: .cap, apron: true),
+                                                                  legs: 0x4A3A2A, longHair: false), prop: .flourSack, hat: .cap(0x6A4A3A), apron: linen),
         Painted(role: "peasant", painting: "peasant-2", look: look(.human, female: false, skin: 0xE8B48A, hair: 0xB8481E, tunic: 0x8A3A22,
                                                                   legs: 0x5A2A22, longHair: false, beard: true), prop: .woodAxe),
         Painted(role: "peasant", painting: "peasant-3", look: look(.human, female: false, skin: 0xC89070, hair: 0xC8C4C0, tunic: 0x5A5244,
                                                                   legs: 0x4A4234, cape: 0x5A4A3A, longHair: false, beard: true), prop: .crook, hat: .hood),
         Painted(role: "peasant", painting: "peasant-4", look: look(.human, female: false, skin: 0xD8A87A, hair: 0x1A1410, tunic: 0x3A4A6A,
-                                                                  legs: 0x3A3A3A, longHair: false, beard: true), prop: .net, apron: true),
+                                                                  legs: 0x3A3A3A, longHair: false, beard: true), prop: .net, apron: linen),
         Painted(role: "peasant", painting: "peasant-5", look: look(.human, female: true, skin: 0xF0C8A0, hair: 0x9A3A1E, tunic: 0x3A4A32,
                                                                   legs: 0x3A4A32, longHair: true, dress: true), prop: .vegetables, hat: .scarf(0xD8CCB0)),
         Painted(role: "peasant", painting: "peasant-6", look: look(.human, female: true, skin: 0x4A2E1E, hair: 0x1A1410, tunic: 0x5A3A2A,
-                                                                  legs: 0x5A3A2A, longHair: false, dress: true), prop: .loaf, hat: .scarf(0xD8CCB0), apron: true),
+                                                                  legs: 0x5A3A2A, longHair: false, dress: true), prop: .loaf, hat: .scarf(0xD8CCB0), apron: linen),
         Painted(role: "peasant", painting: "peasant-7", look: look(.human, female: true, skin: 0xE8C0A0, hair: 0xC8C4C0, tunic: 0x6A6458,
                                                                   legs: 0x6A6458, cape: 0x5A3A2A, longHair: false, dress: true), prop: .spindle, hat: .scarf(0xD8CCB0)),
         Painted(role: "peasant", painting: "peasant-8", look: look(.human, female: true, skin: 0xC89070, hair: 0x1A1410, tunic: 0xB08A3A,
-                                                                  legs: 0xB08A3A, longHair: true, dress: true), prop: .bucket, hat: .scarf(0x8A2A22), apron: true),
+                                                                  legs: 0xB08A3A, longHair: true, dress: true), prop: .bucket, hat: .scarf(0x8A2A22), apron: linen),
         Painted(role: "peasant", painting: "peasant-9", look: look(.human, female: true, skin: 0xF0D0B0, hair: 0x1A1410, tunic: 0x3A4A3A,
                                                                   legs: 0x5A5A4A, cape: 0x3A4A3A, longHair: true, dress: true), prop: .herbs, hat: .scarf(0xD8CCB0)),
+    ]
+
+    /// Human townsmen and townswomen, each with the tools or wares of a town trade.
+    static let townsfolk: [Painted] = [
+        Painted(role: "townsperson", painting: "townsfolk-0", look: look(.human, female: false, skin: 0xE0A882, hair: 0x5A4A3A, tunic: 0x7A1E2A,
+                                                                        legs: 0x3A2A22, cape: 0x5A3A22, longHair: false, beard: true),
+                prop: .scales, hat: .cap(0x6A1A24)),
+        Painted(role: "townsperson", painting: "townsfolk-1", look: look(.human, female: false, skin: 0x4A2E1E, hair: 0x1A1410, tunic: 0xD8CCB0,
+                                                                        legs: 0x4A3A2A, longHair: false, beard: true), prop: .hammer, apron: leather),
+        Painted(role: "townsperson", painting: "townsfolk-2", look: look(.human, female: false, skin: 0xE0B890, hair: 0xC8C4C0, tunic: 0x1E2448,
+                                                                        legs: 0x1E2448, longHair: false, beard: true, dress: true),
+                prop: .book, hat: .cap(0x1E2448)),
+        Painted(role: "townsperson", painting: "townsfolk-3", look: look(.human, female: false, skin: 0xC8946A, hair: 0x2A1A10, tunic: 0x8A3A2A,
+                                                                        legs: 0x4A3A2A, longHair: false, beard: true), prop: .boot, apron: 0x6A4A2A),
+        Painted(role: "townsperson", painting: "townsfolk-4", look: look(.human, female: false, skin: 0xD8A87A, hair: 0x1A1410, tunic: 0x3A4A2A,
+                                                                        legs: 0x4A3A2A, longHair: false, beard: true), prop: .tankard, apron: linen),
+        Painted(role: "townsperson", painting: "townsfolk-5", look: look(.human, female: true, skin: 0x4A2E1E, hair: 0x1A1410, tunic: 0x1E4A5A,
+                                                                        legs: 0x1E4A5A, cape: 0x1E4A5A, longHair: true, dress: true), prop: .cloth),
+        Painted(role: "townsperson", painting: "townsfolk-6", look: look(.human, female: true, skin: 0xF0C8A0, hair: 0xB8481E, tunic: 0xD8CCB0,
+                                                                        legs: 0x8A5A34, longHair: false, dress: true),
+                prop: .jug, hat: .scarf(0xD8CCB0), apron: 0x8A5A34),
+        Painted(role: "townsperson", painting: "townsfolk-7", look: look(.human, female: true, skin: 0xB8805A, hair: 0x8A8680, tunic: 0x4A2236,
+                                                                        legs: 0x4A2236, longHair: true, dress: true), prop: .mortar),
+        Painted(role: "townsperson", painting: "townsfolk-8", look: look(.human, female: true, skin: 0xE8C0A0, hair: 0xC8C4C0, tunic: 0x4A5A32,
+                                                                        legs: 0x4A5A32, cape: 0x7A2A22, longHair: false, dress: true),
+                prop: .hoop, hat: .scarf(0xD8CCB0), apron: linen),
+        Painted(role: "townsperson", painting: "townsfolk-9", look: look(.human, female: true, skin: 0xF0D0B0, hair: 0x1A1410, tunic: 0xB08A3A,
+                                                                        legs: 0xB08A3A, longHair: false, dress: true), prop: .candles, apron: linen),
     ]
 
     /// The person facing south, built on an ordinary figure, with hat, apron and prop.
@@ -86,7 +117,7 @@ enum PaintedFolk {
         let iron = Paint(0x8A8E96, .metal, shine: 0.4)
         let hide = Paint(0xE4D8B8, jitter: 0.04)
         let linen = Paint(0xDCD0B4, .cloth, jitter: 0.05)
-        if p.apron { m.box(-2.8, 3.4, 9.6, 2.8, 3.9, 20.5, linen) }
+        if let a = p.apron { m.box(-2.8, 3.4, 9.6, 2.8, 3.9, 20.5, Paint(a, .cloth, jitter: 0.06)) }
         switch p.prop {
         case .lute:
             m.blob(1.2, 3.9, 16.2, 2.7, 1.1, 2.1, wood)
@@ -149,6 +180,45 @@ enum PaintedFolk {
             m.rod(V3(1.6, 4.2, 13.6), V3(3.4, 4.4, 20), 0.6, Paint(0x4A6A2A, .cloth))
             m.blob(3.4, 4.4, 20.6, 1.6, 1.2, 1.6, Paint(0x5A7A34, .cloth, jitter: 0.12))
             m.ball(3.8, 4.8, 21.6, 0.6, Paint(0x8A6AB0))
+        case .scales:
+            m.rod(V3(-1.6, 4.2, 22), V3(-1.6, 4.2, 18.6), 0.25, brass)
+            m.rod(V3(-3.6, 4.2, 18.6), V3(0.4, 4.2, 18.6), 0.3, brass)
+            m.blob(-3.6, 4.2, 16.4, 1.2, 1.2, 0.35, brass)
+            m.blob(0.4, 4.2, 16.4, 1.2, 1.2, 0.35, brass)
+            m.blob(2.4, 4, 15.6, 1.3, 1.1, 1.5, Paint(0x6A4228))
+        case .hammer:
+            m.rod(V3(3.6, 4, 12.4), V3(0.6, 4.2, 19.6), 0.5, pale)
+            m.box(-0.8, 3.4, 19, 2, 5, 21, iron)
+        case .book:
+            m.box(-0.6, 3.6, 13.6, 3.6, 5, 19.4, Paint(0x6A3A1E, jitter: 0.05))
+            m.rod(V3(-2.4, 4.4, 17), V3(-3.8, 4.8, 22.4), 0.35, Paint(0xF0ECE4, .hair))
+        case .boot:
+            m.box(0, 3.8, 15, 1.8, 5.6, 19.4, Paint(0x7A4A28, jitter: 0.05))
+            m.box(0, 3.8, 15, 1.8, 7.8, 16.4, Paint(0x7A4A28, jitter: 0.05))
+        case .tankard:
+            m.cone(-1.6, 4.4, 1.1, 1, 17, 20.2, iron)
+            m.rod(V3(-2.8, 4.4, 18), V3(-2.8, 4.4, 19.6), 0.35, iron)
+            m.blob(1.6, 4.4, 15.4, 1.6, 1, 2.2, linen)
+        case .cloth:
+            for (i, c) in [0x8A1E2A, 0x26408A, 0xB08A2A, 0x8A1E2A].enumerated() {
+                m.box(-3, 3.6, 13.2 + Float(i) * 1.1, 3.4, 6, 14.2 + Float(i) * 1.1, Paint(UInt32(c), .cloth, jitter: 0.06))
+            }
+        case .jug:
+            m.blob(0.6, 4.8, 15.6, 2.4, 2, 2.8, Paint(0xA8562A, jitter: 0.06, shine: 0.25))
+            m.cone(0.6, 4.8, 1.4, 1.1, 17.8, 19.6, Paint(0xA8562A, jitter: 0.06, shine: 0.25))
+            m.blob(0.6, 4.8, 16, 2.45, 2.05, 0.4, Paint(0x3A7A6A))
+        case .mortar:
+            m.cone(1.8, 4.6, 1.8, 1.2, 14.6, 16.8, Paint(0xA8A4A0, jitter: 0.08))
+            m.rod(V3(1.8, 4.6, 16.2), V3(2.8, 4.2, 18.8), 0.35, Paint(0xA8A4A0))
+            m.cone(-2.4, 4.2, 0.8, 0.5, 17, 19.4, Paint(0x7A3A12, shine: 0.4))
+        case .hoop:
+            m.blob(0.6, 4.6, 16.8, 2.8, 0.4, 2.8, Paint(0xA07A48))
+            m.blob(0.6, 4.9, 16.8, 2.4, 0.3, 2.4, Paint(0xE8E0CC, .cloth))
+            m.ball(0, 5.1, 17.2, 0.5, Paint(0x8A6AB0))
+            m.ball(1.2, 5.1, 16.4, 0.5, Paint(0xC8802A))
+        case .candles:
+            for dx: Float in [-1.2, -0.4, 0.4, 1.2] { m.rod(V3(dx, 4.4, 13.4), V3(dx + 1.6, 4.6, 21), 0.4, Paint(0xF0E0A0)) }
+            m.blob(1.2, 4.6, 17.2, 2, 0.9, 0.4, Paint(0x8A6A3A))
         }
         switch p.hat {
         case .none: break
@@ -158,8 +228,8 @@ enum PaintedFolk {
         case .straw:
             m.blob(0, -0.3, 28.6, 3.6, 3.6, 1.8, Paint(0xC8A860, .cloth, jitter: 0.1))
             m.blob(0, -0.3, 27.9, 6.4, 6.4, 0.45, Paint(0xC8A860, .cloth, jitter: 0.1))
-        case .cap:
-            m.blob(0, -0.6, 28.6, 3.9, 3.9, 1.9, Paint(0x6A4A3A, .cloth))
+        case .cap(let c):
+            m.blob(0, -0.6, 28.6, 3.9, 3.9, 1.9, Paint(c, .cloth))
         case .scarf(let c):
             m.blob(0, -0.8, 28, 3.9, 3.8, 2.8, Paint(c, .cloth))
             m.blob(0, -3, 26.4, 2.4, 1.2, 1.8, Paint(c, .cloth))
