@@ -145,6 +145,17 @@ keep shops, inns and homes. The other races go by their race ("the dwarf"). Clau
 loathe Lord Draconian's mercenaries. Guards in towns explored before the watch existed
 keep their old clothes and pixel portraits.
 
+## Bards
+
+Bards (humans, elves and dwarves in the town streets) each look like one of nine
+painted bards of their race and sex, shown when you talk to them, and on the map
+wear that painting's colours and play its instrument: a human lute player in a
+feathered hat, a grey-haired flautist, an elf with a lyre and a dwarf with a drum;
+and among the women, a lute player, a harpist and a grey-haired flautist, a dwarf
+with a tambourine and an elf with a hurdy-gurdy. (The sheet's horned fiddler belongs
+to no race of Ezerian and is not used.) Bards in towns explored before this keep
+their old clothes and pixel portraits.
+
 ## Lord Draconian
 
 The Wizard Lord Draconian, Emperor of Sespooland, means to conquer Ezerian, and his

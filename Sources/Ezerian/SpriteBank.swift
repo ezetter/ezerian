@@ -47,16 +47,16 @@ final class SpriteBank {
         }
         for race in Race.allCases {
             for look in 0..<Populace.looks {
-                // The town watch are all human, and their faces are paintings.
-                let guardLook = Populace.guardRank(look: look) != nil
-                if guardLook && race != .human { continue }
+                // The watch and the bards are each of one race, and their faces are paintings.
+                let painted = Populace.lookRace(look)
+                if let r = painted, r != race { continue }
                 for d in Direction.allCases {
                     for step in 0..<3 {
                         jobs.append(Job(key: 100_000 + race.index * 10000 + look * 100 + d.rawValue * 10 + step, variant: 0, frame: 0,
                                         recipe: Recipe { _, _, _ in PeopleArt.model(race, variant: look, facing: d, step: [0, -1, 1][step]) }))
                     }
                 }
-                if guardLook { continue }
+                if painted != nil { continue }
                 jobs.append(Job(key: 50000 + race.index * 100 + look, variant: 0, frame: 0,
                                 recipe: Recipe { _, _, _ in PeopleArt.portrait(race, variant: look) }))
             }

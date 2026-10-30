@@ -61,6 +61,7 @@ enum DevTools {
                 let rank = what.hasPrefix("guard") ? Int(what.dropFirst(5)) : nil
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
+                    if what == "bard" { return n.role == "bard" }
                     guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
                     return rank == nil || rank == r
                 }
@@ -165,7 +166,10 @@ extension DevTools {
             }
         }
         for g in [false, true] { for d in Direction.allCases { for s in 0..<3 { arts.append(("avatar", bank.avatar(female: g)[d.rawValue][s])) } } }
-        for look in 8..<Populace.looks { for d in Direction.allCases { arts.append(("guard", bank.people[Race.human.index][look][d.rawValue][0])) } }
+        for look in 8..<Populace.looks {
+            let race = Populace.lookRace(look) ?? .human
+            for d in Direction.allCases { arts.append(("painted", bank.people[race.index][look][d.rawValue][0])) }
+        }
         let cols = 14, cw = 76, ch = 104
         let rows = (arts.count + cols - 1) / cols
         let fb = Framebuffer(width: cols * cw, height: rows * ch)
@@ -659,7 +663,7 @@ extension DevTools {
             chat(b, "It's time we parted ways, leave the party.")
             check(!b.following && partyTest.party.count == 2, "a companion can be dismissed in conversation")
             // Saving.
-            let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-party.plist")
+            let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-party-\(ProcessInfo.processInfo.processIdentifier).plist")
             partyTest.endConversation()
             try? SaveGame.save(partyTest, to: url)
             let back = SaveGame.load(from: url)
@@ -843,7 +847,7 @@ extension DevTools {
                 for _ in 0..<5 where !g.gameOver { g.waitTurn() }
                 check(g.gameOver && g.hp == 0 && !g.inCombat, "the Avatar at 0 health is slain and the game is over")
                 check(!g.move(dx: 1, dy: 0), "nothing more can be done once slain")
-                let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-dead.plist")
+                let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-dead-\(ProcessInfo.processInfo.processIdentifier).plist")
                 try? SaveGame.save(g, to: url)
                 check(SaveGame.load(from: url) == nil, "a slain Avatar's save is not resumed")
             } else { check(false, "found room for the ambush") }
@@ -873,9 +877,13 @@ extension DevTools {
             g.roll = { 0.999 }
             for _ in 0..<20 { g.waitTurn() }
             check(g.hp == 50, "out of a fight the Avatar heals 1 health every 2 turns (40 -> \(g.hp) in 20 turns)")
-            let foe = folk[5]
-            foe.maxHP = 200; foe.hp = 200; foe.friendliness = 50
-            if let (dx, dy) = standBeside(g, foe) {
+            // Someone (not one of Draconian's, whose friends would join in) with room beside them.
+            var spot: (NPC, (Int, Int))?
+            for n in folk.dropFirst(5) where !n.servesDraconian && n.z == 0 {
+                if let d = standBeside(g, n) { spot = (n, d); break }
+            }
+            if let (foe, (dx, dy)) = spot {
+                foe.maxHP = 200; foe.hp = 200; foe.friendliness = 50
                 g.attack(dx: dx, dy: dy)
                 // Step back one pace; a foe who stumbles doesn't follow.
                 g.roll = { 0.1 }
@@ -892,8 +900,8 @@ extension DevTools {
                 g.waitTurn()
                 check(!g.inCombat && !g.gameOver && g.messages.contains("You have escaped."),
                       "leaving a foe more than \(Combat.escapeDistance) tiles behind ends the fight")
+                check(foe.build.contains("formidable"), "looking at someone tells how tough they are")
             } else { check(false, "found room to run") }
-            check(foe.build.contains("formidable"), "looking at someone tells how tough they are")
         }
 
         // Gold.
@@ -943,6 +951,15 @@ extension DevTools {
                   && !humans.contains { $0.title == "townsperson" },
                   "there are peasants on farms and in the country, and townsmen and townswomen (\(peasants.count) peasants, \(humans.filter { $0.title.hasPrefix("towns") }.count) town folk)")
             check(all.filter { $0.race != .human }.allSatisfy { $0.shortName == "the \($0.race.name)" }, "the other races go by their race")
+            // The bards look like their paintings.
+            let bards = all.filter { $0.role == "bard" }
+            check(!bards.isEmpty && bards.allSatisfy { n in
+                guard let b = Populace.bard(look: n.look) else { return false }
+                return b.race == n.race && b.look.female == n.female && n.painting == "bard-\(b.painting)"
+            }, "every bard looks like a painted bard of their race and sex (\(bards.count) bards)")
+            check(BardArt.bards.enumerated().allSatisfy { i, b in Portraits.image("bard-\(b.painting)") != nil
+                && SpriteBank.shared.people[b.race.index][Populace.bardLooks + i][0][0].sprite.w > 1 },
+                  "every bard's painting loads, and every bard is drawn on the map")
             // The town watch.
             let guards = all.filter { $0.guardRank != nil }
             let ranks = Set(guards.compactMap(\.guardRank))
@@ -1040,7 +1057,7 @@ extension DevTools {
 
         // Save, reload and compare.
         game.weapons = [.dagger, .staff]
-        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-selftest.plist")
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-selftest-\(ProcessInfo.processInfo.processIdentifier).plist")
         do {
             try SaveGame.save(game, to: url)
             let loaded = SaveGame.load(from: url)

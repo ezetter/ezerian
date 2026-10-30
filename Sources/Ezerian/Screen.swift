@@ -367,10 +367,10 @@ final class Screen {
         parchmentBox(x, y, w, h)
         // Portrait.
         let fx = x + 12, fy = y + 14, fw = 92, fh = 104
-        if let (rank, female) = npc.guardRank.map({ ($0, npc.female) }) {
-            // The watch have painted portraits: head and shoulders from the top of the picture.
+        if let painting = npc.painting {
+            // The watch and the bards have painted portraits: head and shoulders from the top of the picture.
             fb.fill(fx, fy, fw, fh, rgb(0x4A443C))
-            texts.append(.picture(Portraits.guardName(rank: rank, female: female), crop: CGRect(x: 0, y: 0, width: 258, height: 258 * fh / fw),
+            texts.append(.picture(painting, crop: CGRect(x: 0, y: 0, width: 258, height: 258 * fh / fw),
                                   x: Double(fx), y: Double(fy), w: Double(fw), h: Double(fh)))
         } else {
             let face = SpriteBank.shared.faces[npc.race.index][npc.look % Populace.looks]

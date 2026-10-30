@@ -169,6 +169,13 @@ final class NPC: Codable {
 
     var disposition: Disposition { Disposition(friendliness) }
 
+    /// The painted portrait shown when talking to them, for the watch and the bards.
+    var painting: String? {
+        if let r = guardRank { return Portraits.guardName(rank: r, female: female) }
+        if let b = Populace.bard(look: look), b.race == race { return "bard-\(b.painting)" }
+        return nil
+    }
+
     /// The rank in the town watch (0 watchman ... 4 knight), for guards.
     var guardRank: Int? { race == .human ? Populace.guardRank(look: look)?.rank : nil }
 
@@ -233,12 +240,21 @@ struct NPCPose {
 /// at campfires and in caves, travellers on the roads.
 enum Populace {
     /// 0-2 men, 3-5 women, 6-7 Lord Draconian's livery (man, woman), then the town
-    /// watch: two looks (man, woman) for each of its five ranks.
-    static let looks = 8 + 2 * GuardArt.ranks
+    /// watch: two looks (man, woman) for each of its five ranks, then the bards.
+    static let bardLooks = 8 + 2 * GuardArt.ranks
+    static let looks = bardLooks + BardArt.bards.count
+
+    static func bard(look: Int) -> BardArt.Bard? {
+        look >= bardLooks && look < looks ? BardArt.bards[look - bardLooks] : nil
+    }
+    /// The race a look belongs to, for the looks only one race wears (the watch, the bards).
+    static func lookRace(_ look: Int) -> Race? {
+        guardRank(look: look) != nil ? .human : bard(look: look)?.race
+    }
 
     static func guardLook(rank: Int, female: Bool) -> Int { 8 + rank * 2 + (female ? 1 : 0) }
     static func guardRank(look: Int) -> (rank: Int, female: Bool)? {
-        look >= 8 && look < looks ? ((look - 8) / 2, look % 2 == 1) : nil
+        look >= 8 && look < bardLooks ? ((look - 8) / 2, look % 2 == 1) : nil
     }
 
     /// How common each rank of the watch is: watchmen, serjeants, men-at-arms (the
@@ -346,6 +362,11 @@ enum Populace {
             if let r = guardRank {
                 look = guardLook(rank: r, female: female)
                 job = GuardArt.title(r, female: female)
+            }
+            // A bard looks like one of the painted bards of their race and sex.
+            if job == "bard" {
+                let mine = BardArt.bards.indices.filter { BardArt.bards[$0].race == race && BardArt.bards[$0].look.female == female }
+                if !mine.isEmpty { look = bardLooks + rng.pick(mine) }
             }
             let npc = NPC(id: Int(truncatingIfNeeded: Hash.of(seed, ox + lx, oy + ly, 9000 + key.z + people.count)),
                           name: rng.pick(female ? names.female : names.male), race: race, female: female, look: look,
