@@ -60,7 +60,13 @@ A new game (first launch or ⌘N) begins by asking your character's name, then w
 you are a man or a woman (M or W, or the arrows and Return), with both shown as they
 would look. The name appears in the side panel beside the Avatar's portrait, and both
 are kept in the save file; NPCs voiced by Claude are told which you are. The Avatar sets
-out with no armour and no weapon: just a linen shirt, slacks and plain shoes.
+out with no armour and no weapon: just a laced linen shirt, slacks, a belt and a sash.
+
+The Avatar's portraits are paintings (`Resources/Portraits`, copied into the app by
+`build_app.sh`), drawn at the display's full resolution over the pixel art. There are
+six for each of the man and the woman, from plain clothes through leather, mail, a
+breastplate and plate to gilded plate (`Portraits.Outfit`); only the plain clothes are
+used so far.
 
 Walk into a door to go inside, into a sign to read it, and into a cave mouth to go
 underground. A ladder brings you back up. The Avatar glides from tile to tile, but the

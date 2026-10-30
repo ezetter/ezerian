@@ -303,8 +303,9 @@ extension DevTools {
         check(game.messages.contains { $0.hasPrefix("Welcome to the Land of Ezerian") }, "the welcome comes once the Avatar is made")
         let bank = SpriteBank.shared
         check(bank.avatar(female: true)[0][0].sprite.px != bank.avatar(female: false)[0][0].sprite.px
-              && bank.portrait(female: true).px != bank.portrait(female: false).px,
-              "the man and the woman look different, on the map and in the portrait")
+              , "the man and the woman look different on the map")
+        check(Portraits.Outfit.allCases.allSatisfy { o in [false, true].allSatisfy { Portraits.image(Portraits.avatarName(female: $0, outfit: o))?.width == 236 } },
+              "the painted portraits load, for a man and a woman in every outfit")
         game.roll = { 1.0 }   // no chance events (ambushes, offers) while checking the world itself
         var generated: [RegionKey] = []
         game.world.onGenerate = { generated.append($0.key) }

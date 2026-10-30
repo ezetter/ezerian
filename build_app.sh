@@ -10,6 +10,7 @@ BIN="$(swift build -c release --show-bin-path)/Ezerian"
 rm -rf "$APP" build/AppIcon.iconset
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" build/AppIcon.iconset
 cp "$BIN" "$APP/Contents/MacOS/Ezerian"
+cp -R Resources/Portraits "$APP/Contents/Resources/Portraits"
 
 # App icon, drawn by the game itself from its own art.
 "$BIN" --icon build/icon-1024.png > /dev/null

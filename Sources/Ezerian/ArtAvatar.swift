@@ -1,14 +1,18 @@
 import Foundation
 import simd
 
-/// The Avatar at the start of the adventure: blond, unarmed and unarmoured, in a
-/// linen shirt, slacks and plain leather shoes. A man or a woman, chosen at the start.
+/// The Avatar at the start of the adventure, as in the painted portraits: unarmed and
+/// unarmoured, in a laced linen shirt, brown slacks and a belt with a sash (wine-red
+/// for him, teal for her). He is dark-haired and bearded; she wears an auburn braid.
 enum AvatarArt {
-    static let skin = Paint(0xE8B48A, jitter: 0.03)
-    static let hair = Paint(0xF2C83A, .hair, jitter: 0.05, shine: 0.2)
-    static let shirt = Paint(0xE4DAC2, .cloth, jitter: 0.04)
-    static let shirtShade = Paint(0xC8BCA2, .cloth, jitter: 0.04)
-    static let slacks = Paint(0x4E4438, .cloth, jitter: 0.04)
+    static let skin = Paint(0xD8A27A, jitter: 0.03)
+    static let manHair = Paint(0x3A2416, .hair, jitter: 0.05, shine: 0.15)
+    static let womanHair = Paint(0x9A4422, .hair, jitter: 0.05, shine: 0.2)
+    static let shirt = Paint(0xE2D6BC, .cloth, jitter: 0.04)
+    static let shirtShade = Paint(0xC8BAA0, .cloth, jitter: 0.04)
+    static let slacks = Paint(0x5A4232, .cloth, jitter: 0.04)
+    static let manSash = Paint(0x7A1E2A, .cloth, jitter: 0.04)
+    static let womanSash = Paint(0x3A7A74, .cloth, jitter: 0.04)
     static let leather = Paint(0x5A3820, jitter: 0.05)
     static let buckle = Paint(0xB89040, .metal, shine: 0.4)
 
@@ -32,6 +36,10 @@ enum AvatarArt {
         }
         m.blob(0, 0.1, 13.4, female ? 4.2 : 4.6, 3.2, 1.1, leather)
         m.box(-0.8, 3.1, 13, 0.8, 3.5, 13.9, buckle)
+        // The sash, knotted at the hip with its end hanging down.
+        let sash = female ? womanSash : manSash
+        m.blob(2.6, 2.4, 13.2, 1.4, 1, 1.2, sash)
+        m.rod(V3(2.8, 2.6, 12.6), V3(3.2, 2.4, 8.4), 0.8, sash)
         // Open collar.
         m.blob(0, 2.4, 22.6, 1.3, 0.8, 1.4, skin)
         m.ball(-shoulder, 0, 22, 2.1, shirt)
@@ -45,63 +53,21 @@ enum AvatarArt {
         m.rod(V3(ax + 0.4, 0.5 - armSwing * 0.5, 17.6), V3(ax + 0.6, 1 - armSwing, 14.2), 1.1, skin)
         m.ball(-ax - 0.7, 1.7 + armSwing, 13.5, 1.3, skin)
         m.ball(ax + 0.6, 1.2 - armSwing, 13.5, 1.3, skin)
-        // Head and golden hair: cropped for him, falling past the shoulders for her.
+        // Head: his dark hair and short beard; her auburn hair in a braid over the shoulder.
         m.ball(0, 0.3, 26.4, 3.3, skin)
-        m.blob(0, -0.8, 27.4, 3.7, 3.5, 3.3, hair)
         if female {
-            m.blob(0, -2, 23, 3.8, 1.8, 4.6, hair)
-            for side: Float in [-1, 1] { m.blob(side * 2.9, -0.4, 24.2, 1.2, 2, 3.4, hair) }
+            m.blob(0, -0.8, 27.4, 3.7, 3.5, 3.3, womanHair)
+            m.blob(-2.2, -1.2, 24.6, 1.6, 1.8, 2.2, womanHair)
+            for (i, z) in [23.2, 21.4, 19.6, 17.8, 16.2].enumerated() {
+                m.ball(-3.4 + Float(i) * 0.15, 1.6, Float(z), 1.05 - Float(i) * 0.1, womanHair)
+            }
         } else {
-            m.blob(0, -1.8, 25.2, 3.4, 1.6, 2, hair)
+            m.blob(0, -0.8, 27.6, 3.7, 3.5, 3.2, manHair)
+            m.blob(0, -1.8, 25.6, 3.4, 1.6, 1.8, manHair)
+            m.blob(0, 2.2, 24.6, 2.6, 1.4, 1.8, manHair)
         }
         m.ball(-1.2, 3.25, 26.5, 0.45, Paint(0x2A1A10))
         m.ball(1.2, 3.25, 26.5, 0.45, Paint(0x2A1A10))
-        return m
-    }
-
-    /// Head and shoulders for the portrait in the side panel, built facing the viewer
-    /// (towards +z, straight up out of the picture).
-    static func portrait(female: Bool) -> Model {
-        var m = Model()
-        m.leanX = 0
-        m.shadow = false
-        let wide: Float = female ? 0.9 : 1
-        // Shirt with an open collar.
-        m.blob(0, 40, 0, 25 * wide, 14, 11, shirt)
-        m.ball(-19 * wide, 33, 3, 9, shirtShade)
-        m.ball(19 * wide, 33, 3, 9, shirtShade)
-        m.blob(0, 21, 2, 6, 6, 6, skin)
-        m.blob(0, 28, 9.6, 2.4, 5, 1.4, skin)
-        for side: Float in [-1, 1] { m.blob(side * 4.6, 27, 10.6, 3.4, 2.4, 1, Paint(0xF0E8D6, .cloth)) }
-        if female {
-            // Long hair, falling in front of the shoulders.
-            m.blob(-12, 16, -1, 6, 15, 6.5, hair)
-            m.blob(12, 16, -1, 6, 15, 6.5, hair)
-            m.blob(-13 * wide, 31, 8.5, 4.6, 9, 3.2, hair)
-            m.blob(13 * wide, 31, 8.5, 4.6, 9, 3.2, hair)
-        } else {
-            // Cropped short above the ears.
-            m.blob(-11, 3, 0, 4, 5, 5.5, hair)
-            m.blob(11, 3, 0, 4, 5, 5.5, hair)
-        }
-        m.blob(0, -1, 1, 14.5, 15, 10, hair)
-        m.blob(0, 5, 6, 11.5 * (female ? 0.95 : 1), 13.5, 10.5, skin)
-        m.blob(0, -7, 11, 11, 5.5, 5.5, hair)
-        for x: Float in [-4.6, 4.6] {
-            m.blob(x, 4.5, 15.8, 2.3, 1.4, 0.6, Paint(0xF8F4EC))
-            m.ball(x, 4.6, 16.2, 1.2, Paint(0x2A4A8A))
-            if female {
-                m.box(x - 2.4, 1.5, 15.5, x + 2.4, 2.1, 16.2, Paint(0xB08A30))
-            } else {
-                m.box(x - 2.6, 1.2, 15.5, x + 2.6, 2.1, 16.2, Paint(0xB08A30))
-            }
-        }
-        m.blob(0, 8.5, 16.4, female ? 1.5 : 1.8, 3.2, 1.6, Paint(0xD8A07A, jitter: 0.03))
-        if female {
-            m.blob(0, 13.7, 15.4, 3, 0.9, 0.7, Paint(0xB8484A))
-        } else {
-            m.box(-3.2, 13.2, 15, 3.2, 14.2, 15.6, Paint(0x9A3A30))
-        }
         return m
     }
 

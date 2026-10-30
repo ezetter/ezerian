@@ -147,7 +147,7 @@ final class Screen {
         drawSky(game, x: px, y: 80, w: pw, h: 28)
 
         box(px, 116, pw, 90)
-        drawPortrait(SpriteBank.shared.portrait(female: game.female), px + 8, 122)
+        drawPortrait(Portraits.avatarName(female: game.female), px + 8, 122)
         let tx = Double(px + 86)
         texts.append(TextItem(text: game.nameEntry == nil ? game.playerName : "Avatar", x: tx, y: 120, size: 20,
                               font: .title, color: Screen.accent))
@@ -288,24 +288,19 @@ final class Screen {
                               color: 0x5A4024, align: .center, shadow: false))
     }
 
-    /// A head-and-shoulders picture in a gilded frame against a blue sky, 66 by 78.
-    private func drawPortrait(_ portrait: Sprite, _ fx: Int, _ fy: Int, dim: Bool = false) {
+    /// The Avatar's painted head and shoulders in a gilded frame, 66 by 78.
+    private func drawPortrait(_ name: String, _ fx: Int, _ fy: Int) {
         let fw = 66, fh = 78
-        for yy in 0..<fh {
-            for xx in 0..<fw {
-                let t = Float(yy) / Float(fh)
-                let v = Float(xx - fw / 2) / Float(fw)
-                fb.pixels[(fy + yy) * Screen.width + fx + xx] = pack(mix(hex(0x3A5A8A), hex(0x1A2A44), t) * (1 - v * v * 1.2))
-            }
-        }
-        fb.blit(portrait, fx + fw / 2 - portrait.w / 2 + portrait.ax, fy + 3 + portrait.ay, clip: (fx, fy, fw, fh))
-        if dim { fb.wash(fx, fy, fw, fh, hex(0x000000), 0.5) }
+        fb.fill(fx, fy, fw, fh, rgb(0x4A443C))
         gild(fx, fy, fw, fh)
+        // The paintings are 236 wide: take the top of the picture at the frame's shape.
+        texts.append(.picture(name, crop: CGRect(x: 0, y: 0, width: 236, height: 236 * fh / fw),
+                              x: Double(fx), y: Double(fy), w: Double(fw), h: Double(fh)))
     }
 
     /// The second question of a new game: man or woman, each shown as they would look.
     private func drawGenderPrompt(_ name: String, female: Bool) {
-        let w = 340, h = 210
+        let w = 340, h = 330
         let x = Screen.mapX + (MapRenderer.pixelW - w) / 2, y = Screen.mapY + (MapRenderer.pixelH - h) / 2
         fb.wash(Screen.mapX, Screen.mapY, MapRenderer.pixelW, MapRenderer.pixelH, hex(0x000000), 0.55)
         parchmentBox(x, y, w, h)
@@ -314,13 +309,16 @@ final class Screen {
                               color: Screen.brown, align: .center, shadow: false))
         texts.append(TextItem(text: "Art thou a man or a woman, \(name)?", x: cx, y: Double(y + 42), size: 14,
                               font: .italic, color: 0x4A3018, align: .center, shadow: false))
-        let bank = SpriteBank.shared
         for (i, (label, isFemale)) in [("Man", false), ("Woman", true)].enumerated() {
-            let fx = x + w / 2 - 92 + i * 118, fy = y + 70
+            let pw = 100, ph = 180
+            let fx = x + w / 2 - 120 + i * 140, fy = y + 70
             let chosen = isFemale == female
-            if chosen { fb.fill(fx - 6, fy - 6, 78, 90, rgb(0xC89A40)) }
-            drawPortrait(bank.portrait(female: isFemale), fx, fy, dim: !chosen)
-            texts.append(TextItem(text: label, x: Double(fx + 33), y: Double(fy + 86), size: 15, font: chosen ? .bold : .italic,
+            if chosen { fb.fill(fx - 6, fy - 6, pw + 12, ph + 12, rgb(0xC89A40)) }
+            fb.fill(fx, fy, pw, ph, rgb(0x4A443C))
+            gild(fx, fy, pw, ph)
+            texts.append(.picture(Portraits.avatarName(female: isFemale), crop: CGRect(x: 0, y: 0, width: 236, height: 236 * ph / pw),
+                                  x: Double(fx), y: Double(fy), w: Double(pw), h: Double(ph), dim: chosen ? 0 : 0.45))
+            texts.append(TextItem(text: label, x: Double(fx + pw / 2), y: Double(fy + ph + 8), size: 15, font: chosen ? .bold : .italic,
                                   color: chosen ? Screen.brown : 0x7A6040, align: .center, shadow: false))
         }
         texts.append(TextItem(text: "Press M or W  ·  or the arrows and Return", x: cx, y: Double(y + h - 24), size: 12,

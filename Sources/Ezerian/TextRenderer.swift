@@ -19,6 +19,19 @@ struct TextItem: Equatable {
     var color: UInt32 = 0xE8DCC0
     var align: Align = .left
     var shadow = true
+    /// Instead of words: a painted picture (see `Portraits`), the part `crop` of it (in
+    /// the picture's pixels, from the top left) filling `w` by `h` art pixels from (x, y),
+    /// darkened by `dim` (0 to 1).
+    var picture: String?
+    var crop: CGRect?
+    var w = 0.0
+    var h = 0.0
+    var dim = 0.0
+
+    static func picture(_ name: String, crop: CGRect? = nil, x: Double, y: Double, w: Double, h: Double,
+                        dim: Double = 0) -> TextItem {
+        TextItem(text: "", x: x, y: y, size: 0, picture: name, crop: crop, w: w, h: h, dim: dim)
+    }
 }
 
 enum TextRenderer {
@@ -80,6 +93,10 @@ enum TextRenderer {
         ctx.setShouldAntialias(true)
         ctx.setShouldSmoothFonts(false)
         for item in items {
+            if let name = item.picture {
+                drawPicture(name, item, in: ctx, scale: scale, height: height)
+                continue
+            }
             let f = font(item.font, size: CGFloat(item.size) * scale)
             let c = item.color
             let color = CGColor(srgbRed: CGFloat((c >> 16) & 0xFF) / 255, green: CGFloat((c >> 8) & 0xFF) / 255,
@@ -105,6 +122,21 @@ enum TextRenderer {
             }
             ctx.textPosition = CGPoint(x: x, y: baseline)
             CTLineDraw(l, ctx)
+        }
+        ctx.restoreGState()
+    }
+
+    private static func drawPicture(_ name: String, _ item: TextItem, in ctx: CGContext, scale: CGFloat, height: CGFloat) {
+        guard var img = Portraits.image(name) else { return }
+        if let c = item.crop, let part = img.cropping(to: c) { img = part }
+        let r = CGRect(x: CGFloat(item.x) * scale, y: height - CGFloat(item.y + item.h) * scale,
+                       width: CGFloat(item.w) * scale, height: CGFloat(item.h) * scale)
+        ctx.saveGState()
+        ctx.interpolationQuality = .high
+        ctx.draw(img, in: r)
+        if item.dim > 0 {
+            ctx.setFillColor(CGColor(gray: 0, alpha: CGFloat(item.dim)))
+            ctx.fill(r)
         }
         ctx.restoreGState()
     }
