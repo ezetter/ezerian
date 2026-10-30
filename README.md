@@ -100,9 +100,19 @@ which decide how they answer you.
   off, and whether they gave their name. The game applies the change at once, so
   kindness and rudeness carry over to later meetings, and each NPC remembers the last
   few exchanges.
-* **Setting it up:** choose **Game ▸ Claude API Key…** and paste a key from
-  console.anthropic.com (it is kept in your login keychain), or launch with
-  `ANTHROPIC_API_KEY` set. **Game ▸ Voice Conversations with Claude** turns it off.
+* **Setting it up:** the game looks for a key in this order:
+  1. the `ANTHROPIC_API_KEY` environment variable;
+  2. a credentials file, `.claude-creds` in the project folder (found by looking
+     upwards from wherever the game runs), holding the single line
+     `CLAUDE_API_KEY=sk-ant-…`. **Options ▸ Claude Credentials File…** shows where
+     the game is looking and whether it found a key, and lets you choose another file
+     (or a folder holding `.claude-creds`), or go back to the default. With a key in
+     the file, the keychain is never touched, so macOS never asks for permission.
+     The file is listed in `.gitignore`;
+  3. the key saved in your login keychain with **Game ▸ Claude API Key…** (paste one
+     from console.anthropic.com).
+
+  **Game ▸ Voice Conversations with Claude** turns Claude off.
 * **Companions:** up to three NPCs can travel in your party. Ask someone to join in
   your own words ("Will you travel with me?"), or a friendly NPC may ask you during a
   conversation (press Y or N). The chance either way is 0 at friendliness 0 or below

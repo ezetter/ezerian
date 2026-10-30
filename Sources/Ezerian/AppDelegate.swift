@@ -110,6 +110,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let scores = optionsMenu.addItem(withTitle: "Show Hit Scores", action: #selector(toggleHitScores), keyEquivalent: "")
         scores.target = self
         scores.state = Options.showHitScores ? .on : .off
+        optionsMenu.addItem(.separator())
+        optionsMenu.addItem(withTitle: "Claude Credentials File…", action: #selector(chooseCredentialsFile), keyEquivalent: "").target = self
         optionsItem.submenu = optionsMenu
         main.addItem(optionsItem)
 
@@ -183,6 +185,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         Options.showHitScores.toggle()
         sender.state = Options.showHitScores ? .on : .off
         gameView.game.log(Options.showHitScores ? "Blows will show damage and health left." : "Blows will no longer show damage and health left.")
+        gameView.refresh()
+    }
+
+    /// Shows where the Claude credentials file is looked for, and lets the player pick
+    /// another file (or folder holding one) or go back to the default.
+    @objc private func chooseCredentialsFile() {
+        let alert = NSAlert()
+        alert.messageText = "Claude Credentials File"
+        let current = ClaudeCredentials.url?.path ?? "(none found)"
+        let found = ClaudeCredentials.readKey() != nil
+        alert.informativeText = "If this file holds a line CLAUDE_API_KEY=sk-ant-…, NPCs use that key and the keychain is never read.\n\n"
+            + "Now looking in:\n\(current)\n\n"
+            + (found ? "A key was found there." : "No key was found there.")
+            + (ClaudeCredentials.customPath == nil ? "" : "\n(This is a location you chose.)")
+        alert.addButton(withTitle: "Choose File…")
+        alert.addButton(withTitle: "Use Default")
+        alert.addButton(withTitle: "Cancel")
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }
+            switch response {
+            case .alertFirstButtonReturn:
+                let panel = NSOpenPanel()
+                panel.message = "Choose the credentials file, or a folder containing \(ClaudeCredentials.fileName)"
+                panel.canChooseFiles = true
+                panel.canChooseDirectories = true
+                panel.showsHiddenFiles = true
+                panel.allowsMultipleSelection = false
+                if let dir = ClaudeCredentials.url?.deletingLastPathComponent() { panel.directoryURL = dir }
+                panel.beginSheetModal(for: self.window) { result in
+                    guard result == .OK, var url = panel.url else { return }
+                    var isDir: ObjCBool = false
+                    if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+                        url = url.appendingPathComponent(ClaudeCredentials.fileName)
+                    }
+                    ClaudeCredentials.customPath = url.path
+                    self.reportCredentials()
+                }
+            case .alertSecondButtonReturn:
+                ClaudeCredentials.customPath = nil
+                self.reportCredentials()
+            default: break
+            }
+        }
+    }
+
+    private func reportCredentials() {
+        let path = ClaudeCredentials.url?.path ?? "nowhere"
+        gameView.game.log(ClaudeCredentials.readKey() != nil
+            ? "The Claude API key will be read from \(path)."
+            : "No Claude API key found in \(path); the saved key, if any, will be used.")
         gameView.refresh()
     }
 

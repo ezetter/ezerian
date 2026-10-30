@@ -348,6 +348,23 @@ extension DevTools {
         check(!Options.showHitScores(in: fresh), "hit scores are off by default")
         fresh.removePersistentDomain(forName: "ezerian2-selftest-\(seed)")
         Options.override = true
+        // The credentials file: its line is found however it's written, and the default
+        // location is the nearest folder above the game that holds one.
+        check(ClaudeCredentials.parse("CLAUDE_API_KEY=sk-ant-test1") == "sk-ant-test1"
+              && ClaudeCredentials.parse("# key\nexport CLAUDE_API_KEY = \"sk-ant-test2\"\n") == "sk-ant-test2"
+              && ClaudeCredentials.parse("OTHER=1\n") == nil, "the credentials file's CLAUDE_API_KEY line is read")
+        do {
+            let fm = FileManager.default
+            let root = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-creds-\(ProcessInfo.processInfo.processIdentifier)")
+            let deep = root.appendingPathComponent("build/Land.app/Contents/MacOS")
+            try? fm.createDirectory(at: deep, withIntermediateDirectories: true)
+            let file = root.appendingPathComponent(ClaudeCredentials.fileName)
+            try? "CLAUDE_API_KEY=sk-ant-test3\n".write(to: file, atomically: true, encoding: .utf8)
+            check(ClaudeCredentials.findDefault(from: deep)?.standardizedFileURL == file.standardizedFileURL
+                  && ClaudeCredentials.readKey(from: ClaudeCredentials.findDefault(from: deep)) == "sk-ant-test3",
+                  "the credentials file is found in the project folder above the app")
+            try? fm.removeItem(at: root)
+        }
         let game = Game(seed: seed)
         game.nameEntry = "Iolanthe"
         game.confirmName()

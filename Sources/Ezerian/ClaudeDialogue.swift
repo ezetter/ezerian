@@ -33,11 +33,13 @@ final class ClaudeClient {
         set { UserDefaults.standard.set(newValue, forKey: "useClaude") }
     }
 
-    /// The API key: the ANTHROPIC_API_KEY environment variable, or the one saved in
-    /// the login keychain from the Game menu.
-    /// Read once per launch: every keychain read can make macOS ask for permission.
+    /// The API key: the ANTHROPIC_API_KEY environment variable, else the credentials
+    /// file (`ClaudeCredentials`), else the one saved in the login keychain from the
+    /// Game menu. The keychain is read once per launch, and only when there is no
+    /// file: every keychain read can make macOS ask for permission.
     var apiKey: String? {
         if let k = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !k.isEmpty { return k }
+        if let k = ClaudeCredentials.readKey() { return k }
         if !keyLoaded {
             cachedKey = ClaudeClient.readKeychain()
             keyLoaded = true
