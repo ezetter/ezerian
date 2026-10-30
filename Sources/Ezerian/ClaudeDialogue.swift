@@ -211,7 +211,7 @@ enum AIDialogue {
         Character sheet:
         - Name: \(npc.name) (\(npc.female ? "woman" : "man"))
         - Race: \(npc.race.name). Manner of speech: \(manner(npc.race))
-        - Trade: \(npc.role)
+        - Trade: \(npc.title)
         - Friendliness towards the Avatar: \(npc.friendliness) on a scale from -100 (extremely hostile) to 100 \
         (adoring), which is \(npc.disposition.word.lowercased()).
         - You have \(npc.known ? "already told the Avatar your name" : "not told the Avatar your name").

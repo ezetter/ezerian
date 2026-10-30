@@ -74,7 +74,7 @@ enum Dialogue {
         s.replacingOccurrences(of: "{name}", with: npc.name)
             .replacingOccurrences(of: "{addr}", with: address(npc, player))
             .replacingOccurrences(of: "{player}", with: player)
-            .replacingOccurrences(of: "{role}", with: npc.role)
+            .replacingOccurrences(of: "{role}", with: npc.title)
             .replacingOccurrences(of: "{home}", with: npc.home ?? "these parts")
     }
 

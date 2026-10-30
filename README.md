@@ -139,7 +139,7 @@ Health is drawn evenly within the rank's band, so a higher rank is always toughe
 
 The tabards bear the town's tower. Until they tell you their name, guards go by their
 rank ("the serjeant of the watch"), and so does every human by their trade: "The
-mercenary hits you…", "You speak with the bard." Townspeople and beggars walk the
+mercenary hits you…", "You speak with the bard." Townsmen, townswomen and beggars walk the
 streets, peasants work the land round farmhouses and travel the roads, and the rest
 keep shops, inns and homes. The other races go by their race ("the dwarf"). Claude knows them as members of the watch who
 loathe Lord Draconian's mercenaries. Guards in towns explored before the watch existed

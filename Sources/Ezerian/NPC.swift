@@ -190,8 +190,9 @@ final class NPC: Codable {
     var him: String { female ? "her" : "him" }
 
     /// "Thora" once she has told you her name, otherwise "the dwarf".
-    /// What they do, as others would name them ("townsfolk" in older saves is one townsperson).
-    var title: String { role == "townsfolk" ? "townsperson" : role }
+    /// What they do, as others would name them: a townsman or townswoman for the plain
+    /// folk of the streets (stored as "townsperson", or "townsfolk" in older saves).
+    var title: String { role == "townsperson" || role == "townsfolk" ? (female ? "townswoman" : "townsman") : role }
     /// Humans (and so the watch) are known by their trade until introduced: "the bard",
     /// "the watchwoman"; the other races by their race: "the dwarf".
     private var knownBy: String { race == .human ? title : race.name }
@@ -202,7 +203,7 @@ final class NPC: Codable {
         return (vowel ? "An " : "A ") + knownBy
     }
     var description: String {
-        "\(race.article) \(race.name) \(role)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
+        "\(race.article) \(race.name) \(title)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
             + (weapon.map { ", armed with a \($0.name)" } ?? ", unarmed")
     }
 

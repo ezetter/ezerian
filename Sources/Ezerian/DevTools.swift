@@ -939,8 +939,9 @@ extension DevTools {
                   "every human goes by their trade until introduced (\(trades.count) trades)")
             let peasants = humans.filter { $0.title == "peasant" }
             check(peasants.contains { $0.home?.hasSuffix("Farmhouse") == true } && peasants.contains { $0.home == nil }
-                  && humans.contains { $0.title == "townsperson" },
-                  "there are peasants on farms and in the country, and townspeople (\(peasants.count) peasants, \(humans.filter { $0.title == "townsperson" }.count) townspeople)")
+                  && humans.contains { $0.title == "townsman" && !$0.female } && humans.contains { $0.title == "townswoman" && $0.female }
+                  && !humans.contains { $0.title == "townsperson" },
+                  "there are peasants on farms and in the country, and townsmen and townswomen (\(peasants.count) peasants, \(humans.filter { $0.title.hasPrefix("towns") }.count) town folk)")
             check(all.filter { $0.race != .human }.allSatisfy { $0.shortName == "the \($0.race.name)" }, "the other races go by their race")
             // The town watch.
             let guards = all.filter { $0.guardRank != nil }
@@ -1114,7 +1115,7 @@ extension DevTools {
 
 extension DevTools {
     /// Fights many duels with the real combat code: the Avatar walks up to a random
-    /// townsperson, attacks, and keeps striking until someone falls.
+    /// townsman or townswoman, attacks, and keeps striking until someone falls.
     static func duels(seed: UInt64, count: Int, chain: Bool, walkTurns: Int = 0, pickFights: Bool = false) {
         ClaudeClient.shared.availableOverride = false
         var wins = 0, losses = 0, hpLeft = 0, rounds = 0, streaks: [Int] = []
