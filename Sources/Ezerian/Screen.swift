@@ -52,6 +52,7 @@ final class Screen {
         if game.gameOver { drawGameOver(game) }
         if game.showHelp { drawHelp() }
         if let entry = game.nameEntry { drawNamePrompt(entry, frame: frame) }
+        if let female = game.genderEntry { drawGenderPrompt(game.playerName, female: female) }
         drawPanel(game, frame: frame)
         let hint = game.showMap ? "M or Esc closes the map  ·  + and − zoom"
             : game.gameOver ? "Press Return to begin a new adventure"
@@ -146,17 +147,7 @@ final class Screen {
         drawSky(game, x: px, y: 80, w: pw, h: 28)
 
         box(px, 116, pw, 90)
-        let portrait = SpriteBank.shared.portrait
-        let fx = px + 8, fy = 122, fw = 66, fh = 78
-        for yy in 0..<fh {
-            for xx in 0..<fw {
-                let t = Float(yy) / Float(fh)
-                let v = Float(xx - fw / 2) / Float(fw)
-                fb.pixels[(fy + yy) * Screen.width + fx + xx] = pack(mix(hex(0x3A5A8A), hex(0x1A2A44), t) * (1 - v * v * 1.2))
-            }
-        }
-        fb.blit(portrait, fx + fw / 2 - portrait.w / 2 + portrait.ax, fy + 3 + portrait.ay, clip: (fx, fy, fw, fh))
-        gild(fx, fy, fw, fh)
+        drawPortrait(SpriteBank.shared.portrait(female: game.female), px + 8, 122)
         let tx = Double(px + 86)
         texts.append(TextItem(text: game.nameEntry == nil ? game.playerName : "Avatar", x: tx, y: 120, size: 20,
                               font: .title, color: Screen.accent))
@@ -294,6 +285,45 @@ final class Screen {
         }
         if (frame / 4) % 2 == 0 { fb.fill(Int(left + tw) + 2, fy + 5, 2, 16, gold) }
         texts.append(TextItem(text: "Type a name and press Return", x: cx, y: Double(y + 104), size: 12,
+                              color: 0x5A4024, align: .center, shadow: false))
+    }
+
+    /// A head-and-shoulders picture in a gilded frame against a blue sky, 66 by 78.
+    private func drawPortrait(_ portrait: Sprite, _ fx: Int, _ fy: Int, dim: Bool = false) {
+        let fw = 66, fh = 78
+        for yy in 0..<fh {
+            for xx in 0..<fw {
+                let t = Float(yy) / Float(fh)
+                let v = Float(xx - fw / 2) / Float(fw)
+                fb.pixels[(fy + yy) * Screen.width + fx + xx] = pack(mix(hex(0x3A5A8A), hex(0x1A2A44), t) * (1 - v * v * 1.2))
+            }
+        }
+        fb.blit(portrait, fx + fw / 2 - portrait.w / 2 + portrait.ax, fy + 3 + portrait.ay, clip: (fx, fy, fw, fh))
+        if dim { fb.wash(fx, fy, fw, fh, hex(0x000000), 0.5) }
+        gild(fx, fy, fw, fh)
+    }
+
+    /// The second question of a new game: man or woman, each shown as they would look.
+    private func drawGenderPrompt(_ name: String, female: Bool) {
+        let w = 340, h = 210
+        let x = Screen.mapX + (MapRenderer.pixelW - w) / 2, y = Screen.mapY + (MapRenderer.pixelH - h) / 2
+        fb.wash(Screen.mapX, Screen.mapY, MapRenderer.pixelW, MapRenderer.pixelH, hex(0x000000), 0.55)
+        parchmentBox(x, y, w, h)
+        let cx = Double(x + w / 2)
+        texts.append(TextItem(text: "A new adventure begins", x: cx, y: Double(y + 10), size: 20, font: .title,
+                              color: Screen.brown, align: .center, shadow: false))
+        texts.append(TextItem(text: "Art thou a man or a woman, \(name)?", x: cx, y: Double(y + 42), size: 14,
+                              font: .italic, color: 0x4A3018, align: .center, shadow: false))
+        let bank = SpriteBank.shared
+        for (i, (label, isFemale)) in [("Man", false), ("Woman", true)].enumerated() {
+            let fx = x + w / 2 - 92 + i * 118, fy = y + 70
+            let chosen = isFemale == female
+            if chosen { fb.fill(fx - 6, fy - 6, 78, 90, rgb(0xC89A40)) }
+            drawPortrait(bank.portrait(female: isFemale), fx, fy, dim: !chosen)
+            texts.append(TextItem(text: label, x: Double(fx + 33), y: Double(fy + 86), size: 15, font: chosen ? .bold : .italic,
+                                  color: chosen ? Screen.brown : 0x7A6040, align: .center, shadow: false))
+        }
+        texts.append(TextItem(text: "Press M or W  ·  or the arrows and Return", x: cx, y: Double(y + h - 24), size: 12,
                               color: 0x5A4024, align: .center, shadow: false))
     }
 

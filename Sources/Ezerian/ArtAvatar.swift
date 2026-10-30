@@ -1,49 +1,59 @@
 import Foundation
 import simd
 
-/// The Avatar, as in the old cloth maps: blond, steel-clad, red-cloaked, sword in hand.
+/// The Avatar at the start of the adventure: blond, unarmed and unarmoured, in a
+/// linen shirt, slacks and plain leather shoes. A man or a woman, chosen at the start.
 enum AvatarArt {
     static let skin = Paint(0xE8B48A, jitter: 0.03)
     static let hair = Paint(0xF2C83A, .hair, jitter: 0.05, shine: 0.2)
-    static let steel = Paint(0xB4B8C0, .metal, jitter: 0.04, shine: 0.55)
-    static let darkSteel = Paint(0x6E727C, .metal, jitter: 0.05, shine: 0.3)
-    static let cape = Paint(0xC0201C, .cloth, jitter: 0.04)
-    static let leather = Paint(0x6A4222, jitter: 0.05)
-    static let gold = Paint(0xD8A830, .metal, shine: 0.5)
-    static let blade = Paint(0xD8DCE4, .metal, jitter: 0.02, shine: 0.8)
+    static let shirt = Paint(0xE4DAC2, .cloth, jitter: 0.04)
+    static let shirtShade = Paint(0xC8BCA2, .cloth, jitter: 0.04)
+    static let slacks = Paint(0x4E4438, .cloth, jitter: 0.04)
+    static let leather = Paint(0x5A3820, jitter: 0.05)
+    static let buckle = Paint(0xB89040, .metal, shine: 0.4)
 
     /// The figure facing south (towards the viewer) in its own frame, centred on
     /// (0, 0); `step` swings the legs (-1, 0 or 1).
-    static func figure(step: Int) -> Model {
+    static func figure(female: Bool, step: Int) -> Model {
         var m = Model()
         let swing = Float(step) * 2.4
-        // Legs and boots.
+        let shoulder: Float = female ? 4.1 : 4.6
+        // Slacks and shoes.
         for (side, s) in [(-1 as Float, swing), (1 as Float, -swing)] {
-            let x = side * 2.4
-            m.rod(V3(x, s * 0.5, 12), V3(x, s, 3.2), 1.9, darkSteel)
-            m.box(x - 1.9, s - 2.2, 0, x + 1.9, s + 2.6, 3.6, leather)
+            let x = side * (female ? 2.2 : 2.4)
+            m.rod(V3(x, s * 0.5, 12.5), V3(x, s, 3), 1.8, slacks)
+            m.box(x - 1.6, s - 1.8, 0, x + 1.6, s + 2.4, 2.6, leather)
         }
-        // Cape hanging behind, flaring towards the hem.
-        m.box(-5.2, -4.4, 9, 5.2, -3, 23, cape)
-        m.box(-6.2, -4.8, 4, 6.2, -3.2, 10, cape)
-        // Body armour, belt and shoulders.
-        m.blob(0, 0, 18, 5.5, 3.6, 5.8, steel)
-        m.blob(0, 0.1, 13.4, 4.6, 3.2, 1.3, leather)
-        m.ball(-4.6, 0, 22.2, 2.3, steel)
-        m.ball(4.6, 0, 22.2, 2.3, steel)
-        // Arms, swinging against the legs; the right hand holds the sword.
+        if female { m.blob(0, 0, 12.6, 4.4, 3, 2.2, slacks) }
+        // Shirt, tucked in under a belt.
+        m.blob(0, 0, 18, female ? 4.4 : 5.1, 3.2, 5.6, shirt)
+        if female {
+            for side: Float in [-1, 1] { m.ball(side * 1.6, 2.2, 19.6, 1.6, shirt) }
+        }
+        m.blob(0, 0.1, 13.4, female ? 4.2 : 4.6, 3.2, 1.1, leather)
+        m.box(-0.8, 3.1, 13, 0.8, 3.5, 13.9, buckle)
+        // Open collar.
+        m.blob(0, 2.4, 22.6, 1.3, 0.8, 1.4, skin)
+        m.ball(-shoulder, 0, 22, 2.1, shirt)
+        m.ball(shoulder, 0, 22, 2.1, shirt)
+        // Sleeves rolled to the elbow, arms swinging against the legs, hands empty.
         let armSwing = -swing * 0.7
-        m.rod(V3(-5.6, 0, 21.5), V3(-6.3, 1.5 + armSwing, 14.2), 1.5, steel)
-        m.rod(V3(5.6, 0, 21.5), V3(6.2, 1 - armSwing, 14.2), 1.5, steel)
-        m.ball(-6.3, 1.8 + armSwing, 13.4, 1.4, skin)
-        m.ball(6.2, 1.2 - armSwing, 13.4, 1.4, skin)
-        m.rod(V3(-6.3, 2.2 + armSwing, 13.8), V3(-6.6, 4 + armSwing, 15.6), 0.7, gold)
-        m.box(-7.2, 1.3 + armSwing, 13, -5.4, 2.8 + armSwing, 13.9, gold)
-        m.rod(V3(-6.4, 2.6 + armSwing, 12.6), V3(-7.4, 8 + armSwing, 1.8), 0.8, blade)
-        // Head and golden hair.
+        let ax = shoulder + 1
+        m.rod(V3(-ax, 0, 21.5), V3(-ax - 0.4, 0.7 + armSwing * 0.5, 17.6), 1.5, shirtShade)
+        m.rod(V3(ax, 0, 21.5), V3(ax + 0.4, 0.5 - armSwing * 0.5, 17.6), 1.5, shirtShade)
+        m.rod(V3(-ax - 0.4, 0.7 + armSwing * 0.5, 17.6), V3(-ax - 0.7, 1.5 + armSwing, 14.2), 1.1, skin)
+        m.rod(V3(ax + 0.4, 0.5 - armSwing * 0.5, 17.6), V3(ax + 0.6, 1 - armSwing, 14.2), 1.1, skin)
+        m.ball(-ax - 0.7, 1.7 + armSwing, 13.5, 1.3, skin)
+        m.ball(ax + 0.6, 1.2 - armSwing, 13.5, 1.3, skin)
+        // Head and golden hair: cropped for him, falling past the shoulders for her.
         m.ball(0, 0.3, 26.4, 3.3, skin)
         m.blob(0, -0.8, 27.4, 3.7, 3.5, 3.3, hair)
-        m.blob(0, -2.2, 24, 3.4, 1.6, 3.2, hair)
+        if female {
+            m.blob(0, -2, 23, 3.8, 1.8, 4.6, hair)
+            for side: Float in [-1, 1] { m.blob(side * 2.9, -0.4, 24.2, 1.2, 2, 3.4, hair) }
+        } else {
+            m.blob(0, -1.8, 25.2, 3.4, 1.6, 2, hair)
+        }
         m.ball(-1.2, 3.25, 26.5, 0.45, Paint(0x2A1A10))
         m.ball(1.2, 3.25, 26.5, 0.45, Paint(0x2A1A10))
         return m
@@ -51,35 +61,54 @@ enum AvatarArt {
 
     /// Head and shoulders for the portrait in the side panel, built facing the viewer
     /// (towards +z, straight up out of the picture).
-    static func portrait() -> Model {
+    static func portrait(female: Bool) -> Model {
         var m = Model()
         m.leanX = 0
         m.shadow = false
-        m.blob(0, 36, -8, 31, 16, 8, cape)
-        m.blob(0, 40, 0, 25, 14, 11, steel)
-        m.ball(-19, 33, 3, 9, steel)
-        m.ball(19, 33, 3, 9, steel)
-        m.blob(0, 44, 9, 4, 4, 3, gold)
+        let wide: Float = female ? 0.9 : 1
+        // Shirt with an open collar.
+        m.blob(0, 40, 0, 25 * wide, 14, 11, shirt)
+        m.ball(-19 * wide, 33, 3, 9, shirtShade)
+        m.ball(19 * wide, 33, 3, 9, shirtShade)
         m.blob(0, 21, 2, 6, 6, 6, skin)
-        m.blob(-11, 13, -1, 5.5, 13, 6, hair)
-        m.blob(11, 13, -1, 5.5, 13, 6, hair)
+        m.blob(0, 28, 9.6, 2.4, 5, 1.4, skin)
+        for side: Float in [-1, 1] { m.blob(side * 4.6, 27, 10.6, 3.4, 2.4, 1, Paint(0xF0E8D6, .cloth)) }
+        if female {
+            // Long hair, falling in front of the shoulders.
+            m.blob(-12, 16, -1, 6, 15, 6.5, hair)
+            m.blob(12, 16, -1, 6, 15, 6.5, hair)
+            m.blob(-13 * wide, 31, 8.5, 4.6, 9, 3.2, hair)
+            m.blob(13 * wide, 31, 8.5, 4.6, 9, 3.2, hair)
+        } else {
+            // Cropped short above the ears.
+            m.blob(-11, 3, 0, 4, 5, 5.5, hair)
+            m.blob(11, 3, 0, 4, 5, 5.5, hair)
+        }
         m.blob(0, -1, 1, 14.5, 15, 10, hair)
-        m.blob(0, 5, 6, 11.5, 13.5, 10.5, skin)
+        m.blob(0, 5, 6, 11.5 * (female ? 0.95 : 1), 13.5, 10.5, skin)
         m.blob(0, -7, 11, 11, 5.5, 5.5, hair)
         for x: Float in [-4.6, 4.6] {
             m.blob(x, 4.5, 15.8, 2.3, 1.4, 0.6, Paint(0xF8F4EC))
             m.ball(x, 4.6, 16.2, 1.2, Paint(0x2A4A8A))
-            m.box(x - 2.6, 1.2, 15.5, x + 2.6, 2.1, 16.2, Paint(0xB08A30))
+            if female {
+                m.box(x - 2.4, 1.5, 15.5, x + 2.4, 2.1, 16.2, Paint(0xB08A30))
+            } else {
+                m.box(x - 2.6, 1.2, 15.5, x + 2.6, 2.1, 16.2, Paint(0xB08A30))
+            }
         }
-        m.blob(0, 8.5, 16.4, 1.8, 3.2, 1.6, Paint(0xD8A07A, jitter: 0.03))
-        m.box(-3.2, 13.2, 15, 3.2, 14.2, 15.6, Paint(0x9A3A30))
+        m.blob(0, 8.5, 16.4, female ? 1.5 : 1.8, 3.2, 1.6, Paint(0xD8A07A, jitter: 0.03))
+        if female {
+            m.blob(0, 13.7, 15.4, 3, 0.9, 0.7, Paint(0xB8484A))
+        } else {
+            m.box(-3.2, 13.2, 15, 3.2, 14.2, 15.6, Paint(0x9A3A30))
+        }
         return m
     }
 
     /// The figure turned to face a direction, standing in the middle of its tile.
-    static func model(facing: Direction, step: Int) -> Model {
+    static func model(female: Bool, facing: Direction, step: Int) -> Model {
         // A little larger than life, so the hero stands out on the map.
-        Posing.stand(figure(step: step), facing: facing, scale: V3(repeating: 1.16))
+        Posing.stand(figure(female: female, step: step), facing: facing, scale: V3(repeating: 1.16))
     }
 }
 

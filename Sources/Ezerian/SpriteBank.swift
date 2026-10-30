@@ -19,12 +19,12 @@ final class SpriteBank {
 
     /// [feature][variant][frame]
     private(set) var features: [[[Art]]]
-    /// [facing][stride frame]
-    private(set) var avatar: [[Art]]
+    /// [0 man, 1 woman][facing][stride frame]
+    private(set) var avatars: [[[Art]]]
     /// Pictures for hanging shop signs, by icon name.
     private(set) var signs: [String: Art] = [:]
-    /// The Avatar's head and shoulders, for the side panel.
-    private(set) var portrait = Sprite(w: 1, h: 1)
+    /// The Avatar's head and shoulders, for the side panel: [0 man, 1 woman].
+    private(set) var portraits = [Sprite(w: 1, h: 1), Sprite(w: 1, h: 1)]
     /// [race][look][facing][stride frame]
     private(set) var people: [[[[Art]]]] = []
     /// [race][look]
@@ -37,13 +37,15 @@ final class SpriteBank {
             guard let r = SpriteBank.recipe(f) else { continue }
             for v in 0..<r.variants { for fr in 0..<r.frames { jobs.append(Job(key: Int(f.rawValue), variant: v, frame: fr, recipe: r)) } }
         }
-        for d in Direction.allCases {
-            for step in 0..<3 {
-                jobs.append(Job(key: 1000 + d.rawValue, variant: 0, frame: step,
-                                recipe: Recipe { _, _, fr in AvatarArt.model(facing: d, step: [0, -1, 1][fr]) }))
+        for g in 0..<2 {
+            for d in Direction.allCases {
+                for step in 0..<3 {
+                    jobs.append(Job(key: 1000 + g * 10 + d.rawValue, variant: 0, frame: step,
+                                    recipe: Recipe { _, _, fr in AvatarArt.model(female: g == 1, facing: d, step: [0, -1, 1][fr]) }))
+                }
             }
+            jobs.append(Job(key: 3000 + g, variant: 0, frame: 0, recipe: Recipe { _, _, _ in AvatarArt.portrait(female: g == 1) }))
         }
-        jobs.append(Job(key: 3000, variant: 0, frame: 0, recipe: Recipe { _, _, _ in AvatarArt.portrait() }))
         for race in Race.allCases {
             for look in 0..<Populace.looks {
                 for d in Direction.allCases {
@@ -76,7 +78,7 @@ final class SpriteBank {
                                                     count: Populace.looks), count: Race.allCases.count)
         var faceArt = [[Sprite]](repeating: [Sprite](repeating: blank.sprite, count: Populace.looks), count: Race.allCases.count)
         var feats = [[[Art]]](repeating: [], count: 256)
-        var av = [[Art]](repeating: [], count: 4)
+        var av = [[[Art]]](repeating: [[Art]](repeating: [], count: 4), count: 2)
         for (i, j) in jobs.enumerated() {
             guard let art = results[i] else { continue }
             if j.key >= 50000 {
@@ -84,12 +86,12 @@ final class SpriteBank {
             } else if j.key >= 10000 {
                 let k = j.key - 10000
                 folk[k / 1000][(k / 100) % 10][(k / 10) % 10][k % 10] = art
-            } else if j.key == 3000 {
-                portrait = art.sprite
+            } else if j.key >= 3000 {
+                portraits[j.key - 3000] = art.sprite
             } else if j.key >= 2000 {
                 signs[icons[j.key - 2000]] = art
             } else if j.key >= 1000 {
-                av[j.key - 1000].append(art)
+                av[(j.key - 1000) / 10][(j.key - 1000) % 10].append(art)
             } else {
                 while feats[j.key].count <= j.variant { feats[j.key].append([]) }
                 feats[j.key][j.variant].append(art)
@@ -98,8 +100,12 @@ final class SpriteBank {
         features = feats
         people = folk
         faces = faceArt
-        avatar = av
+        avatars = av
     }
+
+    /// The Avatar walking, for a man or a woman: [facing][stride frame].
+    func avatar(female: Bool) -> [[Art]] { avatars[female ? 1 : 0] }
+    func portrait(female: Bool) -> Sprite { portraits[female ? 1 : 0] }
 
     func art(_ f: Feature, variant: Int, frame: Int) -> Art? {
         let vs = features[Int(f.rawValue)]

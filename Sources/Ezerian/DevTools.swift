@@ -120,7 +120,7 @@ extension DevTools {
                 if let a = bank.art(f, variant: v, frame: 0) { arts.append(("\(f)", a)) }
             }
         }
-        for d in Direction.allCases { for s in 0..<3 { arts.append(("avatar", bank.avatar[d.rawValue][s])) } }
+        for g in [false, true] { for d in Direction.allCases { for s in 0..<3 { arts.append(("avatar", bank.avatar(female: g)[d.rawValue][s])) } } }
         let cols = 14, cw = 76, ch = 104
         let rows = (arts.count + cols - 1) / cols
         let fb = Framebuffer(width: cols * cw, height: rows * ch)
@@ -154,7 +154,15 @@ extension DevTools {
     static func writeScreenshot(seed: UInt64, walk script: String, to path: String, options: Set<String>,
                                 hour: Double?, scale: Int) {
         let game = Game(seed: seed)
-        if !options.contains("name") { game.confirmName() } else { game.nameEntry = "Iola" }
+        if options.contains("name") {
+            game.nameEntry = "Iola"
+        } else if options.contains("gender") {
+            game.nameEntry = "Iola"
+            game.confirmName()
+        } else {
+            game.confirmName()
+            game.confirmGender(female: options.contains("woman"))
+        }
         walk(game, script)
         if let hour {
             let target = Int(hour * 60)
@@ -227,7 +235,7 @@ extension DevTools {
         for ry in -1...1 { for rx in -1...1 { _ = world.region(RegionKey(x: rx, y: ry, z: 0)) } }
         print("9 regions generated in \(Int(Date().timeIntervalSince(t0) * 1000)) ms")
         let game = Game(seed: seed)
-        game.confirmName()
+        game.confirmName(); game.confirmGender()
         let screen = Screen(world: game.world)
         var pose = AvatarPose(x: Double(game.x), y: Double(game.y), facing: .south, step: 0)
         t0 = Date()
@@ -261,7 +269,7 @@ extension DevTools {
             fb.blit(oak.sprite, 74, 40)
         }
         if let well = bank.art(.well, variant: 0, frame: 0) { fb.blit(well.sprite, 6, 66) }
-        let avatar = bank.avatar[Direction.south.rawValue][0]
+        let avatar = bank.avatar(female: false)[Direction.south.rawValue][0]
         fb.blitScaled(avatar.sprite, 44, 38, scale: 2)
         let gold = rgb(0xD8B050), dark = rgb(0x5A3A10), light = rgb(0xF8E8A0)
         for i in 0..<size {
@@ -289,6 +297,14 @@ extension DevTools {
         let game = Game(seed: seed)
         game.nameEntry = "Iolanthe"
         game.confirmName()
+        check(game.genderEntry == false && game.creatingCharacter, "after the name, a new game asks man or woman")
+        game.confirmGender(female: true)
+        check(game.female && !game.creatingCharacter, "the Avatar can be a woman")
+        check(game.messages.contains { $0.hasPrefix("Welcome to the Land of Ezerian") }, "the welcome comes once the Avatar is made")
+        let bank = SpriteBank.shared
+        check(bank.avatar(female: true)[0][0].sprite.px != bank.avatar(female: false)[0][0].sprite.px
+              && bank.portrait(female: true).px != bank.portrait(female: false).px,
+              "the man and the woman look different, on the map and in the portrait")
         game.roll = { 1.0 }   // no chance events (ambushes, offers) while checking the world itself
         var generated: [RegionKey] = []
         game.world.onGenerate = { generated.append($0.key) }
@@ -511,7 +527,7 @@ extension DevTools {
               "joining: no chance at friendliness 0 or below, rising with friendliness, certain at 100")
         game.endConversation()
         let partyTest = Game(seed: seed)
-        partyTest.confirmName()
+        partyTest.confirmName(); partyTest.confirmGender()
         partyTest.claude = mock
         mock.availableOverride = false
         let townsfolk = partyTest.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
@@ -615,7 +631,7 @@ extension DevTools {
               "an unfriendly neighbour's chance of attacking grows with unfriendliness, certain at -100")
         func arena() -> (Game, [NPC]) {
             let g = Game(seed: seed)
-            g.confirmName()
+            g.confirmName(); g.confirmGender()
             let folk = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
             for n in folk { n.friendliness = 50 }
             return (g, folk)
@@ -859,6 +875,10 @@ extension DevTools {
         for (code, ch) in [(45, "n"), (14, "e"), (17, "t"), (17, "t"), (4, "h"), (51, ""), (34, "i"), (11, "b")] { press(UInt16(code), ch) }
         press(36, "\r")
         check(keyGame.playerName == "Nettib" && keyGame.nameEntry == nil, "typing a name and pressing Return names the Avatar")
+        press(124)
+        check(keyGame.x == nx && keyGame.y == ny && keyGame.genderEntry == true, "an arrow moves the man-or-woman choice instead of walking")
+        press(36, "\r")
+        check(keyGame.female && !keyGame.creatingCharacter, "Return takes the highlighted choice")
         let (kx, ky, kturn) = (keyGame.x, keyGame.y, keyGame.turn)
         for code: UInt16 in [124, 125, 123, 126] { press(code) }   // right, down, left, up
         check(keyGame.turn > kturn, "arrow keys walk the Avatar")
@@ -886,7 +906,8 @@ extension DevTools {
                 let saved = home.npcs, back = loaded.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
                 check(saved.count == back.count && zip(saved, back).allSatisfy { $0.friendliness == $1.friendliness && $0.x == $1.x && $0.name == $1.name },
                       "people, where they stand and how they feel survive a save")
-                check(loaded.playerName == game.playerName && loaded.nameEntry == nil, "the name is restored without asking again")
+                check(loaded.playerName == game.playerName && !loaded.creatingCharacter, "the name is restored without asking again")
+                check(loaded.female == game.female, "whether the Avatar is a man or a woman survives a save")
             }
         } catch {
             check(false, "save succeeds (\(error))")
@@ -948,12 +969,12 @@ extension DevTools {
         var wins = 0, losses = 0, hpLeft = 0, rounds = 0, streaks: [Int] = []
         var streak = 0
         var game = Game(seed: seed)
-        game.confirmName()
+        game.confirmName(); game.confirmGender()
         for i in 0..<count {
             if !chain || game.gameOver {
                 if chain { streaks.append(streak); streak = 0 }
                 game = Game(seed: seed &+ UInt64(i))
-                game.confirmName()
+                game.confirmName(); game.confirmGender()
             }
             // Time passes between fights (about the walk to the next foe).
             if chain {

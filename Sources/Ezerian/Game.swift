@@ -20,6 +20,12 @@ final class Game {
     /// The name being typed while a new game asks for one; nil once it is chosen.
     var nameEntry: String?
     static let maxNameLength = 12
+    /// Whether the Avatar is a woman, chosen after the name.
+    private(set) var female = false
+    /// While a new game asks "man or woman?": whether "woman" is highlighted. Nil once chosen.
+    var genderEntry: Bool?
+    /// Still choosing a name or whether to be a man or a woman.
+    var creatingCharacter: Bool { nameEntry != nil || genderEntry != nil }
 
     /// The talk in progress, if any.
     var conversation: Conversation?
@@ -66,11 +72,18 @@ final class Game {
         arrive(quiet: true)
     }
 
-    /// Accepts the name typed at the start of a new game and sets the scene.
+    /// Accepts the name typed at the start of a new game, then asks man or woman.
     func confirmName() {
         let typed = (nameEntry ?? "").trimmingCharacters(in: .whitespaces)
         playerName = typed.isEmpty ? "Avatar" : typed
         nameEntry = nil
+        genderEntry = female
+    }
+
+    /// Accepts the choice of man or woman and sets the scene.
+    func confirmGender(female choice: Bool? = nil) {
+        female = choice ?? genderEntry ?? female
+        genderEntry = nil
         log("Welcome to the Land of Ezerian, \(playerName)!")
         log("Dark news travels the roads: Lord Draconian, Wizard Lord and Emperor of Sespooland, means to conquer Ezerian. Beware his black-and-red mercenaries and the orc warbands that roam the wilds.")
         log("Use the arrow keys to walk. Press H for help.")
@@ -91,9 +104,10 @@ final class Game {
     }
 
     /// Restores a saved game.
-    init(world: World, name: String, x: Int, y: Int, z: Int, facing: Direction, turn: Int) {
+    init(world: World, name: String, female: Bool, x: Int, y: Int, z: Int, facing: Direction, turn: Int) {
         self.world = world
         playerName = name
+        self.female = female
         self.x = x
         self.y = y
         self.z = z

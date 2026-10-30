@@ -56,8 +56,11 @@ swift run -c release Ezerian
 | ⌘N | Begin a new world |
 | ⌘S | Save (the game also saves automatically) |
 
-A new game (first launch or ⌘N) begins by asking your character's name; it appears in
-the side panel, under the Avatar's portrait, and is kept in the save file.
+A new game (first launch or ⌘N) begins by asking your character's name, then whether
+you are a man or a woman (M or W, or the arrows and Return), with both shown as they
+would look. The name appears in the side panel beside the Avatar's portrait, and both
+are kept in the save file; NPCs voiced by Claude are told which you are. The Avatar sets
+out with no armour and no weapon: just a linen shirt, slacks and plain shoes.
 
 Walk into a door to go inside, into a sign to read it, and into a cave mouth to go
 underground. A ladder brings you back up. The Avatar glides from tile to tile, but the
@@ -265,7 +268,7 @@ that typed words reach Claude and its judgement moves friendliness
 (against a stand-in for the API, so no key or network is needed), that caves lead down and back up, that every object has a sprite, that keys
 reach the game, and that saves round-trip.
 
-* `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name] [--scale 2]`
+* `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name,gender,woman] [--scale 2]`
   renders a screenshot. A walk can also contain `find:<feature>` (for example
   `find:shrine` or `find:t.forest`) to jump next to the nearest one, `npc:orc` to stand
   beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation, `recruit` to fill the party, `fight` to attack the person you face, and `warband` or

@@ -11,6 +11,8 @@ enum SaveGame {
         var z: Int
         var facing: Int
         var name: String?
+        /// Missing in saves from before the Avatar could be a woman.
+        var female: Bool?
         var turn: Int
         var regions: [RegionRecord]
         var party: [NPC]?
@@ -46,7 +48,8 @@ enum SaveGame {
                          explored: Data(r.explored.map { $0 ? 1 : 0 }), places: r.places, signs: r.signs, npcs: r.npcs)
         }
         let file = File(seed: String(game.world.seed), x: game.x, y: game.y, z: game.z,
-                        facing: game.facing.rawValue, name: game.nameEntry == nil ? game.playerName : nil, turn: game.turn, regions: regions,
+                        facing: game.facing.rawValue, name: game.creatingCharacter ? nil : game.playerName,
+                        female: game.female, turn: game.turn, regions: regions,
                         party: game.world.party, hp: game.hp, maxHP: game.maxHP,
                         gold: game.gold)
         let encoder = PropertyListEncoder()
@@ -80,7 +83,7 @@ enum SaveGame {
         }
         world.party = file.party ?? []
         for n in world.party { n.prevX = n.x; n.prevY = n.y }
-        let game = Game(world: world, name: file.name ?? "Avatar", x: file.x, y: file.y, z: file.z,
+        let game = Game(world: world, name: file.name ?? "Avatar", female: file.female ?? false, x: file.x, y: file.y, z: file.z,
                         facing: Direction(rawValue: file.facing) ?? .south, turn: file.turn)
         game.hp = file.hp ?? 100
         game.maxHP = file.maxHP ?? 100

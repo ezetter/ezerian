@@ -155,6 +155,10 @@ final class GameView: NSView, CALayerDelegate {
             enterName(event)
             return
         }
+        if game.genderEntry != nil {
+            chooseGender(event)
+            return
+        }
         if game.gameOver {
             if event.keyCode == 36 || event.keyCode == 76 {
                 stopRepeating()
@@ -251,6 +255,22 @@ final class GameView: NSView, CALayerDelegate {
             if var entry = game.nameEntry, !entry.isEmpty { entry.removeLast(); game.nameEntry = entry }
         default:
             for ch in event.characters ?? "" { game.typeName(ch) }
+        }
+        needsRender = true
+    }
+
+    /// "Man or woman?": M or W picks at once; the arrows or Tab move the choice and Return takes it.
+    private func chooseGender(_ event: NSEvent) {
+        let ch = (event.charactersIgnoringModifiers ?? "").lowercased()
+        switch event.keyCode {
+        case 36, 76:                    // Return, Enter
+            game.confirmGender()
+            onTurn?()
+        case 123, 124, 125, 126, 48:    // arrows, Tab
+            game.genderEntry?.toggle()
+        default:
+            if ch == "m" { game.confirmGender(female: false); onTurn?() }
+            else if ch == "w" || ch == "f" { game.confirmGender(female: true); onTurn?() }
         }
         needsRender = true
     }
@@ -352,7 +372,7 @@ final class GameView: NSView, CALayerDelegate {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        guard !game.showMap, game.nameEntry == nil, game.conversation == nil, !game.gameOver,
+        guard !game.showMap, !game.creatingCharacter, game.conversation == nil, !game.gameOver,
               let p = mapPixel(for: event), let dir = direction(toward: p) else { return }
         mouseDirection = dir
         stepHeld()
@@ -370,7 +390,7 @@ final class GameView: NSView, CALayerDelegate {
     }
 
     override func rightMouseDown(with event: NSEvent) {
-        guard !game.showMap, game.nameEntry == nil, let (mx, my) = mapPixel(for: event),
+        guard !game.showMap, !game.creatingCharacter, let (mx, my) = mapPixel(for: event),
               let t = screen.map.tileAt(mapPixel: mx, my) else { return }
         game.look(at: t.x, t.y)
         needsRender = true
