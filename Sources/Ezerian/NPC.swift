@@ -220,8 +220,14 @@ enum Populace {
     /// How common each rank of the watch is: watchmen, serjeants, men-at-arms (the
     /// captain is chosen apart), knights.
     private static let watchRanks: [(Int, Double)] = [(0, 45), (1, 30), (2, 20), (4, 5)]
-    /// The least health a guard of each rank has: the watch are picked for toughness.
-    static let guardHealth = [40, 60, 80, 100, 130]
+    /// Health by rank in the watch, so a higher rank is always tougher: watchmen
+    /// 40-69, serjeants 70-99, men-at-arms 100-129, captains 130-159, knights 160-200.
+    static let guardHealth: [ClosedRange<Int>] = [40...69, 70...99, 100...129, 130...159, 160...200]
+
+    static func guardHealth(rank: Int, _ u: Double) -> Int {
+        let r = guardHealth[rank]
+        return min(r.upperBound, r.lowerBound + Int(u * Double(r.count)))
+    }
 
     private static let firstNames: [Race: (male: [String], female: [String])] = [
         .human: (["Aldric", "Cedric", "Gareth", "Ivor", "Lucan", "Nolan", "Piers", "Tobin", "Vance", "Bram", "Corwin", "Osric",
@@ -326,7 +332,8 @@ enum Populace {
             npc.servesDraconian = servant
             npc.warband = warband
             npc.facing = rng.int(4)
-            npc.maxHP = max(health(rng.double()), guardRank.map { guardHealth[$0] } ?? 1)
+            let u = rng.double()
+            npc.maxHP = guardRank.map { guardHealth(rank: $0, u) } ?? health(u)
             npc.hp = npc.maxHP
             npc.gold = coins(forHealth: npc.maxHP, &rng)
             taken.insert(ly * n + lx)

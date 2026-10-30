@@ -127,13 +127,15 @@ Every town keeps a watch of human guards: two or three in a small town, four in 
 one, led there by a captain. There are five ranks, each with a painted portrait (in
 `Resources/Portraits`) shown when you talk to them, and a matching figure on the map:
 
-| Rank | Wears | Carries | Least health |
+| Rank | Wears | Carries | Health |
 |---|---|---|---|
-| Watchman / watchwoman | leather jerkin, quilted sleeves, kettle hat | spear | 40 |
-| Serjeant of the watch | mail and the red tabard, kettle hat | spear | 60 |
-| Man-at-arms / woman-at-arms | half plate and the blue tabard, sallet | halberd | 80 |
-| Captain of the watch | studded brigandine and a dark cloak | sword | 100 |
-| Knight of the watch | gilded plate and the blue tabard | halberd | 130 |
+| Watchman / watchwoman | leather jerkin, quilted sleeves, kettle hat | spear | 40–69 |
+| Serjeant of the watch | mail and the red tabard, kettle hat | spear | 70–99 |
+| Man-at-arms / woman-at-arms | half plate and the blue tabard, sallet | halberd | 100–129 |
+| Captain of the watch | studded brigandine and a dark cloak | sword | 130–159 |
+| Knight of the watch | gilded plate and the blue tabard | halberd | 160–200 |
+
+Health is drawn evenly within the rank's band, so a higher rank is always tougher.
 
 The tabards bear the town's tower. Until they tell you their name, guards go by their
 rank ("the serjeant of the watch"). Claude knows them as members of the watch who

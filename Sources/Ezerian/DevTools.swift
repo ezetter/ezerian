@@ -825,7 +825,10 @@ extension DevTools {
             check(!guards.isEmpty && guards.allSatisfy { $0.race == .human && $0.home != nil && !$0.servesDraconian && $0.role == GuardArt.title($0.guardRank!, female: $0.female) },
                   "the towns keep a watch of human guards (\(guards.count) in all)")
             check(ranks.count >= 4, "the watch has several ranks (\(ranks.sorted()))")
-            check(guards.allSatisfy { $0.maxHP >= Populace.guardHealth[$0.guardRank!] }, "guards are tougher than most, more so the higher their rank")
+            check(guards.allSatisfy { Populace.guardHealth[$0.guardRank!].contains($0.maxHP) }, "each guard's health lies in their rank's band")
+            let byRank = (0..<GuardArt.ranks).map { r in guards.filter { $0.guardRank == r }.map(\.maxHP) }
+            check(zip(byRank, byRank.dropFirst()).allSatisfy { lo, hi in lo.isEmpty || hi.isEmpty || lo.max()! < hi.min()! },
+                  "a higher rank is always tougher: \(byRank.map { $0.isEmpty ? "-" : "\($0.min()!)-\($0.max()!)" }.joined(separator: ", "))")
             check((0..<GuardArt.ranks).allSatisfy { r in [false, true].allSatisfy { Portraits.image(Portraits.guardName(rank: r, female: $0)) != nil } },
                   "every rank of the watch has a painted portrait, for a man and a woman")
             check(SpriteBank.shared.people[Race.human.index][Populace.guardLook(rank: 2, female: true)][0][0].sprite.w > 1,
