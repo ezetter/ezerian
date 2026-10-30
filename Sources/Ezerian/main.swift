@@ -28,6 +28,11 @@ if let path = argument(after: "--overview") {
     DevTools.writeOverview(seed: devSeed, radius: Int(argument(after: "--radius") ?? "2") ?? 2, to: path)
     exit(0)
 }
+if let n = argument(after: "--duels").flatMap(Int.init) {
+    DevTools.duels(seed: devSeed, count: n, chain: args.contains("--chain"),
+                   walkTurns: argument(after: "--walk-turns").flatMap(Int.init) ?? 0, pickFights: args.contains("--pick"))
+    exit(0)
+}
 if args.contains("--bench") {
     DevTools.benchmark(seed: devSeed)
     exit(0)

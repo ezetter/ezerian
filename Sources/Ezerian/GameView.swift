@@ -298,8 +298,14 @@ final class GameView: NSView, CALayerDelegate {
         if game.inCombat || game.gameOver { return }
         let timer = Timer(timeInterval: 0.22, repeats: false) { [weak self] _ in
             guard let self else { return }
+            // A fight that broke out mid-stride stops the walking: every move in a fight is a choice.
+            if self.game.inCombat { self.stopRepeating(); return }
             self.stepHeld()
-            let again = Timer(timeInterval: 0.15, repeats: true) { [weak self] _ in self?.stepHeld() }
+            let again = Timer(timeInterval: 0.15, repeats: true) { [weak self] _ in
+                guard let self else { return }
+                if self.game.inCombat || self.game.gameOver { self.stopRepeating(); return }
+                self.stepHeld()
+            }
             RunLoop.main.add(again, forMode: .common)
             self.repeatTimer = again
         }

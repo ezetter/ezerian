@@ -20,8 +20,14 @@ final class Combat {
     static let maxDamage = 10
     /// How much attacking someone sours them towards the Avatar.
     static let attackedPenalty = 60
+    /// Out of a fight, health comes back one point every this many turns
+    /// (a turn is two minutes, so 30 points an hour).
+    static let recoveryTurns = 2
+
     /// Enemies further away than this have been escaped.
-    static let escapeDistance = 12
+    static let escapeDistance = 8
+    /// Chance a foe who can't reach anyone falls behind this turn, so a retreat can succeed.
+    static let pursuitStumble = 0.25
 
     /// Chance per turn that an unfriendly NPC standing beside the Avatar attacks:
     /// none at 0 or above, (friendliness / 100)² below, certain at -100.
@@ -37,6 +43,14 @@ final class Combat {
 
 extension Game {
     var inCombat: Bool { combat != nil }
+
+    /// Wounds heal with time while there is no fighting: the Avatar, the companions,
+    /// and the people round about.
+    func recover() {
+        guard combat == nil, !gameOver, turn % Combat.recoveryTurns == 0 else { return }
+        hp = min(maxHP, hp + 1)
+        for n in world.npcs(near: x, y, z, radius: 18) where n.hp > 0 && n.hp < n.maxHP { n.hp += 1 }
+    }
 
     // MARK: Starting
 
@@ -158,7 +172,9 @@ extension Game {
             strike(n, target)
             return
         }
-        // Step to the free neighbouring tile that brings them closest.
+        // Step to the free neighbouring tile that brings them closest
+        // (a pursuing enemy sometimes falls behind).
+        if isEnemy && roll() < Combat.pursuitStumble { return }
         let home = world.region(containing: n.x, n.y, n.z)
         var best: Point?
         var bestD = dist(tp)

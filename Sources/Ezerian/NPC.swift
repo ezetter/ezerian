@@ -136,6 +136,20 @@ final class NPC: Codable {
     }
 
     var disposition: Disposition { Disposition(friendliness) }
+
+    /// How tough they look, so the Avatar can judge a fight before picking it.
+    var build: String {
+        let look: String
+        switch maxHP {
+        case ..<40: look = "slight and frail"
+        case ..<80: look = "of ordinary build"
+        case ..<120: look = "sturdy"
+        case ..<160: look = "powerfully built"
+        default: look = "huge and formidable"
+        }
+        let f = Double(hp) / Double(max(1, maxHP))
+        return look + (f < 0.35 ? ", and badly hurt" : f < 0.75 ? ", and wounded" : "")
+    }
     var he: String { female ? "she" : "he" }
     var his: String { female ? "her" : "his" }
     var him: String { female ? "her" : "him" }

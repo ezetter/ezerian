@@ -129,7 +129,15 @@ which decide how they answer you.
   and equally well for now: half of all blows land, for 1–10 damage. On your turn,
   walk into a foe to strike them (or press F and a direction), step elsewhere, or press
   Space to wait. Companions join the fight on your side; fighters strike the weakest
-  foe in reach, or close in on the nearest. Walk far enough away and you escape.
+  foe in reach, or close in on the nearest. A pursuing foe falls behind one turn in
+  four, so you can retreat: get more than 8 tiles away and you escape.
+* **Choosing your fights:** with equal blows, the fight goes to whoever has more
+  health. Against a foe with 50 health you win 98% of the time, at 75 about 82%, at
+  100 a coin toss, and at 125 one in five. Look at someone first (L or right-click):
+  you'll see whether they're slight and frail, of ordinary build, sturdy, powerfully
+  built or huge and formidable, and whether they're wounded.
+* **Healing:** out of a fight, you, your companions and the people around you recover
+  1 health every 2 turns (30 an hour of game time).
 * **Death:** anyone at 0 health dies. A companion who dies is gone from your party.
   If the Avatar dies the game is over, and Return begins a new adventure in a new world.
 
@@ -233,3 +241,6 @@ reach the game, and that saves round-trip.
 * `--sheet out.png` draws every sprite; `--textures out.png` every texture.
 * `--overview out.png [--radius R]` draws a one-pixel-per-tile map of the generated world.
 * `--bench` times start-up art, world generation and rendering.
+* `--duels N [--chain --walk-turns T] [--pick]` fights N duels with the real combat
+  code and reports the win rate (`--chain`: one Avatar fights on until slain, with T
+  turns of walking between fights; `--pick`: avoid foes who look sturdy or tougher).

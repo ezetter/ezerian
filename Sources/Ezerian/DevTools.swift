@@ -428,6 +428,7 @@ extension DevTools {
                 "usage": ["input_tokens": 500, "output_tokens": 60]])
         }
         game.claude = mock
+        game.roll = { 0.999 }   // no chance events (offers, quarrels) in these checks
         if let n = home.npcs.first(where: { npc in [(0, 1), (1, 0), (-1, 0), (0, -1)].contains { game.world.isPassable(npc.x + $0.0, npc.y + $0.1, 0) && game.world.npc(at: npc.x + $0.0, npc.y + $0.1, 0) == nil } }) {
             let (dx, dy) = [(0, 1), (1, 0), (-1, 0), (0, -1)].first { game.world.isPassable(n.x + $0.0, n.y + $0.1, 0) && game.world.npc(at: n.x + $0.0, n.y + $0.1, 0) == nil }!
             game.teleport(n.x + dx, n.y + dy, 0)
@@ -680,6 +681,36 @@ extension DevTools {
             } else { check(false, "found room for the quarrel") }
         }
 
+        do {
+            // Wounds heal with time out of a fight; a retreat can succeed.
+            let (g, folk) = arena()
+            g.hp = 40
+            g.roll = { 0.999 }
+            for _ in 0..<20 { g.waitTurn() }
+            check(g.hp == 50, "out of a fight the Avatar heals 1 health every 2 turns (40 -> \(g.hp) in 20 turns)")
+            let foe = folk[5]
+            foe.maxHP = 200; foe.hp = 200; foe.friendliness = 50
+            if let (dx, dy) = standBeside(g, foe) {
+                g.attack(dx: dx, dy: dy)
+                // Step back one pace; a foe who stumbles doesn't follow.
+                g.roll = { 0.1 }
+                let away = [(-dx, -dy), (-dy, dx), (dy, -dx)].first {
+                    g.world.isPassable(g.x + $0.0, g.y + $0.1, 0) && g.world.npc(at: g.x + $0.0, g.y + $0.1, 0) == nil
+                }
+                if let a = away {
+                    let (fx, fy) = (foe.x, foe.y)
+                    g.move(dx: a.0, dy: a.1)
+                    check(foe.x == fx && foe.y == fy && g.inCombat, "a pursuing foe sometimes falls behind")
+                }
+                // Out of reach by more than 8 tiles: escaped.
+                g.teleport(foe.x + Combat.escapeDistance + 1, foe.y, 0)
+                g.waitTurn()
+                check(!g.inCombat && !g.gameOver && g.messages.contains("You have escaped."),
+                      "leaving a foe more than \(Combat.escapeDistance) tiles behind ends the fight")
+            } else { check(false, "found room to run") }
+            check(foe.build.contains("formidable"), "looking at someone tells how tough they are")
+        }
+
         // Keys reach the game the same way they do in the window.
         let keyGame = Game(seed: seed)
         let view = GameView(game: keyGame)
@@ -775,5 +806,53 @@ extension DevTools {
             }
         }
         return false
+    }
+}
+
+extension DevTools {
+    /// Fights many duels with the real combat code: the Avatar walks up to a random
+    /// townsperson, attacks, and keeps striking until someone falls.
+    static func duels(seed: UInt64, count: Int, chain: Bool, walkTurns: Int = 0, pickFights: Bool = false) {
+        ClaudeClient.shared.availableOverride = false
+        var wins = 0, losses = 0, hpLeft = 0, rounds = 0, streaks: [Int] = []
+        var streak = 0
+        var game = Game(seed: seed)
+        game.confirmName()
+        for i in 0..<count {
+            if !chain || game.gameOver {
+                if chain { streaks.append(streak); streak = 0 }
+                game = Game(seed: seed &+ UInt64(i))
+                game.confirmName()
+            }
+            // Time passes between fights (about the walk to the next foe).
+            if chain {
+                let before = game.hp
+                for _ in 0..<walkTurns where !game.inCombat { game.waitTurn() }
+                _ = before
+            }
+            let folk = game.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs.filter { $0.hp > 0 }
+            guard let foe = folk.randomElement() else { continue }
+            foe.maxHP = Populace.health(Double.random(in: 0..<1)); foe.hp = foe.maxHP
+            if pickFights && foe.maxHP >= 80 { continue }   // a player who looks first avoids sturdy foes
+            var placed = false
+            for (dx, dy) in [(0, 1), (1, 0), (-1, 0), (0, -1)] where game.world.isPassable(foe.x + dx, foe.y + dy, 0)
+                && game.world.npc(at: foe.x + dx, foe.y + dy, 0) == nil {
+                game.teleport(foe.x + dx, foe.y + dy, 0)
+                game.attack(dx: -dx, dy: -dy)
+                placed = true
+                break
+            }
+            guard placed else { continue }
+            var n = 0
+            while game.inCombat && !game.gameOver && n < 500 {
+                n += 1
+                let dx = (foe.x - game.x).signum(), dy = (foe.y - game.y).signum()
+                if max(abs(foe.x - game.x), abs(foe.y - game.y)) <= 1 { game.attack(dx: dx, dy: dy) } else { game.waitTurn() }
+            }
+            rounds += n
+            if game.gameOver { losses += 1 } else { wins += 1; hpLeft += game.hp; streak += 1 }
+        }
+        print("duels: \(wins) won, \(losses) lost; average health left after a win \(wins > 0 ? hpLeft / wins : 0); average rounds \(rounds / max(1, count))")
+        if chain { print("fights survived in a row before dying: \(streaks.isEmpty ? "-" : String(Double(streaks.reduce(0, +)) / Double(streaks.count)))") }
     }
 }

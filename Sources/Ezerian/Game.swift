@@ -206,6 +206,7 @@ final class Game {
         arrive()
         if swapped == nil { updateFollowers(from: old) } else { trail.insert(old, at: 0) }
         updateNPCs()
+        recover()
         checkAmbush()
         return true
     }
@@ -278,6 +279,7 @@ final class Game {
         if combat != nil { endAvatarTurn(); return }
         turn += 1
         updateNPCs()
+        recover()
         checkAmbush()
     }
 
@@ -580,7 +582,7 @@ final class Game {
         }
         if let n = world.npc(at: lx, ly, z) {
             let who = n.known ? "\(n.name), \(n.description)" : n.description
-            log("You see \(who). \(n.he.capitalizedFirst) \(n.disposition.regard).")
+            log("You see \(who), \(n.build). \(n.he.capitalizedFirst) \(n.disposition.regard).")
             return
         }
         let f = world.feature(lx, ly, z), t = world.terrain(lx, ly, z)
