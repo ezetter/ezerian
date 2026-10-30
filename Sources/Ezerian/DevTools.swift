@@ -302,8 +302,12 @@ extension DevTools {
             print(cond ? "PASS" : "FAIL", what)
             if !cond { ok = false }
         }
-        // Never touch the real keychain (or network) from tests.
+        // Never touch the real keychain (or network) or the player's preferences from tests.
         ClaudeClient.shared.availableOverride = false
+        let fresh = UserDefaults(suiteName: "ezerian2-selftest-\(seed)")!
+        check(!Options.showHitScores(in: fresh), "hit scores are off by default")
+        fresh.removePersistentDomain(forName: "ezerian2-selftest-\(seed)")
+        Options.override = true
         let game = Game(seed: seed)
         game.nameEntry = "Iolanthe"
         game.confirmName()
@@ -677,7 +681,15 @@ extension DevTools {
                 g.move(dx: dx, dy: dy)
                 check(foe.hp == 5, "walking into a foe strikes them (max blow 10: hp 15 -> 5)")
                 check(g.messages.contains { $0.hasPrefix("You hit") && $0.hasSuffix(": 5 of 200 left.") },
-                      "each landed blow reports the foe's remaining health")
+                      "with hit scores on, each landed blow reports the foe's remaining health")
+                Options.showHitScores = false
+                foe.hp = 15
+                g.move(dx: dx, dy: dy)
+                check(g.messages.last { $0.hasPrefix("You hit") } == "You hit \(foe.shortName).",
+                      "with hit scores off, a blow just says who was hit")
+                Options.showHitScores = true
+                foe.hp = 15
+                g.move(dx: dx, dy: dy)
                 check(g.hp <= hpBefore.0 - 1, "the foe strikes back on their turn")
                 g.move(dx: dx, dy: dy)
                 check(foe.hp == 0 && !g.inCombat && !folk.contains { $0 === foe && g.world.npc(at: $0.x, $0.y, 0) === foe },

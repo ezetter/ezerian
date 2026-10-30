@@ -105,6 +105,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         gameItem.submenu = gameMenu
         main.addItem(gameItem)
 
+        let optionsItem = NSMenuItem()
+        let optionsMenu = NSMenu(title: "Options")
+        let scores = optionsMenu.addItem(withTitle: "Show Hit Scores", action: #selector(toggleHitScores), keyEquivalent: "")
+        scores.target = self
+        scores.state = Options.showHitScores ? .on : .off
+        optionsItem.submenu = optionsMenu
+        main.addItem(optionsItem)
+
         let windowItem = NSMenuItem()
         let windowMenu = NSMenu(title: "Window")
         windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
@@ -168,6 +176,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         ClaudeClient.shared.enabled.toggle()
         sender.state = ClaudeClient.shared.enabled ? .on : .off
         gameView.game.log(ClaudeClient.shared.enabled ? "NPCs will speak through Claude." : "NPCs will use scripted replies.")
+        gameView.refresh()
+    }
+
+    @objc private func toggleHitScores(_ sender: NSMenuItem) {
+        Options.showHitScores.toggle()
+        sender.state = Options.showHitScores ? .on : .off
+        gameView.game.log(Options.showHitScores ? "Blows will show damage and health left." : "Blows will no longer show damage and health left.")
         gameView.refresh()
     }
 

@@ -190,6 +190,10 @@ Draconian".
   100 a coin toss, and at 125 one in five. Look at someone first (L or right-click):
   you'll see whether they're slight and frail, of ordinary build, sturdy, powerfully
   built or huge and formidable, and whether they're wounded.
+* **Hit scores:** by default the scroll says only who hit whom ("You hit the orc.").
+  Turn on **Options ▸ Show Hit Scores** to see the damage and the health left after
+  every blow ("You hit the orc for 7: 31 of 60 left."). The setting is remembered
+  between launches.
 * **Healing:** out of a fight, you, your companions and the people around you recover
   1 health every 2 turns (30 an hour of game time).
 * **Gold:** you start with no gold. Everyone else carries a purse of random size

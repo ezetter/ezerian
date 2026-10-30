@@ -230,13 +230,14 @@ extension Game {
             return
         }
         let damage = min(Combat.maxDamage, 1 + Int(roll() * Double(Combat.maxDamage)))
-        // Each landed blow reports what the one struck has left.
+        // With hit scores on (Options menu), each landed blow reports the damage and what the one struck has left.
+        let scores = Options.showHitScores
         if let target {
             target.hp = max(0, target.hp - damage)
-            log("\(a) \(attacker == nil ? "hit" : "hits") \(t) for \(damage): \(target.hp) of \(target.maxHP) left.")
+            log("\(a) \(attacker == nil ? "hit" : "hits") \(t)" + (scores ? " for \(damage): \(target.hp) of \(target.maxHP) left." : "."))
             if target.hp == 0 { kill(target) }
         } else {
-            log("\(a) hits you for \(damage): you have \(max(0, hp - damage)) of \(maxHP) left.")
+            log("\(a) hits you" + (scores ? " for \(damage): you have \(max(0, hp - damage)) of \(maxHP) left." : "."))
             hp = max(0, hp - damage)
             if hp == 0 {
                 gameOver = true
