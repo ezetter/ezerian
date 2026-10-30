@@ -194,7 +194,9 @@ Draconian".
   yourself and you take their weapon; you always fight with the best one you have,
   shown under your health. Foes your companions kill keep theirs. Every blow names the
   weapon: "The orc hits you with his short sword.", "You miss the elf with your bare
-  hands." Looking at someone tells you what they carry. In 2,000 simulated duels
+  hands." Looking at someone tells you what they carry, and on the map everyone,
+  you included, holds the weapon they really have (drawn as its own sprite in the
+  figure's hand, so outfits no longer come with a weapon of their own). In 2,000 simulated duels
   against random people, a bare-handed Avatar now wins about 53%, against 67% before
   anyone was armed.
 * **Choosing your fights:** between two bare-handed fighters, the fight goes to whoever has more
@@ -316,7 +318,7 @@ reach the game, and that saves round-trip.
   `find:shrine` or `find:t.forest`) to jump next to the nearest one, `npc:orc` to stand
   beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation, `recruit` to fill the party, `fight` to attack the person you face, and `warband` or
   `mercenary` to stand near the nearest of Draconian's people.
-* `--sheet out.png` draws every sprite; `--textures out.png` every texture.
+* `--sheet out.png` draws every sprite; `--arms out.png` every kind of figure holding every weapon; `--textures out.png` every texture.
 * `--overview out.png [--radius R]` draws a one-pixel-per-tile map of the generated world.
 * `--bench` times start-up art, world generation and rendering.
 * `--duels N [--chain --walk-turns T] [--pick]` fights N duels with the real combat

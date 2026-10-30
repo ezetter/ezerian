@@ -379,7 +379,7 @@ final class Game {
             let moving = (n.prevX != n.x || n.prevY != n.y) && t < 0.75
             return NPCPose(x: Double(n.prevX) + Double(n.x - n.prevX) * e, y: Double(n.prevY) + Double(n.y - n.prevY) * e,
                            race: n.race, look: n.look, facing: Direction(rawValue: n.facing) ?? .south,
-                           step: moving ? 1 + (n.id + turn) % 2 : 0)
+                           step: moving ? 1 + (n.id + turn) % 2 : 0, weapon: n.weapon)
         }
     }
 

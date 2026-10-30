@@ -17,8 +17,6 @@ enum PeopleArt {
         var beard: Bool
         var dress: Bool
         var helmet: Bool
-        /// 0 none, 1 sword, 2 axe, 3 staff.
-        var weapon: Int
         /// Lord Draconian's red sigil on the chest.
         var sigil = false
     }
@@ -26,14 +24,13 @@ enum PeopleArt {
     static func look(_ race: Race, _ variant: Int) -> Look {
         var l = baseLook(race, variant)
         if variant >= 6 {
-            // Lord Draconian's livery: black tabard with his red sigil, red cloak, steel helm, a blade.
+            // Lord Draconian's livery: black tabard with his red sigil, red cloak, steel helm.
             l.tunic = 0x1E1C22
             l.legs = 0x2A2226
             l.cape = 0x8E1410
             l.helmet = true
             l.dress = false
             l.sigil = true
-            l.weapon = race == .orc || race == .dwarf ? 2 : 1
         }
         return l
     }
@@ -48,27 +45,24 @@ enum PeopleArt {
                         tunic: rng.pick([0x3A5A9A, 0x8A2A22, 0x3E6A2E, 0x8A6A3A, 0x6A3A7A, 0xB08A40]),
                         legs: rng.pick([0x4A3A2A, 0x2A2A3A, 0x5A4A3A]), cape: rng.chance(0.25) ? 0x2A3A6A : nil,
                         longHair: female, bald: !female && rng.chance(0.15), beard: !female && rng.chance(0.45),
-                        dress: female && rng.chance(0.7), helmet: false, weapon: rng.chance(0.25) ? 3 : (rng.chance(0.2) ? 1 : 0))
+                        dress: female && rng.chance(0.7), helmet: false)
         case .elf:
             return Look(race: race, female: female, skin: rng.pick([0xF4D8C0, 0xE8C8A8, 0xF0DCC8]),
                         hair: rng.pick([0xF0E0A0, 0xE0DCD4, 0xC8A858, 0x2A2A3A, 0xB8682A]),
                         tunic: rng.pick([0x3E7A3A, 0x2E5A4A, 0x5A7A9A, 0xC8C8B8, 0x6A8A3A]),
                         legs: rng.pick([0x3A4A2A, 0x5A5A4A]), cape: rng.chance(0.5) ? 0x2E4A2A : nil,
-                        longHair: true, bald: false, beard: false, dress: female && rng.chance(0.5), helmet: false,
-                        weapon: rng.chance(0.5) ? 3 : 1)
+                        longHair: true, bald: false, beard: false, dress: female && rng.chance(0.5), helmet: false)
         case .dwarf:
             return Look(race: race, female: female, skin: rng.pick([0xE0A882, 0xC88A64, 0xE8B890]),
                         hair: rng.pick([0x8A3A1E, 0x5A3418, 0xC86A2A, 0x9A9A9A, 0x2A1A10]),
                         tunic: rng.pick([0x7A3A22, 0x3A4A7A, 0x5A4A2A, 0x6A2A2A]),
                         legs: rng.pick([0x3A2A1A, 0x4A3A2A]), cape: nil,
-                        longHair: female, bald: false, beard: !female, dress: false, helmet: rng.chance(0.4),
-                        weapon: rng.chance(0.7) ? 2 : 0)
+                        longHair: female, bald: false, beard: !female, dress: false, helmet: rng.chance(0.4))
         case .orc:
             return Look(race: race, female: female, skin: rng.pick([0x6A8A3A, 0x5A7A44, 0x7A8A4A, 0x4E6A36]),
                         hair: 0x1A1A14, tunic: rng.pick([0x5A3A22, 0x4A3A2A, 0x6A4A2A, 0x3A2E26]),
                         legs: rng.pick([0x3A2A1E, 0x2A2420]), cape: nil,
-                        longHair: female, bald: !female && rng.chance(0.6), beard: false, dress: false, helmet: rng.chance(0.25),
-                        weapon: rng.chance(0.8) ? 2 : 1)
+                        longHair: female, bald: !female && rng.chance(0.6), beard: false, dress: false, helmet: rng.chance(0.25))
         }
     }
 
@@ -121,17 +115,6 @@ enum PeopleArt {
         m.rod(V3(5.5, 0, 21.5), V3(6.1, 1 - armSwing, 14.2), 1.5, sleeve)
         m.ball(-6.2, 1.8 + armSwing, 13.4, 1.4, skin)
         m.ball(6.1, 1.2 - armSwing, 13.4, 1.4, skin)
-        switch l.weapon {
-        case 1:
-            m.box(-7.1, 1.3 + armSwing, 13, -5.3, 2.8 + armSwing, 13.9, Paint(0xC8A040))
-            m.rod(V3(-6.3, 2.6 + armSwing, 12.6), V3(-7.3, 8 + armSwing, 1.8), 0.8, Paint(0xD0D4DC, .metal, shine: 0.7))
-        case 2:
-            m.rod(V3(-6.2, 1.8 + armSwing, 17), V3(-6.2, 2 + armSwing, 1), 0.7, Paint(0x6A4A2A))
-            m.box(-8.8, 0.8 + armSwing, 2, -6.4, 3.2 + armSwing, 7, steel)
-        case 3:
-            m.rod(V3(-6.3, 1.8 + armSwing, 0.5), V3(-6.3, 1.8 + armSwing, 31), 0.75, Paint(0x7A5A32, .wood(2)))
-        default: break
-        }
         // Head.
         m.ball(0, 0.3, 26.4, 3.3, skin)
         let eye = Paint(l.race == .orc ? 0xC02010 : 0x1A1410)

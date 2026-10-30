@@ -123,9 +123,15 @@ extension MapRenderer {
             if roofs, world.building(at: tx, ty, z) != nil { continue }
             let a = bank.people[p.race.index][p.look % Populace.looks][p.facing.rawValue][p.step % 3]
             let T = Double(T)
-            folk[Int(p.y.rounded(.up)), default: []].append(
-                DrawItem(art: a, x: Int((p.x * T).rounded()) - camX, y: Int((p.y * T).rounded()) - camY,
-                         owner: Int32((ty - ty0) * 256 + (tx - tx0)), ghost: false))
+            let sx = Int((p.x * T).rounded()) - camX, sy = Int((p.y * T).rounded()) - camY
+            let who = Int32((ty - ty0) * 256 + (tx - tx0))
+            folk[Int(p.y.rounded(.up)), default: []].append(DrawItem(art: a, x: sx, y: sy, owner: who, ghost: false))
+            // The weapon they really carry, in their hand.
+            if let w = p.weapon {
+                let carrier: WeaponArt.Carrier = p.race == .human && Populace.guardRank(look: p.look) != nil ? .guardsman : .of(p.race)
+                folk[Int(p.y.rounded(.up)), default: []].append(
+                    DrawItem(art: bank.weapon(w, carrier: carrier, facing: p.facing, step: p.step), x: sx, y: sy, owner: who, ghost: false))
+            }
         }
         for ty in ty0..<ty1 {
             for tx in tx0..<tx1 {
@@ -156,10 +162,14 @@ extension MapRenderer {
             if let f = folk[ty] { items.append(contentsOf: f) }
             if ty == avatarRow {
                 items.append(avatarItem(avatar, bank, female: game.female))
+                if let w = game.weapon { items.append(avatarWeaponItem(avatar, bank, w, female: game.female)) }
                 avatarDone = true
             }
         }
-        if !avatarDone { items.append(avatarItem(avatar, bank, female: game.female)) }
+        if !avatarDone {
+            items.append(avatarItem(avatar, bank, female: game.female))
+            if let w = game.weapon { items.append(avatarWeaponItem(avatar, bank, w, female: game.female)) }
+        }
         ownerOrigin = (tx0, ty0)
 
         if shadowStrength > 0.05 {
@@ -170,6 +180,12 @@ extension MapRenderer {
 
     private func avatarItem(_ p: AvatarPose, _ bank: SpriteBank, female: Bool) -> DrawItem {
         let a = bank.avatar(female: female)[p.facing.rawValue][p.step % 3]
+        let T = Double(MapRenderer.tile)
+        return DrawItem(art: a, x: Int((p.x * T).rounded()) - camX, y: Int((p.y * T).rounded()) - camY, owner: -2, ghost: true)
+    }
+
+    private func avatarWeaponItem(_ p: AvatarPose, _ bank: SpriteBank, _ w: Weapon, female: Bool) -> DrawItem {
+        let a = bank.weapon(w, carrier: female ? .avatarWoman : .avatarMan, facing: p.facing, step: p.step)
         let T = Double(MapRenderer.tile)
         return DrawItem(art: a, x: Int((p.x * T).rounded()) - camX, y: Int((p.y * T).rounded()) - camY, owner: -2, ghost: true)
     }

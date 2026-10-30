@@ -12,6 +12,11 @@ enum DevTools {
                 continue
             }
             if token == "talk" { game.talk(); continue }
+            if token.hasPrefix("wield:") {
+                // Hands the Avatar a weapon: wield:shortSword
+                if let w = Weapon.allCases.first(where: { "\($0)" == token.dropFirst(6) }) { game.weapons.append(w) }
+                continue
+            }
             if token.hasPrefix("type:") {
                 for ch in token.dropFirst(5).replacingOccurrences(of: "_", with: " ") { game.typeInConversation(ch) }
                 continue
@@ -118,6 +123,36 @@ enum DevTools {
 }
 
 extension DevTools {
+    /// Each kind of figure holding each weapon (rows), facing south and east, standing
+    /// and mid-stride, laid over the figure the plain way (no depth test).
+    static func writeArmsSheet(to path: String) {
+        let bank = SpriteBank.shared
+        var figures: [(Art, WeaponArt.Carrier, Direction, Int)] = []
+        for d in [Direction.south, .east] {
+            for s in [0, 1] {
+                for race in Race.allCases { figures.append((bank.people[race.index][0][d.rawValue][s], .of(race), d, s)) }
+                figures.append((bank.people[Race.human.index][Populace.guardLook(rank: 1, female: false)][d.rawValue][s], .guardsman, d, s))
+                figures.append((bank.avatar(female: false)[d.rawValue][s], .avatarMan, d, s))
+                figures.append((bank.avatar(female: true)[d.rawValue][s], .avatarWoman, d, s))
+            }
+        }
+        let cw = 46, ch = 70
+        let fb = Framebuffer(width: figures.count * cw, height: Weapon.allCases.count * ch)
+        let grass = TextureBank.shared
+        for y in 0..<fb.height { for x in 0..<fb.width { fb.set(x, y, grass.texel(.grass, x, y) | 0xFF00_0000) } }
+        for (r, w) in Weapon.allCases.enumerated() {
+            for (i, (body, carrier, d, s)) in figures.enumerated() {
+                let ax = i * cw + 8, ay = r * ch + 40
+                let held = bank.weapon(w, carrier: carrier, facing: d, step: s)
+                if let sh = body.shadow { fb.blit(sh, ax, ay) }
+                if d == .south { fb.blit(body.sprite, ax, ay); fb.blit(held.sprite, ax, ay) }
+                else { fb.blit(held.sprite, ax, ay); fb.blit(body.sprite, ax, ay) }
+            }
+        }
+        fb.writePNG(to: path, scale: 3)
+        print("Wrote \(path)")
+    }
+
     /// Every object (first variant and frame) and the Avatar's poses, on grass.
     static func writeSpriteSheet(to path: String) {
         let t0 = Date()
@@ -700,6 +735,13 @@ extension DevTools {
             // Weapons: bonuses, who carries what, naming them in blows, taking them from the slain.
             check(Weapon.allCases.map(\.bonus) == [2, 4, 6, 8, 10], "staff, dagger, mace, short sword and long sword add 2, 4, 6, 8 and 10 damage")
             check(Game(seed: seed).weapons.isEmpty, "the Avatar starts with no weapon")
+            check(WeaponArt.Carrier.allCases.allSatisfy { c in Weapon.allCases.allSatisfy { w in
+                Direction.allCases.allSatisfy { SpriteBank.shared.weapon(w, carrier: c, facing: $0, step: 1).sprite.w > 1 } } },
+                  "every weapon is drawn in the hand of every kind of figure")
+            let poseGame = Game(seed: seed)
+            check(poseGame.npcPoses(t: 1).allSatisfy { p in poseGame.world.npcs(near: poseGame.x, poseGame.y, 0, radius: 16)
+                .contains { Double($0.x) == p.x && Double($0.y) == p.y && $0.weapon == p.weapon } },
+                  "on the map, people hold the weapon they really carry")
             check((0..<GuardArt.ranks).map { Weapon.forGuard(rank: $0) } == Weapon.allCases, "the watch are armed by rank, staff to long sword")
             var wrng = SplitMix64(seed: 77)
             func sample(_ hp: Int) -> (armed: Double, tier: Double) {

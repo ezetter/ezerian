@@ -217,6 +217,7 @@ struct NPCPose {
     var look: Int
     var facing: Direction
     var step: Int
+    var weapon: Weapon?
 }
 
 /// Settles NPCs into a freshly generated region: keepers in shops and taverns,

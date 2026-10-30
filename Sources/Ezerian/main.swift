@@ -16,6 +16,10 @@ if let path = argument(after: "--render") {
                              scale: argument(after: "--scale").flatMap(Int.init) ?? 2)
     exit(0)
 }
+if let path = argument(after: "--arms") {
+    DevTools.writeArmsSheet(to: path)
+    exit(0)
+}
 if let path = argument(after: "--sheet") {
     DevTools.writeSpriteSheet(to: path)
     exit(0)

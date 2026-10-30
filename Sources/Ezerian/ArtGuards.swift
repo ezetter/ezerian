@@ -2,10 +2,10 @@ import Foundation
 import simd
 
 /// The town watch, as in the painted portraits: five ranks, each a man or a woman
-/// with their own face. Watchmen in leather and kettle hats with spears; serjeants
-/// in mail and the red tabard; men-at-arms in half plate, the blue tabard and sallets,
-/// with halberds; captains in studded brigandine and a dark cloak, sword at the hip;
-/// and the knights of the watch in gilded plate. The tabards bear the town's tower.
+/// with their own face. Watchmen in leather and kettle hats; serjeants in mail and the
+/// red tabard; men-at-arms in half plate, the blue tabard and sallets; captains in
+/// studded brigandine and a dark cloak; and the knights of the watch in gilded plate.
+/// The tabards bear the town's tower. Their weapons are drawn apart (`WeaponArt`).
 enum GuardArt {
     static let ranks = 5
 
@@ -22,7 +22,6 @@ enum GuardArt {
 
     enum Hat { case none, kettle, sallet, plumed }
     enum Body { case leather, mail, halfPlate, brigandine, gilded }
-    enum Arm { case spear, halberd, sword }
 
     struct Kit {
         var skin: UInt32
@@ -37,7 +36,6 @@ enum GuardArt {
         var tabard: UInt32?
         var scarf: UInt32?
         var cloak: UInt32?
-        var arm: Arm
     }
 
     static let red: UInt32 = 0x7A1E26, blue: UInt32 = 0x26305E, navy: UInt32 = 0x1E2438
@@ -45,16 +43,16 @@ enum GuardArt {
     /// Each rank's man and woman, as painted.
     static func kit(_ rank: Int, female: Bool) -> Kit {
         switch (rank, female) {
-        case (0, false): return Kit(skin: 0xE8B48A, hair: 0x6A4422, hat: .kettle, body: .leather, scarf: 0x2E4A6A, arm: .spear)
-        case (0, true): return Kit(skin: 0xD49A6E, hair: 0x3A2414, braid: true, hat: .kettle, body: .leather, scarf: 0x2E4A6A, arm: .spear)
-        case (1, false): return Kit(skin: 0x5A3A26, hair: 0x1A1410, beard: true, hat: .kettle, body: .mail, tabard: red, scarf: red, arm: .spear)
-        case (1, true): return Kit(skin: 0xF0C8A0, hair: 0xD8B868, hat: .kettle, body: .mail, tabard: red, scarf: red, arm: .spear)
-        case (2, false): return Kit(skin: 0xC08A60, hair: 0x1A1410, moustache: true, hat: .sallet, body: .halfPlate, tabard: blue, scarf: navy, arm: .halberd)
-        case (2, true): return Kit(skin: 0x4A2E1E, hair: 0x1A1410, braid: true, hat: .sallet, body: .halfPlate, tabard: blue, scarf: navy, arm: .halberd)
-        case (3, false): return Kit(skin: 0xD8A27A, hair: 0x8A8680, beard: true, grey: true, hat: .none, body: .brigandine, cloak: navy, arm: .sword)
-        case (3, true): return Kit(skin: 0xC89070, hair: 0x7A7672, grey: true, hat: .none, body: .brigandine, cloak: navy, arm: .sword)
-        case (_, false): return Kit(skin: 0xE0B890, hair: 0x1A1410, hat: .plumed, body: .gilded, tabard: blue, arm: .halberd)
-        default: return Kit(skin: 0xF0C8A8, hair: 0x9A3A1E, bun: true, hat: .none, body: .gilded, tabard: blue, arm: .halberd)
+        case (0, false): return Kit(skin: 0xE8B48A, hair: 0x6A4422, hat: .kettle, body: .leather, scarf: 0x2E4A6A)
+        case (0, true): return Kit(skin: 0xD49A6E, hair: 0x3A2414, braid: true, hat: .kettle, body: .leather, scarf: 0x2E4A6A)
+        case (1, false): return Kit(skin: 0x5A3A26, hair: 0x1A1410, beard: true, hat: .kettle, body: .mail, tabard: red, scarf: red)
+        case (1, true): return Kit(skin: 0xF0C8A0, hair: 0xD8B868, hat: .kettle, body: .mail, tabard: red, scarf: red)
+        case (2, false): return Kit(skin: 0xC08A60, hair: 0x1A1410, moustache: true, hat: .sallet, body: .halfPlate, tabard: blue, scarf: navy)
+        case (2, true): return Kit(skin: 0x4A2E1E, hair: 0x1A1410, braid: true, hat: .sallet, body: .halfPlate, tabard: blue, scarf: navy)
+        case (3, false): return Kit(skin: 0xD8A27A, hair: 0x8A8680, beard: true, grey: true, hat: .none, body: .brigandine, cloak: navy)
+        case (3, true): return Kit(skin: 0xC89070, hair: 0x7A7672, grey: true, hat: .none, body: .brigandine, cloak: navy)
+        case (_, false): return Kit(skin: 0xE0B890, hair: 0x1A1410, hat: .plumed, body: .gilded, tabard: blue)
+        default: return Kit(skin: 0xF0C8A8, hair: 0x9A3A1E, bun: true, hat: .none, body: .gilded, tabard: blue)
         }
     }
 
@@ -117,20 +115,6 @@ enum GuardArt {
         let hand = k.body == .gilded ? steel : Paint(0x4A3020, jitter: 0.05)
         m.ball(-6.3, 1.9, 13.6, 1.4, hand)
         m.ball(6.2, 1.2 - armSwing, 13.4, 1.4, hand)
-        // The weapon: a spear or a halberd planted upright, or a sword at the hip.
-        switch k.arm {
-        case .spear:
-            m.rod(V3(-6.3, 1.9, 0.5), V3(-6.3, 1.9, 33), 0.6, Paint(0x6A4A2A, .wood(2)))
-            m.rod(V3(-6.3, 1.9, 33), V3(-6.3, 1.9, 37), 0.75, steel)
-        case .halberd:
-            m.rod(V3(-6.3, 1.9, 0.5), V3(-6.3, 1.9, 34), 0.6, Paint(k.body == .gilded ? 0x1A1A22 : 0x6A4A2A, .wood(2)))
-            m.rod(V3(-6.3, 1.9, 34), V3(-6.3, 1.9, 38), 0.6, steel)
-            m.box(-9.6, 1.5, 30, -6.6, 2.3, 34, steel)
-            if k.body == .gilded { m.blob(-6.3, 1.9, 29, 0.9, 0.9, 1.6, Paint(0x2A3A8A, .cloth)) }
-        case .sword:
-            m.rod(V3(4.4, 1.2, 13), V3(6.4, 2.6, 4), 0.8, Paint(0x3A2016))
-            m.rod(V3(4.2, 1.1, 13.4), V3(3.6, 0.6, 15.4), 0.5, gold)
-        }
         // Head, hair and helmet.
         m.ball(0, 0.3, 26.4, 3.3, skin)
         let eye = Paint(0x1A1410)
