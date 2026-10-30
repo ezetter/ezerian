@@ -158,6 +158,9 @@ final class Screen {
                               color: 0xF0C850, align: .right))
         texts.append(TextItem(text: "Day \(game.day)  ·  \(game.timeString)", x: tx, y: 172, size: 12.5, color: Screen.ink))
         texts.append(TextItem(text: timeOfDay(game.hourOfDay), x: tx, y: 188, size: 11, font: .italic, color: Screen.dim))
+        texts.append(TextItem(text: game.weapon.map { "\($0.name.capitalizedFirst) +\($0.bonus)" } ?? "Bare hands",
+                              x: Double(px + pw - 10), y: 188, size: 11, font: .bold, color: game.weapon == nil ? Screen.dim : Screen.ink,
+                              align: .right))
 
         box(px, 214, pw, 72)
         let places = game.currentPlaces

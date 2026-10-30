@@ -221,23 +221,24 @@ extension Game {
         }
     }
 
-    /// One blow: half land, for 1-10 damage. nil is the Avatar.
+    /// One blow: half land, for 1-10 damage plus the weapon's bonus. nil is the Avatar.
     func strike(_ attacker: NPC?, _ target: NPC?) {
         let a = attacker.map { $0.shortName.capitalizedFirst } ?? "You"
-        let t = target.map { $0.shortName } ?? "you"
+        let t = (target.map { $0.shortName } ?? "you") + " with " + (attacker?.armedWith ?? "your \(weapon?.name ?? "bare hands")")
+        let arm = attacker == nil ? weapon : attacker?.weapon
         guard roll() < Combat.hitChance else {
             log("\(a) \(attacker == nil ? "miss" : "misses") \(t).")
             return
         }
-        let damage = min(Combat.maxDamage, 1 + Int(roll() * Double(Combat.maxDamage)))
+        let damage = min(Combat.maxDamage, 1 + Int(roll() * Double(Combat.maxDamage))) + (arm?.bonus ?? 0)
         // With hit scores on (Options menu), each landed blow reports the damage and what the one struck has left.
         let scores = Options.showHitScores
         if let target {
             target.hp = max(0, target.hp - damage)
             log("\(a) \(attacker == nil ? "hit" : "hits") \(t)" + (scores ? " for \(damage): \(target.hp) of \(target.maxHP) left." : "."))
-            if target.hp == 0 { kill(target) }
+            if target.hp == 0 { kill(target, byAvatar: attacker == nil) }
         } else {
-            log("\(a) hits you" + (scores ? " for \(damage): you have \(max(0, hp - damage)) of \(maxHP) left." : "."))
+            log("\(a) hits \(t)" + (scores ? " for \(damage): you have \(max(0, hp - damage)) of \(maxHP) left." : "."))
             hp = max(0, hp - damage)
             if hp == 0 {
                 gameOver = true
@@ -248,7 +249,7 @@ extension Game {
         }
     }
 
-    private func kill(_ n: NPC) {
+    private func kill(_ n: NPC, byAvatar: Bool) {
         if n.following {
             world.party.removeAll { $0 === n }
             n.following = false
@@ -263,6 +264,17 @@ extension Game {
                 n.gold = 0
             } else {
                 log("\(n.he.capitalizedFirst) carried no gold.")
+            }
+            // Whoever the Avatar slays, the Avatar takes their weapon.
+            if byAvatar, let w = n.weapon {
+                let best = weapon
+                n.weapon = nil
+                if weapons.contains(w) {
+                    log("You already have \(w.article) \(w.name) like \(n.his).")
+                } else {
+                    weapons.append(w)
+                    log("You take \(n.his) \(w.name)." + (best == nil || w > best! ? " You now fight with it (+\(w.bonus) damage)." : ""))
+                }
             }
         }
         if let c = combat {

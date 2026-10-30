@@ -196,6 +196,7 @@ enum AIDialogue {
     static func prompt(_ npc: NPC, game: Game, history: [Conversation.Line], said: String, joinRule: String = "") -> String {
         var facts: [String] = ["You live in \(game.region.name)."]
         if let home = npc.home { facts.append("You belong to \(home).") }
+        facts.append(npc.weapon.map { "You carry a \($0.name)." } ?? "You carry no weapon.")
         if npc.guardRank != nil, let home = npc.home {
             facts.append("You serve in the town watch of \(home), wearing its tabard with the tower; you keep the peace, distrust troublemakers and loathe Lord Draconian's mercenaries.")
         }

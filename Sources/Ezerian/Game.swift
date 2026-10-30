@@ -36,6 +36,10 @@ final class Game {
     var maxHP = 100
     /// Gold coins; the adventure begins with none.
     var gold = 0
+    /// Weapons taken from foes the Avatar has slain; the adventure begins with none.
+    var weapons: [Weapon] = []
+    /// The Avatar fights with the best weapon they have.
+    var weapon: Weapon? { weapons.max() }
     var gameOver = false
     /// F was pressed: the next direction key attacks.
     var attackPending = false

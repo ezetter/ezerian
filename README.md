@@ -179,13 +179,25 @@ Draconian".
   * A conversation that leaves someone below 0, lower than before, may come to blows,
     with chance -friendliness ÷ 100.
 * **Turns:** everyone takes a turn in a fixed round robin: you, then each companion,
-  then the enemy (or the enemy first, if they started it). Everyone fights bare-handed
-  and equally well for now: half of all blows land, for 1–10 damage. On your turn,
+  then the enemy (or the enemy first, if they started it). Everyone fights equally well:
+  half of all blows land, for 1–10 damage plus the weapon's bonus. On your turn,
   walk into a foe to strike them (or press F and a direction), step elsewhere, or press
   Space to wait. Companions join the fight on your side; fighters strike the weakest
   foe in reach, or close in on the nearest. A pursuing foe falls behind one turn in
   four, so you can retreat: get more than 8 tiles away and you escape.
-* **Choosing your fights:** with equal blows, the fight goes to whoever has more
+* **Weapons:** a staff adds 2 damage to every blow, a dagger 4, a mace 6, a short sword
+  8 and a long sword 10. You start with none. The watch are armed by rank (watchmen
+  staves, serjeants daggers, men-at-arms maces, captains short swords, knights long
+  swords). Other people may carry one: the tougher they are, the likelier they're armed
+  (about a third of the frail, three quarters of the toughest) and the better the
+  weapon; Lord Draconian's people nearly always are, and children never. Kill someone
+  yourself and you take their weapon; you always fight with the best one you have,
+  shown under your health. Foes your companions kill keep theirs. Every blow names the
+  weapon: "The orc hits you with his short sword.", "You miss the elf with your bare
+  hands." Looking at someone tells you what they carry. In 2,000 simulated duels
+  against random people, a bare-handed Avatar now wins about 53%, against 67% before
+  anyone was armed.
+* **Choosing your fights:** between two bare-handed fighters, the fight goes to whoever has more
   health. Against a foe with 50 health you win 98% of the time, at 75 about 82%, at
   100 a coin toss, and at 125 one in five. Look at someone first (L or right-click):
   you'll see whether they're slight and frail, of ordinary build, sturdy, powerfully

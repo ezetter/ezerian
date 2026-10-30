@@ -19,6 +19,7 @@ enum SaveGame {
         var hp: Int?
         var maxHP: Int?
         var gold: Int?
+        var weapons: [Weapon]?
     }
 
     private struct RegionRecord: Codable {
@@ -51,7 +52,7 @@ enum SaveGame {
                         facing: game.facing.rawValue, name: game.creatingCharacter ? nil : game.playerName,
                         female: game.female, turn: game.turn, regions: regions,
                         party: game.world.party, hp: game.hp, maxHP: game.maxHP,
-                        gold: game.gold)
+                        gold: game.gold, weapons: game.weapons)
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .binary
         let data = try encoder.encode(file)
@@ -88,6 +89,7 @@ enum SaveGame {
         game.hp = file.hp ?? 100
         game.maxHP = file.maxHP ?? 100
         game.gold = file.gold ?? 0
+        game.weapons = file.weapons ?? []
         // Quit before choosing a name? Ask again.
         if file.name == nil { game.nameEntry = "" }
         return game

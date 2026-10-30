@@ -648,7 +648,7 @@ extension DevTools {
             let g = Game(seed: seed)
             g.confirmName(); g.confirmGender()
             let folk = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
-            for n in folk { n.friendliness = 50 }
+            for n in folk { n.friendliness = 50; n.weapon = nil }   // bare hands, unless a test arms them
             return (g, folk)
         }
         func standBeside(_ g: Game, _ n: NPC) -> (Int, Int)? {
@@ -685,7 +685,7 @@ extension DevTools {
                 Options.showHitScores = false
                 foe.hp = 15
                 g.move(dx: dx, dy: dy)
-                check(g.messages.last { $0.hasPrefix("You hit") } == "You hit \(foe.shortName).",
+                check(g.messages.last { $0.hasPrefix("You hit") } == "You hit \(foe.shortName) with your bare hands.",
                       "with hit scores off, a blow just says who was hit")
                 Options.showHitScores = true
                 foe.hp = 15
@@ -695,6 +695,62 @@ extension DevTools {
                 check(foe.hp == 0 && !g.inCombat && !folk.contains { $0 === foe && g.world.npc(at: $0.x, $0.y, 0) === foe },
                       "a foe at 0 health dies, and the fight ends")
             } else { check(false, "found room to fight") }
+        }
+        do {
+            // Weapons: bonuses, who carries what, naming them in blows, taking them from the slain.
+            check(Weapon.allCases.map(\.bonus) == [2, 4, 6, 8, 10], "staff, dagger, mace, short sword and long sword add 2, 4, 6, 8 and 10 damage")
+            check(Game(seed: seed).weapons.isEmpty, "the Avatar starts with no weapon")
+            check((0..<GuardArt.ranks).map { Weapon.forGuard(rank: $0) } == Weapon.allCases, "the watch are armed by rank, staff to long sword")
+            var wrng = SplitMix64(seed: 77)
+            func sample(_ hp: Int) -> (armed: Double, tier: Double) {
+                let ws = (0..<4000).map { _ in Weapon.roll(health: hp, servant: false, child: false, &wrng) }
+                let armed = ws.compactMap { $0 }
+                return (Double(armed.count) / 4000, Double(armed.map(\.rawValue).reduce(0, +)) / Double(max(1, armed.count)))
+            }
+            let weak = sample(20), middling = sample(75), strong = sample(180)
+            check(weak.armed < middling.armed && middling.armed < strong.armed && weak.tier < middling.tier && middling.tier < strong.tier,
+                  String(format: "tougher people are likelier armed, with better weapons (armed %.0f%%, %.0f%%, %.0f%%; tier %.1f, %.1f, %.1f)",
+                         weak.armed * 100, middling.armed * 100, strong.armed * 100, weak.tier, middling.tier, strong.tier))
+            let (g, folk) = arena()
+            let foe = folk[0]
+            foe.maxHP = 200; foe.hp = 200; foe.weapon = .mace
+            var k = 0
+            g.roll = { k += 1; return k % 2 == 1 ? 0.0 : 0.99 }   // every blow lands for the most
+            Options.showHitScores = false
+            defer { Options.showHitScores = true }
+            if let (dx, dy) = standBeside(g, foe) {
+                g.attack(dx: dx, dy: dy)
+                check(g.messages.contains("You hit \(foe.shortName) with your bare hands."), "the Avatar's blows are with bare hands at first")
+                check(g.messages.contains { $0.hasSuffix("hits you with \(foe.his) mace.") } && g.hp == 100 - 16,
+                      "a foe's blow names their weapon, and a mace adds 6 (took \(100 - g.hp))")
+                g.roll = { 0.9 }
+                g.waitTurn()
+                check(g.messages.contains { $0.hasSuffix("misses you with \(foe.his) mace.") }, "a miss names the weapon too")
+                g.roll = { k += 1; return k % 2 == 1 ? 0.0 : 0.99 }
+                foe.hp = 5
+                g.move(dx: dx, dy: dy)
+                check(g.weapons == [.mace] && g.weapon == .mace && foe.weapon == nil, "slaying a foe gives the Avatar their weapon")
+                let other = folk.first { $0 !== foe && g.world.npc(at: $0.x, $0.y, 0) === $0 }!
+                other.weapon = .dagger
+                other.maxHP = 200; other.hp = 30
+                if let (ex, ey) = standBeside(g, other) {
+                    k = 0
+                    g.attack(dx: ex, dy: ey)
+                    check(other.hp == 30 - 16, "the Avatar's mace adds 6 to each blow")
+                    g.combat = nil
+                }
+                check(g.weapon == .mace, "the Avatar fights with the best weapon they have")
+            } else { check(false, "found room to test weapons") }
+            // Only the Avatar's own kills yield a weapon.
+            let (g2, folk2) = arena()
+            let foe2 = folk2[1], friend = folk2.first { $0 !== foe2 }!
+            foe2.weapon = .longSword; foe2.hp = 1; foe2.maxHP = 50
+            g2.addToParty(friend)
+            g2.combat = Combat(enemies: [foe2], order: [nil, friend, foe2])
+            g2.roll = { 0.0 }
+            g2.strike(friend, foe2)
+            check(foe2.hp == 0 && g2.weapons.isEmpty, "a foe slain by a companion leaves the Avatar no weapon")
+            g2.combat = nil
         }
         do {
             // Companions join in; a companion who falls leaves the party.
@@ -927,6 +983,7 @@ extension DevTools {
         check(keyGame.showHelp && !keyGame.showMap, "H opens help, M closes the map")
 
         // Save, reload and compare.
+        game.weapons = [.dagger, .staff]
         let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-selftest.plist")
         do {
             try SaveGame.save(game, to: url)
@@ -945,6 +1002,8 @@ extension DevTools {
                       "people, where they stand and how they feel survive a save")
                 check(loaded.playerName == game.playerName && !loaded.creatingCharacter, "the name is restored without asking again")
                 check(loaded.female == game.female, "whether the Avatar is a man or a woman survives a save")
+                check(loaded.weapons == game.weapons, "the Avatar's weapons survive a save")
+                check(zip(saved, back).allSatisfy { $0.weapon == $1.weapon }, "what people carry survives a save")
             }
         } catch {
             check(false, "save succeeds (\(error))")

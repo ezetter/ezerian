@@ -122,6 +122,20 @@ final class NPC: Codable {
         }
         set { goldStore = newValue }
     }
+    /// The weapon carried, if any. (Stored as 0 for none; missing in older saves, where
+    /// it is drawn the same way as for new people.)
+    private var weaponStore: Int?
+    var weapon: Weapon? {
+        get {
+            if let w = weaponStore { return Weapon(rawValue: w) }
+            if let r = guardRank { return .forGuard(rank: r) }
+            var rng = SplitMix64(seed: Hash.of(0x3EA90, id, 0))
+            return Weapon.roll(health: maxHP, servant: servesDraconian, child: role == "child", &rng)
+        }
+        set { weaponStore = newValue?.rawValue ?? 0 }
+    }
+    /// "his short sword", or "his bare hands".
+    var armedWith: String { "\(his) \(weapon?.name ?? "bare hands")" }
 
     // Not saved: where the NPC stood before this turn (for gliding) and chatter timing.
     var prevX = 0
@@ -130,7 +144,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, goldStore = "gold"
+             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, goldStore = "gold", weaponStore = "weapon"
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,
@@ -182,6 +196,7 @@ final class NPC: Codable {
     var stranger: String { guardRank != nil ? "A \(role)" : "\(race.article.capitalizedFirst) \(race.name)" }
     var description: String {
         "\(race.article) \(race.name) \(role)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
+            + (weapon.map { ", armed with a \($0.name)" } ?? ", unarmed")
     }
 
     func mayStand(_ px: Int, _ py: Int) -> Bool {
@@ -336,6 +351,8 @@ enum Populace {
             npc.maxHP = guardRank.map { guardHealth(rank: $0, u) } ?? health(u)
             npc.hp = npc.maxHP
             npc.gold = coins(forHealth: npc.maxHP, &rng)
+            npc.weapon = guardRank.map { Weapon.forGuard(rank: $0) }
+                ?? Weapon.roll(health: npc.maxHP, servant: servant, child: job == "child", &rng)
             taken.insert(ly * n + lx)
             people.append(npc)
         }
