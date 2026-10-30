@@ -609,6 +609,8 @@ extension DevTools {
                 foe.hp = 15
                 g.move(dx: dx, dy: dy)
                 check(foe.hp == 5, "walking into a foe strikes them (max blow 10: hp 15 -> 5)")
+                check(g.messages.contains { $0.hasPrefix("You hit") && $0.hasSuffix(": 5 of 200 left.") },
+                      "each landed blow reports the foe's remaining health")
                 check(g.hp <= hpBefore.0 - 1, "the foe strikes back on their turn")
                 g.move(dx: dx, dy: dy)
                 check(foe.hp == 0 && !g.inCombat && !folk.contains { $0 === foe && g.world.npc(at: $0.x, $0.y, 0) === foe },
