@@ -61,7 +61,7 @@ enum DevTools {
                 let rank = what.hasPrefix("guard") ? Int(what.dropFirst(5)) : nil
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
-                    if what == "bard" { return n.role == "bard" }
+                    if what == "bard" || what == "peasant" { return n.role == what }
                     guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
                     return rank == nil || rank == r
                 }
@@ -951,15 +951,18 @@ extension DevTools {
                   && !humans.contains { $0.title == "townsperson" },
                   "there are peasants on farms and in the country, and townsmen and townswomen (\(peasants.count) peasants, \(humans.filter { $0.title.hasPrefix("towns") }.count) town folk)")
             check(all.filter { $0.race != .human }.allSatisfy { $0.shortName == "the \($0.race.name)" }, "the other races go by their race")
-            // The bards look like their paintings.
-            let bards = all.filter { $0.role == "bard" }
-            check(!bards.isEmpty && bards.allSatisfy { n in
-                guard let b = Populace.bard(look: n.look) else { return false }
-                return b.race == n.race && b.look.female == n.female && n.painting == "bard-\(b.painting)"
-            }, "every bard looks like a painted bard of their race and sex (\(bards.count) bards)")
-            check(BardArt.bards.enumerated().allSatisfy { i, b in Portraits.image("bard-\(b.painting)") != nil
-                && SpriteBank.shared.people[b.race.index][Populace.bardLooks + i][0][0].sprite.w > 1 },
-                  "every bard's painting loads, and every bard is drawn on the map")
+            // Bards and peasants look like their paintings.
+            for trade in ["bard", "peasant"] {
+                let folk = all.filter { $0.role == trade }
+                check(!folk.isEmpty && folk.allSatisfy { n in
+                    guard let p = Populace.painted(look: n.look) else { return false }
+                    return p.role == trade && p.race == n.race && p.look.female == n.female && n.painting == p.painting
+                }, "every \(trade) looks like a painted \(trade) of their race and sex (\(folk.count) of them)")
+            }
+            check(all.filter { $0.role == "peasant" }.allSatisfy { $0.race == .human }, "peasants are all human, like their portraits")
+            check(PaintedFolk.all.enumerated().allSatisfy { i, p in Portraits.image(p.painting) != nil
+                && SpriteBank.shared.people[p.race.index][Populace.paintedLooks + i][0][0].sprite.w > 1 },
+                  "every bard's and peasant's painting loads, and each is drawn on the map")
             // The town watch.
             let guards = all.filter { $0.guardRank != nil }
             let ranks = Set(guards.compactMap(\.guardRank))

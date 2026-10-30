@@ -140,7 +140,7 @@ enum PeopleArt {
 
     static func model(_ race: Race, variant: Int, facing: Direction, step: Int) -> Model {
         if let (rank, female) = Populace.guardRank(look: variant) { return GuardArt.model(rank, female: female, facing: facing, step: step) }
-        if let b = Populace.bard(look: variant) { return BardArt.model(b, facing: facing, step: step) }
+        if let p = Populace.painted(look: variant) { return PaintedFolk.model(p, facing: facing, step: step) }
         return Posing.stand(figure(look(race, variant), step: step), facing: facing, scale: build(race))
     }
 

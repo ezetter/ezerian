@@ -172,7 +172,7 @@ final class NPC: Codable {
     /// The painted portrait shown when talking to them, for the watch and the bards.
     var painting: String? {
         if let r = guardRank { return Portraits.guardName(rank: r, female: female) }
-        if let b = Populace.bard(look: look), b.race == race { return "bard-\(b.painting)" }
+        if let p = Populace.painted(look: look), p.race == race { return p.painting }
         return nil
     }
 
@@ -240,21 +240,22 @@ struct NPCPose {
 /// at campfires and in caves, travellers on the roads.
 enum Populace {
     /// 0-2 men, 3-5 women, 6-7 Lord Draconian's livery (man, woman), then the town
-    /// watch: two looks (man, woman) for each of its five ranks, then the bards.
-    static let bardLooks = 8 + 2 * GuardArt.ranks
-    static let looks = bardLooks + BardArt.bards.count
+    /// watch: two looks (man, woman) for each of its five ranks, then the painted folk
+    /// (bards and peasants), one look each.
+    static let paintedLooks = 8 + 2 * GuardArt.ranks
+    static let looks = paintedLooks + PaintedFolk.all.count
 
-    static func bard(look: Int) -> BardArt.Bard? {
-        look >= bardLooks && look < looks ? BardArt.bards[look - bardLooks] : nil
+    static func painted(look: Int) -> PaintedFolk.Painted? {
+        look >= paintedLooks && look < looks ? PaintedFolk.all[look - paintedLooks] : nil
     }
-    /// The race a look belongs to, for the looks only one race wears (the watch, the bards).
+    /// The race a look belongs to, for the looks only one race wears (the watch, the painted folk).
     static func lookRace(_ look: Int) -> Race? {
-        guardRank(look: look) != nil ? .human : bard(look: look)?.race
+        guardRank(look: look) != nil ? .human : painted(look: look)?.race
     }
 
     static func guardLook(rank: Int, female: Bool) -> Int { 8 + rank * 2 + (female ? 1 : 0) }
     static func guardRank(look: Int) -> (rank: Int, female: Bool)? {
-        look >= 8 && look < bardLooks ? ((look - 8) / 2, look % 2 == 1) : nil
+        look >= 8 && look < paintedLooks ? ((look - 8) / 2, look % 2 == 1) : nil
     }
 
     /// How common each rank of the watch is: watchmen, serjeants, men-at-arms (the
@@ -363,11 +364,12 @@ enum Populace {
                 look = guardLook(rank: r, female: female)
                 job = GuardArt.title(r, female: female)
             }
-            // A bard looks like one of the painted bards of their race and sex.
-            if job == "bard" {
-                let mine = BardArt.bards.indices.filter { BardArt.bards[$0].race == race && BardArt.bards[$0].look.female == female }
-                if !mine.isEmpty { look = bardLooks + rng.pick(mine) }
+            // Bards and peasants look like one of the painted folk of their trade, race and sex.
+            let mine = PaintedFolk.all.indices.filter {
+                let p = PaintedFolk.all[$0]
+                return p.role == job && p.race == race && p.look.female == female
             }
+            if !mine.isEmpty { look = paintedLooks + rng.pick(mine) }
             let npc = NPC(id: Int(truncatingIfNeeded: Hash.of(seed, ox + lx, oy + ly, 9000 + key.z + people.count)),
                           name: rng.pick(female ? names.female : names.male), race: race, female: female, look: look,
                           friendliness: servant ? servantFriendliness(race, &rng) : friendliness(race, &rng),
@@ -485,8 +487,10 @@ enum Populace {
                         continue
                     }
                     let race = pickRace(townFolk, &rng)
+                    // (Peasants, like their portraits, are all human.)
                     let role = race == .orc ? rng.pick(["labourer", "porter", "drover"])
-                        : rng.pick(["townsperson", "townsperson", "merchant", "beggar", "bard", "peasant", "farmhand", "child"])
+                        : race == .human ? rng.pick(["townsperson", "townsperson", "merchant", "beggar", "bard", "peasant", "farmhand", "child"])
+                        : rng.pick(["townsperson", "townsperson", "merchant", "beggar", "bard", "farmhand", "child"])
                     add(race, p.0, p.1, role: role, bounds: (x0, y0, x1, y1), home: t.name)
                 }
             }

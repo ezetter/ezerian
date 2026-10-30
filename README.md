@@ -156,6 +156,17 @@ with a tambourine and an elf with a hurdy-gurdy. (The sheet's horned fiddler bel
 to no race of Ezerian and is not used.) Bards in towns explored before this keep
 their old clothes and pixel portraits.
 
+## Peasants
+
+Peasants (always human) each look like one of ten painted peasants of their sex,
+shown when you talk to them, and on the map wear that painting's colours and hat and
+carry what they carry in it. The men are a farmer in a straw hat with a hoe, a miller
+in a cap and apron with a sack of flour, a red-bearded woodcutter with his axe on his
+shoulder, an old shepherd in a hood with a crook, and a fisherman in an apron with
+his net. The women, in headscarves, carry a basket of vegetables, a loaf of bread,
+a drop spindle and wool, a bucket, or a bunch of herbs. Peasants met before this keep
+their old clothes and pixel portraits.
+
 ## Lord Draconian
 
 The Wizard Lord Draconian, Emperor of Sespooland, means to conquer Ezerian, and his
