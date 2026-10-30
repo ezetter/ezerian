@@ -291,6 +291,15 @@ enum Dialogue {
             return npc.race == .orc ? "{name} serve Lord Draconian! Emperor of Sespooland. Soon all Ezerian burn."
                 : "I take Lord Draconian's gold. When the Emperor of Sespooland comes, I'll be on the winning side."
         }
+        if let rank = npc.guardRank {
+            switch rank {
+            case 0: return "I walk the watch in {home}, spear in hand, and keep the drunks and cutpurses honest."
+            case 1: return "Serjeant of the watch in {home}. I see the watchmen do their rounds and don't sleep at their posts."
+            case 2: return "I'm sworn to arms in the service of {home}. When there's real trouble, they send for us."
+            case 3: return "I captain the watch of {home}. Every gate, every street, every guard: mine to answer for."
+            default: return "I am a knight of the watch, sworn to defend {home} and its people, by my life if need be."
+            }
+        }
         switch npc.role {
         case "innkeeper": return "I keep {home}. A soft bed and a hot meal, for those who can pay."
         case "barkeep": return "I pour the ale at {home} and listen to the tales that come with it."
@@ -300,7 +309,7 @@ enum Dialogue {
         case "healer": return "I mend what the road breaks. Herbs, bandages and a little prayer."
         case "cleric": return "I tend the temple and the virtue it honours."
         case "farmer": return "I grow wheat and cabbages, and keep the bees from the barn."
-        case "guard": return "I keep the peace in {home}, such as it is."
+        case "guard": return "I keep the peace in {home}, such as it is."   // guards from older saves
         case "bard": return "I sing of heroes. Perhaps one day I'll sing of you!"
         case "merchant": return "I buy cheap and sell dear, like any honest merchant."
         case "miner", "prospector", "stonecutter": return "I follow the seams of the stone. There's silver in these hills, mark me."

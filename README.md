@@ -121,6 +121,25 @@ which decide how they answer you.
   ("aye", "surface-dweller") to blunt orcs ("pinkskin").
 * People, where they stand and how they feel about you are kept in the save file.
 
+## The town watch
+
+Every town keeps a watch of human guards: two or three in a small town, four in a big
+one, led there by a captain. There are five ranks, each with a painted portrait (in
+`Resources/Portraits`) shown when you talk to them, and a matching figure on the map:
+
+| Rank | Wears | Carries | Least health |
+|---|---|---|---|
+| Watchman / watchwoman | leather jerkin, quilted sleeves, kettle hat | spear | 40 |
+| Serjeant of the watch | mail and the red tabard, kettle hat | spear | 60 |
+| Man-at-arms / woman-at-arms | half plate and the blue tabard, sallet | halberd | 80 |
+| Captain of the watch | studded brigandine and a dark cloak | sword | 100 |
+| Knight of the watch | gilded plate and the blue tabard | halberd | 130 |
+
+The tabards bear the town's tower. Until they tell you their name, guards go by their
+rank ("the serjeant of the watch"). Claude knows them as members of the watch who
+loathe Lord Draconian's mercenaries. Guards in towns explored before the watch existed
+keep their old clothes and pixel portraits.
+
 ## Lord Draconian
 
 The Wizard Lord Draconian, Emperor of Sespooland, means to conquer Ezerian, and his

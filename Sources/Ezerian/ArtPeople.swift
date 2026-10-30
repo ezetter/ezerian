@@ -156,7 +156,8 @@ enum PeopleArt {
     }
 
     static func model(_ race: Race, variant: Int, facing: Direction, step: Int) -> Model {
-        Posing.stand(figure(look(race, variant), step: step), facing: facing, scale: build(race))
+        if let (rank, female) = Populace.guardRank(look: variant) { return GuardArt.model(rank, female: female, facing: facing, step: step) }
+        return Posing.stand(figure(look(race, variant), step: step), facing: facing, scale: build(race))
     }
 
     /// Head and shoulders, facing the viewer, for the conversation window.

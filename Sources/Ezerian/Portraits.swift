@@ -1,7 +1,7 @@
 import AppKit
 
 /// Painted pictures shown at the display's full resolution over the pixel art: the
-/// Avatar's portraits, one per outfit, for a man and a woman.
+/// Avatar's portraits, one per outfit, for a man and a woman, and the town watch's.
 enum Portraits {
     /// What the Avatar wears, from the shirt and slacks of the first day to gilded plate.
     enum Outfit: Int, CaseIterable {
@@ -10,6 +10,11 @@ enum Portraits {
 
     static func avatarName(female: Bool, outfit: Outfit = .clothes) -> String {
         "avatar-\(female ? "woman" : "man")-\(outfit.rawValue)"
+    }
+
+    /// The town watch, by rank (0 watchman ... 4 knight of the watch).
+    static func guardName(rank: Int, female: Bool) -> String {
+        "guard-\(female ? "woman" : "man")-\(rank)"
     }
 
     private static var cache: [String: CGImage] = [:]

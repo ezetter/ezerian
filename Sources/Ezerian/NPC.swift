@@ -155,6 +155,9 @@ final class NPC: Codable {
 
     var disposition: Disposition { Disposition(friendliness) }
 
+    /// The rank in the town watch (0 watchman ... 4 knight), for guards.
+    var guardRank: Int? { race == .human ? Populace.guardRank(look: look)?.rank : nil }
+
     /// How tough they look, so the Avatar can judge a fight before picking it.
     var build: String {
         let look: String
@@ -173,7 +176,10 @@ final class NPC: Codable {
     var him: String { female ? "her" : "him" }
 
     /// "Thora" once she has told you her name, otherwise "the dwarf".
-    var shortName: String { known ? name : "the \(race.name)" }
+    /// (A guard is known by their rank: "the watchwoman".)
+    var shortName: String { known ? name : "the \(guardRank != nil ? role : race.name)" }
+    /// "A dwarf", or "A serjeant of the watch", for someone not yet introduced.
+    var stranger: String { guardRank != nil ? "A \(role)" : "\(race.article.capitalizedFirst) \(race.name)" }
     var description: String {
         "\(race.article) \(race.name) \(role)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
     }
@@ -202,8 +208,20 @@ struct NPCPose {
 /// townsfolk in the streets, elves in the woods, dwarves in the hills, orc bands
 /// at campfires and in caves, travellers on the roads.
 enum Populace {
-    /// 0-2 men, 3-5 women, 6-7 Lord Draconian's livery (man, woman).
-    static let looks = 8
+    /// 0-2 men, 3-5 women, 6-7 Lord Draconian's livery (man, woman), then the town
+    /// watch: two looks (man, woman) for each of its five ranks.
+    static let looks = 8 + 2 * GuardArt.ranks
+
+    static func guardLook(rank: Int, female: Bool) -> Int { 8 + rank * 2 + (female ? 1 : 0) }
+    static func guardRank(look: Int) -> (rank: Int, female: Bool)? {
+        look >= 8 && look < looks ? ((look - 8) / 2, look % 2 == 1) : nil
+    }
+
+    /// How common each rank of the watch is: watchmen, serjeants, men-at-arms (the
+    /// captain is chosen apart), knights.
+    private static let watchRanks: [(Int, Double)] = [(0, 45), (1, 30), (2, 20), (4, 5)]
+    /// The least health a guard of each rank has: the watch are picked for toughness.
+    static let guardHealth = [40, 60, 80, 100, 130]
 
     private static let firstNames: [Race: (male: [String], female: [String])] = [
         .human: (["Aldric", "Cedric", "Gareth", "Ivor", "Lucan", "Nolan", "Piers", "Tobin", "Vance", "Bram", "Corwin", "Osric",
@@ -289,12 +307,16 @@ enum Populace {
 
         /// `draconian` nil: orcs serve Lord Draconian on the toss of a coin, others don't.
         func add(_ race: Race, _ lx: Int, _ ly: Int, role: String, bounds: (Int, Int, Int, Int), home: String?,
-                 draconian: Bool? = nil, warband: Int? = nil) {
+                 draconian: Bool? = nil, warband: Int? = nil, guardRank: Int? = nil) {
             let female = rng.chance(0.5)
             let names = firstNames[race]!
-            let servant = draconian ?? (race == .orc && rng.chance(orcAllegiance))
-            let look = servant ? (female ? 7 : 6) : (female ? 3 : 0) + rng.int(3)
-            let job = servant && draconian == nil && home != nil ? "mercenary" : role
+            let servant = guardRank == nil && (draconian ?? (race == .orc && rng.chance(orcAllegiance)))
+            var look = servant ? (female ? 7 : 6) : (female ? 3 : 0) + rng.int(3)
+            var job = servant && draconian == nil && home != nil ? "mercenary" : role
+            if let r = guardRank {
+                look = guardLook(rank: r, female: female)
+                job = GuardArt.title(r, female: female)
+            }
             let npc = NPC(id: Int(truncatingIfNeeded: Hash.of(seed, ox + lx, oy + ly, 9000 + key.z + people.count)),
                           name: rng.pick(female ? names.female : names.male), race: race, female: female, look: look,
                           friendliness: servant ? servantFriendliness(race, &rng) : friendliness(race, &rng),
@@ -304,7 +326,7 @@ enum Populace {
             npc.servesDraconian = servant
             npc.warband = warband
             npc.facing = rng.int(4)
-            npc.maxHP = health(rng.double())
+            npc.maxHP = max(health(rng.double()), guardRank.map { guardHealth[$0] } ?? 1)
             npc.hp = npc.maxHP
             npc.gold = coins(forHealth: npc.maxHP, &rng)
             taken.insert(ly * n + lx)
@@ -371,11 +393,25 @@ enum Populace {
                 }
             }
         }
-        // Townsfolk in the streets.
+        // The town watch, then townsfolk, in the streets.
         if let t = town {
             let x0 = t.x - ox, y0 = t.y - oy, x1 = x0 + t.w - 1, y1 = y0 + t.h - 1
             let outdoors: (Int, Int) -> Bool = { x, y in
                 !region.roofed.contains { $0.contains(ox + x, oy + y) }
+            }
+            let big = t.w > 40
+            for k in 0..<(big ? 4 : 2 + rng.int(2)) {
+                // A big town's watch has a captain; the rest are drawn by how common their rank is.
+                var rank = watchRanks[0].0
+                if big && k == 0 {
+                    rank = 3
+                } else {
+                    var r = rng.double() * watchRanks.reduce(0) { $0 + $1.1 }
+                    for (rk, w) in watchRanks { if r < w { rank = rk; break }; r -= w }
+                }
+                if let p = spot(x0, y0, x1, y1, where: outdoors) {
+                    add(.human, p.0, p.1, role: "", bounds: (x0, y0, x1, y1), home: t.name, guardRank: rank)
+                }
             }
             for _ in 0..<(t.w > 40 ? 9 : 6) {
                 if let p = spot(x0, y0, x1, y1, where: outdoors) {
@@ -386,7 +422,7 @@ enum Populace {
                     }
                     let race = pickRace(townFolk, &rng)
                     let role = race == .orc ? rng.pick(["labourer", "porter", "drover"])
-                        : rng.pick(["townsfolk", "merchant", "guard", "beggar", "bard", "farmhand", "child"])
+                        : rng.pick(["townsfolk", "merchant", "beggar", "bard", "farmhand", "child"])
                     add(race, p.0, p.1, role: role, bounds: (x0, y0, x1, y1), home: t.name)
                 }
             }

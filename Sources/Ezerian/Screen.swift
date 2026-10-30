@@ -363,17 +363,24 @@ final class Screen {
         let x = Screen.mapX + 12, y = Screen.mapY + MapRenderer.pixelH - h - 12
         parchmentBox(x, y, w, h)
         // Portrait.
-        let face = SpriteBank.shared.faces[npc.race.index][npc.look % Populace.looks]
         let fx = x + 12, fy = y + 14, fw = 92, fh = 104
-        for yy in 0..<fh {
-            for xx in 0..<fw {
-                let t = Float(yy) / Float(fh)
-                fb.pixels[(fy + yy) * Screen.width + fx + xx] = pack(mix(hex(0x5A6A4A), hex(0x2A2A1E), t))
+        if let (rank, female) = npc.guardRank.map({ ($0, npc.female) }) {
+            // The watch have painted portraits: head and shoulders from the top of the picture.
+            fb.fill(fx, fy, fw, fh, rgb(0x4A443C))
+            texts.append(.picture(Portraits.guardName(rank: rank, female: female), crop: CGRect(x: 0, y: 0, width: 258, height: 258 * fh / fw),
+                                  x: Double(fx), y: Double(fy), w: Double(fw), h: Double(fh)))
+        } else {
+            let face = SpriteBank.shared.faces[npc.race.index][npc.look % Populace.looks]
+            for yy in 0..<fh {
+                for xx in 0..<fw {
+                    let t = Float(yy) / Float(fh)
+                    fb.pixels[(fy + yy) * Screen.width + fx + xx] = pack(mix(hex(0x5A6A4A), hex(0x2A2A1E), t))
+                }
             }
+            fb.blit(face, fx + fw / 2 - face.w / 2 + face.ax, fy + 10 + face.ay, clip: (fx, fy, fw, fh))
         }
-        fb.blit(face, fx + fw / 2 - face.w / 2 + face.ax, fy + 10 + face.ay, clip: (fx, fy, fw, fh))
         gild(fx, fy, fw, fh)
-        let title = npc.known ? npc.name : "\(npc.race.article.capitalizedFirst) \(npc.race.name)"
+        let title = npc.known ? npc.name : npc.stranger
         texts.append(TextItem(text: title, x: Double(fx + fw / 2), y: Double(fy + fh + 6), size: 15, font: .title,
                               color: Screen.brown, align: .center, shadow: false))
         texts.append(TextItem(text: "\(npc.race.name.capitalizedFirst) \(npc.role)", x: Double(fx + fw / 2),

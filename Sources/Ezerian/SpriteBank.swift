@@ -45,12 +45,16 @@ final class SpriteBank {
         }
         for race in Race.allCases {
             for look in 0..<Populace.looks {
+                // The town watch are all human, and their faces are paintings.
+                let guardLook = Populace.guardRank(look: look) != nil
+                if guardLook && race != .human { continue }
                 for d in Direction.allCases {
                     for step in 0..<3 {
-                        jobs.append(Job(key: 10000 + race.index * 1000 + look * 100 + d.rawValue * 10 + step, variant: 0, frame: 0,
+                        jobs.append(Job(key: 100_000 + race.index * 10000 + look * 100 + d.rawValue * 10 + step, variant: 0, frame: 0,
                                         recipe: Recipe { _, _, _ in PeopleArt.model(race, variant: look, facing: d, step: [0, -1, 1][step]) }))
                     }
                 }
+                if guardLook { continue }
                 jobs.append(Job(key: 50000 + race.index * 100 + look, variant: 0, frame: 0,
                                 recipe: Recipe { _, _, _ in PeopleArt.portrait(race, variant: look) }))
             }
@@ -78,11 +82,11 @@ final class SpriteBank {
         var av = [[[Art]]](repeating: [[Art]](repeating: [], count: 4), count: 2)
         for (i, j) in jobs.enumerated() {
             guard let art = results[i] else { continue }
-            if j.key >= 50000 {
+            if j.key >= 100_000 {
+                let k = j.key - 100_000
+                folk[k / 10000][(k / 100) % 100][(k / 10) % 10][k % 10] = art
+            } else if j.key >= 50000 {
                 faceArt[(j.key - 50000) / 100][(j.key - 50000) % 100] = art.sprite
-            } else if j.key >= 10000 {
-                let k = j.key - 10000
-                folk[k / 1000][(k / 100) % 10][(k / 10) % 10][k % 10] = art
             } else if j.key >= 2000 {
                 signs[icons[j.key - 2000]] = art
             } else if j.key >= 1000 {

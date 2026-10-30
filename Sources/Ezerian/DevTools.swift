@@ -17,13 +17,13 @@ enum DevTools {
                 continue
             }
             if token == "send" { game.submitConversation(); continue }
-            if token == "warband" || token == "mercenary" {
+            if token == "warband" || token == "mercenary" || token == "guard" {
                 // Stand a few paces from the nearest warband orc (or mercenary).
                 var best: NPC?
                 for ry in -4...4 {
                     for rx in -4...4 {
                         for n in game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs
-                        where token == "warband" ? n.warband != nil : n.role == "mercenary" {
+                        where token == "warband" ? n.warband != nil : token == "guard" ? n.guardRank != nil : n.role == "mercenary" {
                             if best == nil || abs(n.x - game.x) + abs(n.y - game.y) < abs(best!.x - game.x) + abs(best!.y - game.y) { best = n }
                         }
                     }
@@ -48,12 +48,21 @@ enum DevTools {
                 continue
             }
             if token.hasPrefix("say:"), let n = Int(token.dropFirst(4)), let t = Topic(rawValue: n) { game.say(t); continue }
-            if token.hasPrefix("npc:"), let race = Race(rawValue: String(token.dropFirst(4))) {
-                // Stand beside the nearest NPC of a race, facing them.
+            if token.hasPrefix("npc:") {
+                // Stand beside the nearest NPC of a race (or the nearest guard, "guard" or
+                // "guard3" for a rank), facing them.
+                let what = String(token.dropFirst(4))
+                let race = Race(rawValue: what)
+                let rank = what.hasPrefix("guard") ? Int(what.dropFirst(5)) : nil
+                func wanted(_ n: NPC) -> Bool {
+                    if let race { return n.race == race }
+                    guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
+                    return rank == nil || rank == r
+                }
                 var best: NPC?
                 for ry in -2...2 {
                     for rx in -2...2 {
-                        for n in game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs where n.race == race {
+                        for n in game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs where wanted(n) {
                             if best == nil || abs(n.x - game.x) + abs(n.y - game.y) < abs(best!.x - game.x) + abs(best!.y - game.y) { best = n }
                         }
                     }
@@ -121,6 +130,7 @@ extension DevTools {
             }
         }
         for g in [false, true] { for d in Direction.allCases { for s in 0..<3 { arts.append(("avatar", bank.avatar(female: g)[d.rawValue][s])) } } }
+        for look in 8..<Populace.looks { for d in Direction.allCases { arts.append(("guard", bank.people[Race.human.index][look][d.rawValue][0])) } }
         let cols = 14, cw = 76, ch = 104
         let rows = (arts.count + cols - 1) / cols
         let fb = Framebuffer(width: cols * cw, height: rows * ch)
@@ -809,6 +819,17 @@ extension DevTools {
                     if r.features.contains(.caveEntrance) { all += w.region(RegionKey(x: rx, y: ry, z: 1)).npcs }
                 }
             }
+            // The town watch.
+            let guards = all.filter { $0.guardRank != nil }
+            let ranks = Set(guards.compactMap(\.guardRank))
+            check(!guards.isEmpty && guards.allSatisfy { $0.race == .human && $0.home != nil && !$0.servesDraconian && $0.role == GuardArt.title($0.guardRank!, female: $0.female) },
+                  "the towns keep a watch of human guards (\(guards.count) in all)")
+            check(ranks.count >= 4, "the watch has several ranks (\(ranks.sorted()))")
+            check(guards.allSatisfy { $0.maxHP >= Populace.guardHealth[$0.guardRank!] }, "guards are tougher than most, more so the higher their rank")
+            check((0..<GuardArt.ranks).allSatisfy { r in [false, true].allSatisfy { Portraits.image(Portraits.guardName(rank: r, female: $0)) != nil } },
+                  "every rank of the watch has a painted portrait, for a man and a woman")
+            check(SpriteBank.shared.people[Race.human.index][Populace.guardLook(rank: 2, female: true)][0][0].sprite.w > 1,
+                  "the watch are drawn on the map")
             let servants = all.filter(\.servesDraconian)
             let mercs = servants.filter { $0.race != .orc }
             let orcs = all.filter { $0.race == .orc }
