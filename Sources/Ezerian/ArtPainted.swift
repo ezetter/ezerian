@@ -349,10 +349,10 @@ enum PaintedFolk {
     /// map they wear his livery like all his servants.
     typealias Servant = (painting: String, female: Bool, weapon: Weapon?)
 
-    /// His painted servants by race: so far his orcs and his elves (humans in his pay are
-    /// painted from their everyday set).
+    /// His painted servants by race (dwarves serve no one).
     static func draconian(_ race: Race) -> [Servant]? {
         switch race {
+        case .human: return draconianHumans
         case .orc: return draconianOrcs
         case .elf: return draconianElves
         default: return nil
@@ -366,6 +366,15 @@ enum PaintedFolk {
         ("draconian-orc-5", true, .spear), ("draconian-orc-6", true, nil),
         ("draconian-orc-7", true, .shortSword), ("draconian-orc-8", true, .longSword),
         ("draconian-orc-9", true, .axe),
+    ]
+
+    /// His human mercenaries.
+    static let draconianHumans: [Servant] = [
+        ("draconian-human-0", false, .longSword), ("draconian-human-1", false, .longSword),
+        ("draconian-human-2", false, .axe), ("draconian-human-3", false, .spear),
+        ("draconian-human-4", false, .hammer), ("draconian-human-5", true, .longSword),
+        ("draconian-human-6", true, .axe), ("draconian-human-7", true, .shortSword),
+        ("draconian-human-8", true, .mace), ("draconian-human-9", true, .shortSword),
     ]
 
     /// His elves. Painting 3, an elf with a crossbow, likewise waits for bows.

@@ -167,7 +167,9 @@ farmhouse or the wilds. On the map they wear their painting's colours, and carry
 it shows (a sack, a hoe, a sheaf of wheat). The pick is fixed by who they are, so
 people met in older saves are repainted the same way when the game loads. Lord
 Draconian's human mercenaries keep his black-and-red livery on the map, so you can
-tell them apart, but they too have an everyday painting to talk to. The watch keeps
+tell them apart, and have ten paintings of their own in his black and red (five men,
+five women), each carrying the weapon painted: a sword, an axe, a spear, a war hammer
+or a mace. The watch keeps
 its own paintings, by rank.
 
 Every elf looks like one of ten elf paintings (five men, five women), whatever their
@@ -199,7 +201,7 @@ people are already abroad. They wear his livery — a black tabard with his red 
 a red cloak and a steel helm — and the conversation window marks them "Serves Lord
 Draconian".
 
-* **Mercenaries:** humans, dwarves and elves in his pay, met loitering in town streets
+* **Mercenaries:** humans and elves in his pay (never dwarves), met loitering in town streets
   and taverns and in small groups on the roads and in the countryside. Their
   friendliness is drawn around -50 and always lies between -100 and 0.
 * **His orcs:** half of all orcs serve him. They average -75, half again as
