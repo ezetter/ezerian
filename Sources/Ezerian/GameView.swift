@@ -345,13 +345,19 @@ final class GameView: NSView, CALayerDelegate {
 
     // MARK: Mouse
 
-    /// Converts a window point to a pixel of the map view, if it lies on the map.
-    private func mapPixel(for event: NSEvent) -> (Int, Int)? {
+    /// Converts a window point to a pixel of the whole screen.
+    private func screenPixel(for event: NSEvent) -> (Int, Int) {
         let p = convert(event.locationInWindow, from: nil)
         let r = displayRect()
         let sx = (p.x - r.minX) / r.width * CGFloat(Screen.width)
         let sy = (r.maxY - p.y) / r.height * CGFloat(Screen.height)
-        let mx = Int(sx) - Screen.mapX, my = Int(sy) - Screen.mapY
+        return (Int(sx.rounded(.down)), Int(sy.rounded(.down)))
+    }
+
+    /// Converts a window point to a pixel of the map view, if it lies on the map.
+    private func mapPixel(for event: NSEvent) -> (Int, Int)? {
+        let (sx, sy) = screenPixel(for: event)
+        let mx = sx - Screen.mapX, my = sy - Screen.mapY
         guard mx >= 0, my >= 0, mx < MapRenderer.pixelW, my < MapRenderer.pixelH else { return nil }
         return (mx, my)
     }
@@ -372,6 +378,16 @@ final class GameView: NSView, CALayerDelegate {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        if game.genderEntry != nil {
+            // Clicking a portrait of the "man or woman?" choice takes it.
+            let (sx, sy) = screenPixel(for: event)
+            if let female = Screen.genderChoice(atX: sx, y: sy) {
+                game.confirmGender(female: female)
+                onTurn?()
+                needsRender = true
+            }
+            return
+        }
         guard !game.showMap, !game.creatingCharacter, game.conversation == nil, !game.gameOver,
               let p = mapPixel(for: event), let dir = direction(toward: p) else { return }
         mouseDirection = dir

@@ -369,6 +369,12 @@ extension DevTools {
         game.nameEntry = "Iolanthe"
         game.confirmName()
         check(game.genderEntry == false && game.creatingCharacter, "after the name, a new game asks man or woman")
+        let (man, woman) = (Screen.genderPortrait(female: false), Screen.genderPortrait(female: true))
+        check(Screen.genderChoice(atX: man.x + man.w / 2, y: man.y + man.h / 2) == false
+              && Screen.genderChoice(atX: woman.x + woman.w / 2, y: woman.y + woman.h / 2) == true
+              && Screen.genderChoice(atX: (man.x + man.w + woman.x) / 2, y: man.y + man.h / 2) == nil
+              && Screen.genderChoice(atX: man.x + man.w / 2, y: man.y - 40) == nil,
+              "clicking a portrait picks man or woman, and clicks beside them don't")
         game.confirmGender(female: true)
         check(game.female && !game.creatingCharacter, "the Avatar can be a woman")
         check(game.messages.contains { $0.hasPrefix("Welcome to the Land of Ezerian") }, "the welcome comes once the Avatar is made")

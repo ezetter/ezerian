@@ -57,7 +57,7 @@ swift run -c release Ezerian
 | ⌘S | Save (the game also saves automatically) |
 
 A new game (first launch or ⌘N) begins by asking your character's name, then whether
-you are a man or a woman (M or W, or the arrows and Return), with both shown as they
+you are a man or a woman (click a portrait, press M or W, or use the arrows and Return), with both shown as they
 would look. The name appears in the side panel beside the Avatar's portrait, and both
 are kept in the save file; NPCs voiced by Claude are told which you are. The Avatar sets
 out with no armour and no weapon: just a laced linen shirt, slacks, a belt and a sash.
