@@ -180,9 +180,13 @@ paintings (five men, five women), dressed to match on the map; the many orcs in
 Draconian's warbands and service keep his livery on the map, and have nine paintings of
 their own in his black and red (four men, five women), each carrying the weapon painted:
 a war hammer, an axe, a spear or a sword (one more painting, a crossbowman, waits for
-bows). Dwarf
-bards each look like one of the painted dwarf bards of their sex, with a drum or a
-tambourine. Other dwarves keep their ordinary looks.
+bows). Dwarves
+are all men and never serve Draconian, though plenty are hostile all the same. Each
+looks like one of ten dwarf paintings in woollen vests, or, for dwarf warriors (in
+towns, in the hills and with the miners in caves), one of the same ten in plate and
+mail, carrying the axe, war hammer or mace painted (the crossbowman waits for bows).
+Dwarf women and Draconian's dwarf mercenaries from older saves become men and free
+warriors when the save loads.
 
 The earlier paintings of human bards, peasants, townsfolk, farmhands and drinkers, and of
 elf bards and elven drinkers, are still in `Resources/Portraits` (and `PaintedFolk`), but

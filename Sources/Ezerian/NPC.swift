@@ -61,9 +61,10 @@ enum Disposition: Int, Comparable {
 /// within its bounds (a building's floor, a town, or a stretch of wilderness).
 final class NPC: Codable {
     let id: Int
-    let name: String
+    // (Name and sex change only for a dwarf woman from an older save: dwarves are all men.)
+    private(set) var name: String
     let race: Race
-    let female: Bool
+    private(set) var female: Bool
     /// Which of the race's looks (clothes, hair) the NPC wears.
     var look: Int
     /// -100 (extremely hostile) ... 100 (adoring).
@@ -75,7 +76,7 @@ final class NPC: Codable {
     let homeY: Int
     /// Where the NPC may walk: x0, y0, x1, y1 (inclusive).
     var bounds: [Int]
-    let role: String
+    private(set) var role: String
     /// The building or town the NPC belongs to, if any (for small talk).
     let home: String?
     var facing: Int = Direction.south.rawValue
@@ -137,6 +138,21 @@ final class NPC: Codable {
         }
         set { weaponStore = newValue?.rawValue ?? 0 }
     }
+    /// Dwarves are all men, and none serves Lord Draconian. Older saves may have dwarf
+    /// women (who become men of the same standing, with a man's name) and dwarf
+    /// mercenaries in his pay (who become free warriors).
+    func dwarvesAreMenOfNoLord() {
+        if female {
+            female = false
+            let men = Populace.firstNames[.dwarf]!.male
+            name = men[Int(Hash.of(0xD3A2F, id, 0) % UInt64(men.count))]
+        }
+        if servesDraconian {
+            servesDraconian = false
+            if role == "mercenary" { role = "warrior" }
+        }
+    }
+
     /// "his short sword", or "his bare hands".
     var armedWith: String { "\(his) \(weapon?.name ?? "bare hands")" }
 
@@ -267,6 +283,7 @@ enum Populace {
     /// every human but the watch from the townsfolk if they live in a town, or the
     /// country folk if they live at a farmhouse or in the wilds.
     static func everydaySet(_ n: NPC) -> [PaintedFolk.Painted]? {
+        if n.race == .dwarf { return n.role == "warrior" ? PaintedFolk.dwarfWarriors : PaintedFolk.dwarfFolk }
         if n.race == .elf { return PaintedFolk.elfFolk }
         if n.race == .orc { return PaintedFolk.orcFolk }
         guard n.race == .human, n.guardRank == nil else { return nil }
@@ -276,8 +293,9 @@ enum Populace {
     /// Paints someone from their everyday set. Draconian's servants keep his livery on
     /// the map and are only given the portrait. The pick is fixed by who they are, so it
     /// is the same each time (it also repaints people from older saves). His orcs and elves
-    /// have paintings of their own, and carry the weapon theirs shows.
+    /// have paintings of their own, and carry the weapon theirs shows, as do dwarf warriors.
     static func paint(_ n: NPC) {
+        if n.race == .dwarf { n.dwarvesAreMenOfNoLord() }
         if n.servesDraconian, let set = PaintedFolk.draconian(n.race) {
             let mine = set.filter { $0.female == n.female }
             let pick = mine[Int(Hash.of(0xD7A60, n.id, 0) % UInt64(mine.count))]
@@ -294,6 +312,7 @@ enum Populace {
             n.look = paintedLooks + PaintedFolk.all.firstIndex { $0.painting == set[pick].painting }!
             n.portrait = nil
         }
+        if let w = painted(look: n.look)?.weapon, n.hp > 0, !n.servesDraconian { n.weapon = w }
     }
 
     static func guardLook(rank: Int, female: Bool) -> Int { 8 + rank * 2 + (female ? 1 : 0) }
@@ -313,7 +332,7 @@ enum Populace {
         return min(r.upperBound, r.lowerBound + Int(u * Double(r.count)))
     }
 
-    private static let firstNames: [Race: (male: [String], female: [String])] = [
+    static let firstNames: [Race: (male: [String], female: [String])] = [
         .human: (["Aldric", "Cedric", "Gareth", "Ivor", "Lucan", "Nolan", "Piers", "Tobin", "Vance", "Bram", "Corwin", "Osric",
                   "Haldor", "Edmund", "Rolf", "Simeon"],
                  ["Brenna", "Dara", "Fiona", "Hilda", "Kara", "Mira", "Orla", "Seren", "Una", "Wren", "Edda", "Greta",
@@ -365,8 +384,9 @@ enum Populace {
     /// his, so this is set so that, counting them, half of all orcs serve him.
     static let orcAllegiance = 0.35
 
-    /// Mercenaries Draconian has hired: anyone but orcs (half of whom serve him anyway).
-    private static let hirelings: [(Race, Double)] = [(.human, 60), (.dwarf, 25), (.elf, 15)]
+    /// Mercenaries Draconian has hired: humans and elves (a third of orcs serve him anyway).
+    /// (Never dwarves: they serve no lord, though plenty of them are hostile all the same.)
+    private static let hirelings: [(Race, Double)] = [(.human, 60), (.elf, 15)]
 
     private static func pickRace(_ weights: [(Race, Double)], _ rng: inout SplitMix64) -> Race {
         var r = rng.double() * weights.reduce(0) { $0 + $1.1 }
@@ -398,22 +418,16 @@ enum Populace {
         /// `draconian` nil: orcs serve Lord Draconian on the toss of a coin, others don't.
         func add(_ race: Race, _ lx: Int, _ ly: Int, role: String, bounds: (Int, Int, Int, Int), home: String?,
                  draconian: Bool? = nil, warband: Int? = nil, guardRank: Int? = nil) {
-            let female = rng.chance(0.5)
+            let female = rng.chance(0.5) && race != .dwarf
             let names = firstNames[race]!
-            let servant = guardRank == nil && (draconian ?? (race == .orc && rng.chance(orcAllegiance)))
+            let servant = guardRank == nil && race != .dwarf && (draconian ?? (race == .orc && rng.chance(orcAllegiance)))
             var look = servant ? (female ? 7 : 6) : (female ? 3 : 0) + rng.int(3)
             var job = servant && draconian == nil && home != nil ? "mercenary" : role
             if let r = guardRank {
                 look = guardLook(rank: r, female: female)
                 job = GuardArt.title(r, female: female)
             }
-            // Dwarf bards look like one of the painted bards of their sex. (Humans, elves and
-            // orcs are all painted from the everyday sets: see `paint`.)
-            let mine = race != .dwarf ? [] : PaintedFolk.all.indices.filter {
-                let p = PaintedFolk.all[$0]
-                return p.role == job && p.race == race && p.look.female == female
-            }
-            if !mine.isEmpty { look = paintedLooks + rng.pick(mine) }
+            // (Everyone but the watch is then painted from their race's everyday set: see `paint`.)
             let npc = NPC(id: Int(truncatingIfNeeded: Hash.of(seed, ox + lx, oy + ly, 9000 + key.z + people.count)),
                           name: rng.pick(female ? names.female : names.male), race: race, female: female, look: look,
                           friendliness: servant ? servantFriendliness(race, &rng) : friendliness(race, &rng),
@@ -465,7 +479,7 @@ enum Populace {
             if rng.chance(0.35), let c = spot(4, 4, n - 5, n - 5, where: floor) {
                 for _ in 0..<(1 + rng.int(2)) {
                     if let p = near(c.0, c.1, 2, where: floor) {
-                        add(.dwarf, p.0, p.1, role: "miner", bounds: (c.0 - 6, c.1 - 6, c.0 + 6, c.1 + 6), home: nil)
+                        add(.dwarf, p.0, p.1, role: rng.pick(["miner", "miner", "warrior"]), bounds: (c.0 - 6, c.1 - 6, c.0 + 6, c.1 + 6), home: nil)
                     }
                 }
             }
@@ -535,6 +549,7 @@ enum Populace {
                     // (Peasants, like their portraits, are all human.)
                     let role = race == .orc ? rng.pick(["labourer", "porter", "drover"])
                         : race == .human ? rng.pick(["townsperson", "townsperson", "merchant", "beggar", "bard", "peasant", "farmhand", "child"])
+                        : race == .dwarf ? rng.pick(["townsperson", "townsperson", "merchant", "beggar", "bard", "warrior", "child"])
                         : rng.pick(["townsperson", "townsperson", "merchant", "beggar", "bard", "farmhand", "child"])
                     add(race, p.0, p.1, role: role, bounds: (x0, y0, x1, y1), home: t.name)
                 }
@@ -559,7 +574,7 @@ enum Populace {
             band(.elf, 1 + rng.int(3), roles: ["ranger", "wanderer", "druid", "hunter"], where: terrainIs([.forest, .grass]))
         }
         if counts[.mountain, default: 0] + counts[.hills, default: 0] > total / 10 && rng.chance(0.45) {
-            band(.dwarf, 1 + rng.int(2), roles: ["prospector", "miner", "stonecutter"], where: terrainIs([.hills, .grass, .brush, .dirt]))
+            band(.dwarf, 1 + rng.int(2), roles: ["prospector", "miner", "stonecutter", "warrior", "warrior"], where: terrainIs([.hills, .grass, .brush, .dirt]))
         }
         if let camp = region.places.first(where: { $0.name.contains("campsite") }), rng.chance(0.6) {
             band(.orc, 2 + rng.int(3), roles: ["raider", "warrior", "scout"], where: { _, _ in true },

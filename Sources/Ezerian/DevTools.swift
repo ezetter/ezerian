@@ -67,6 +67,7 @@ enum DevTools {
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
                     if what == "draconianOrc" { return n.race == .orc && n.servesDraconian }
                     if what == "draconianElf" { return n.race == .elf && n.servesDraconian }
+                    if what == "dwarfWarrior" { return n.race == .dwarf && n.role == "warrior" }
                     guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
                     return rank == nil || rank == r
                 }
@@ -998,11 +999,29 @@ extension DevTools {
                                                                        && $0.description.hasPrefix("an elven drinker") },
                   "elves drinking in taverns are elven drinkers (\(elvenDrinkers.count) of them)")
             // Dwarf bards look like their paintings.
-            let dwarfBards = all.filter { $0.role == "bard" && $0.race == .dwarf }
-            check(!dwarfBards.isEmpty && dwarfBards.allSatisfy { n in
+            // Dwarves: all men, none in Draconian's pay (yet some hostile), painted from the
+            // ordinary or the warrior set, the warriors armed as painted.
+            let dwarves = all.filter { $0.race == .dwarf }
+            check(!dwarves.isEmpty && dwarves.allSatisfy { !$0.female && !$0.servesDraconian },
+                  "dwarves are all men, and none serves Lord Draconian (\(dwarves.count) of them)")
+            check(dwarves.contains { Disposition($0.friendliness) == .hostile }, "yet some dwarves are hostile")
+            check(dwarves.allSatisfy { n in
                 guard let p = Populace.painted(look: n.look) else { return false }
-                return p.role == "bard" && p.race == .dwarf && p.look.female == n.female && n.painting == p.painting
-            }, "every dwarf bard looks like a painted dwarf bard of their sex (\(dwarfBards.count) of them)")
+                let set = n.role == "warrior" ? PaintedFolk.dwarfWarriors : PaintedFolk.dwarfFolk
+                return set.contains { $0.painting == p.painting } && n.painting == p.painting && (p.weapon == nil || p.weapon == n.weapon)
+            }, "every dwarf has an ordinary or, for warriors, a warrior painting, dressed to match on the map")
+            let warriors = dwarves.filter { $0.role == "warrior" }
+            check(!warriors.isEmpty && Set(warriors.compactMap(\.weapon)).isSuperset(of: [.axe, .hammer]),
+                  "dwarf warriors carry the axes and hammers painted (\(warriors.count) of them)")
+            check(!PaintedFolk.dwarfWarriors.contains { $0.painting == "dwarf-warrior-3" }, "the dwarf crossbowman waits for bows")
+            // A dwarf woman in Draconian's pay, from an older save, becomes a free dwarf warrior.
+            let oldDwarf = NPC(id: 4242, name: "Thora", race: .dwarf, female: true, look: 3, friendliness: -50, x: 0, y: 0, z: 0,
+                               bounds: [0, 0, 1, 1], role: "mercenary", home: nil)
+            oldDwarf.servesDraconian = true
+            Populace.paint(oldDwarf)
+            check(!oldDwarf.female && !oldDwarf.servesDraconian && oldDwarf.role == "warrior"
+                  && PaintedFolk.dwarfWarriors.contains { $0.painting == oldDwarf.painting } && oldDwarf.name != "Thora",
+                  "an older save's dwarf woman in Draconian's pay becomes a free dwarf warrior, with a man's name")
             // Every human but the watch is painted from the town or the country set, by where they live;
             // every elf and orc from their own set.
             let everyday = all.filter { ($0.race == .human && $0.guardRank == nil) || $0.race == .elf || $0.race == .orc }

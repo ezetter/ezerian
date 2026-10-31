@@ -4,7 +4,7 @@ import simd
 /// Folk with painted portraits. Every human but the watch is now painted from one of
 /// two everyday sets, the townsfolk and the country folk, and every elf from the elf
 /// set, and every orc from the orc set, whatever their trade; the earlier sets by trade
-/// below are kept so the look numbers in saves stay put, and still dress the dwarf bards.
+/// below are kept so the look numbers in saves stay put. Dwarves have their own sets too.
 /// By trade: the bards, the peasants, the human farmhands,
 /// the human townsmen and townswomen, and the humans and elves drinking in taverns. Each one's figure on the map wears the painting's colours
 /// and hat, and holds what they hold in it (an instrument, a hoe, a loaf, a broom). The bard sheet's horned, red-skinned fiddler belongs
@@ -30,17 +30,21 @@ enum PaintedFolk {
         var hat: Hat = .none
         /// The apron's colour, if they wear one.
         var apron: UInt32?
+        /// The weapon they hold in the painting, which they carry (the dwarf warriors).
+        var weapon: Weapon?
         var race: Race { look.race }
     }
 
     private static func look(_ race: Race, female: Bool, skin: UInt32, hair: UInt32, tunic: UInt32, legs: UInt32,
-                             cape: UInt32? = nil, longHair: Bool, bald: Bool = false, beard: Bool = false, dress: Bool = false) -> PeopleArt.Look {
+                             cape: UInt32? = nil, longHair: Bool, bald: Bool = false, beard: Bool = false, dress: Bool = false,
+                             helmet: Bool = false) -> PeopleArt.Look {
         PeopleArt.Look(race: race, female: female, skin: skin, hair: hair, tunic: tunic, legs: legs, cape: cape,
-                       longHair: longHair, bald: bald, beard: beard, dress: dress, helmet: false)
+                       longHair: longHair, bald: bald, beard: beard, dress: dress, helmet: helmet)
     }
 
     // New lists go on the end: a person's look is their index here, kept in saves.
     static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers + drinkers + townFolk + countryFolk + elfFolk + orcFolk
+        + dwarfFolk + dwarfWarriors
     private static let linen: UInt32 = 0xDCD0B4, leather: UInt32 = 0x5A3A22
 
     static let bards: [Painted] = [
@@ -283,6 +287,61 @@ enum PaintedFolk {
                                                           legs: 0x6A2A22, cape: 0x6A2A22, longHair: true, dress: true), prop: .none),
         Painted(role: "orc", painting: "orc-9", look: look(.orc, female: true, skin: 0x7A8040, hair: 0x2A1414, tunic: 0x7A746A,
                                                           legs: 0x5A3A2A, longHair: true, dress: true), prop: .none),
+    ]
+
+    /// The dwarves, all men: ordinary folk in woollen vests, and warriors in plate and mail
+    /// (the same ten faces), each warrior carrying the weapon painted. Warrior painting 3, a
+    /// dwarf with a crossbow, waits until there are bows.
+    static let dwarfFolk: [Painted] = [
+        Painted(role: "dwarf", painting: "dwarf-0", look: look(.dwarf, female: false, skin: 0xE0A07A, hair: 0xB8481E, tunic: 0x7A2E22,
+                                                              legs: 0x5A3A2A, longHair: false, beard: true), prop: .none),
+        Painted(role: "dwarf", painting: "dwarf-1", look: look(.dwarf, female: false, skin: 0x6A4028, hair: 0x1A1410, tunic: 0x4A5478,
+                                                              legs: 0x4A3A2E, longHair: false, beard: true), prop: .none),
+        Painted(role: "dwarf", painting: "dwarf-2", look: look(.dwarf, female: false, skin: 0xD09A78, hair: 0xA8A4A0, tunic: 0x6A4028,
+                                                              legs: 0x4A3A2E, longHair: true, beard: true), prop: .none),
+        Painted(role: "dwarf", painting: "dwarf-3", look: look(.dwarf, female: false, skin: 0xE8B08A, hair: 0xC88A3A, tunic: 0x4A5A32,
+                                                              legs: 0x5A4A32, longHair: true, beard: true), prop: .none),
+        Painted(role: "dwarf", painting: "dwarf-4", look: look(.dwarf, female: false, skin: 0xC08A64, hair: 0x1A1410, tunic: 0xB07A2A,
+                                                              legs: 0x5A3A2A, longHair: false, bald: true, beard: true), prop: .none),
+        Painted(role: "dwarf", painting: "dwarf-5", look: look(.dwarf, female: false, skin: 0x7A4A30, hair: 0xA8A4A0, tunic: 0x6A4028,
+                                                              legs: 0x4A3A2E, longHair: false, bald: true, beard: true), prop: .none),
+        Painted(role: "dwarf", painting: "dwarf-6", look: look(.dwarf, female: false, skin: 0xC08A64, hair: 0x2A1A12, tunic: 0x4A5478,
+                                                              legs: 0x4A3A2E, longHair: false, beard: true), prop: .none),
+        Painted(role: "dwarf", painting: "dwarf-7", look: look(.dwarf, female: false, skin: 0xE0A07A, hair: 0xB8481E, tunic: 0x4A5A32,
+                                                              legs: 0x5A4A32, longHair: false, beard: true), prop: .none, hat: .scarf(0xC8B494)),
+        Painted(role: "dwarf", painting: "dwarf-8", look: look(.dwarf, female: false, skin: 0xB07A58, hair: 0x1A1410, tunic: 0x3E4058,
+                                                              legs: 0x3A2E28, longHair: true, beard: true), prop: .none),
+        Painted(role: "dwarf", painting: "dwarf-9", look: look(.dwarf, female: false, skin: 0xE0B090, hair: 0xD8D4D0, tunic: 0x7A2A26,
+                                                              legs: 0x4A3A2E, longHair: false, beard: true), prop: .none),
+    ]
+    static let dwarfWarriors: [Painted] = [
+        Painted(role: "warrior", painting: "dwarf-warrior-0", look: look(.dwarf, female: false, skin: 0xE0A07A, hair: 0xB8481E, tunic: 0x8A8C90,
+                                                                        legs: 0x4A3A2E, longHair: false, beard: true),
+                prop: .none, weapon: .axe),
+        Painted(role: "warrior", painting: "dwarf-warrior-1", look: look(.dwarf, female: false, skin: 0x6A4028, hair: 0x1A1410, tunic: 0x8A8C90,
+                                                                        legs: 0x4A3A2E, cape: 0x3A4A2A, longHair: false, beard: true),
+                prop: .none, weapon: .hammer),
+        Painted(role: "warrior", painting: "dwarf-warrior-2", look: look(.dwarf, female: false, skin: 0xD09A78, hair: 0xA8A4A0, tunic: 0x8A8C90,
+                                                                        legs: 0x4A3A2E, cape: 0x2A3050, longHair: true, beard: true),
+                prop: .none, weapon: .hammer),
+        Painted(role: "warrior", painting: "dwarf-warrior-4", look: look(.dwarf, female: false, skin: 0xC08A64, hair: 0x1A1410, tunic: 0x8A8C90,
+                                                                        legs: 0x4A3A2E, longHair: false, bald: true, beard: true),
+                prop: .none, weapon: .axe),
+        Painted(role: "warrior", painting: "dwarf-warrior-5", look: look(.dwarf, female: false, skin: 0x7A4A30, hair: 0xA8A4A0, tunic: 0x8A8C90,
+                                                                        legs: 0x4A3A2E, cape: 0x5A4030, longHair: false, bald: true, beard: true),
+                prop: .none, weapon: .axe),
+        Painted(role: "warrior", painting: "dwarf-warrior-6", look: look(.dwarf, female: false, skin: 0xC08A64, hair: 0x2A1A12, tunic: 0x8A8C90,
+                                                                        legs: 0x4A3A2E, longHair: false, beard: true),
+                prop: .none, weapon: .mace),
+        Painted(role: "warrior", painting: "dwarf-warrior-7", look: look(.dwarf, female: false, skin: 0xE0A07A, hair: 0xB8481E, tunic: 0x8A8C90,
+                                                                        legs: 0x4A3A2E, cape: 0x3A4A2A, longHair: false, beard: true, helmet: true),
+                prop: .none, weapon: .hammer),
+        Painted(role: "warrior", painting: "dwarf-warrior-8", look: look(.dwarf, female: false, skin: 0xB07A58, hair: 0x1A1410, tunic: 0x8A8C90,
+                                                                        legs: 0x4A3A2E, longHair: true, beard: true),
+                prop: .none, weapon: .axe),
+        Painted(role: "warrior", painting: "dwarf-warrior-9", look: look(.dwarf, female: false, skin: 0xE0B090, hair: 0xD8D4D0, tunic: 0x8A8C90,
+                                                                        legs: 0x4A3A2E, cape: 0x6A1A22, longHair: false, beard: true),
+                prop: .none, weapon: .hammer),
     ]
 
     /// One of Lord Draconian's people, in his black and red, with the weapon they hold (nil:
