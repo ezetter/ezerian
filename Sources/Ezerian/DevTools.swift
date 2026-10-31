@@ -66,6 +66,7 @@ enum DevTools {
                     if what == "elvenDrinker" { return n.role == "drinker" && n.race == .elf }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
                     if what == "draconianOrc" { return n.race == .orc && n.servesDraconian }
+                    if what == "draconianElf" { return n.race == .elf && n.servesDraconian }
                     guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
                     return rank == nil || rank == r
                 }
@@ -1009,18 +1010,21 @@ extension DevTools {
                 Set((kind == "town" ? PaintedFolk.townFolk : kind == "country" ? PaintedFolk.countryFolk : kind == "orc" ? PaintedFolk.orcFolk : PaintedFolk.elfFolk).map(\.painting))
             }
             let isCountry: (NPC) -> Bool = { $0.home.map { $0.hasSuffix("Farmhouse") } ?? true }
-            let setOf: (NPC) -> String = { $0.race == .elf ? "elf" : $0.race == .orc ? ($0.servesDraconian ? "draconian" : "orc") : isCountry($0) ? "country" : "town" }
-            let draconianOrc = Dictionary(uniqueKeysWithValues: PaintedFolk.draconianOrcs.map { ($0.painting, $0) })
+            let setOf: (NPC) -> String = { $0.servesDraconian && $0.race != .human ? "draconian" : $0.race == .elf ? "elf" : $0.race == .orc ? "orc" : isCountry($0) ? "country" : "town" }
+            let servantPainting = Dictionary(uniqueKeysWithValues: (PaintedFolk.draconianOrcs + PaintedFolk.draconianElves).map { ($0.painting, $0) })
             check(everyday.filter { setOf($0) != "draconian" }.allSatisfy { n in n.painting.map { names(setOf(n)).contains($0) } ?? false },
-                  "every human but the watch has a town or country painting by where they live, every elf an elf painting and every free orc an orc painting (\(everyday.count) of them)")
-            let hisOrcs = everyday.filter { setOf($0) == "draconian" }
-            check(!hisOrcs.isEmpty && hisOrcs.allSatisfy { n in
-                guard let p = n.painting.flatMap({ draconianOrc[$0] }) else { return false }
-                return p.female == n.female && (p.weapon == nil || p.weapon == n.weapon)
-            }, "Draconian's orcs have their own paintings, of their sex, and carry the weapon painted (\(hisOrcs.count) of them)")
-            check(!PaintedFolk.draconianOrcs.contains { $0.painting == "draconian-orc-3" }
-                  && PaintedFolk.draconianOrcs.allSatisfy { Portraits.image($0.painting) != nil },
-                  "his orc paintings load, all but the crossbowman")
+                  "every human but the watch has a town or country painting by where they live, every free elf an elf painting and every free orc an orc painting (\(everyday.count) of them)")
+            let hisOrcs = everyday.filter { setOf($0) == "draconian" && $0.race == .orc }
+            let hisElves = everyday.filter { setOf($0) == "draconian" && $0.race == .elf }
+            for (race, plural, his) in [("orc", "orcs", hisOrcs), ("elf", "elves", hisElves)] {
+                check(!his.isEmpty && his.allSatisfy { n in
+                    guard let p = n.painting.flatMap({ servantPainting[$0] }), p.painting.hasPrefix("draconian-\(race)-") else { return false }
+                    return p.female == n.female && (p.weapon == nil || p.weapon == n.weapon)
+                }, "Draconian's \(plural) have their own paintings, of their sex, and carry the weapon painted (\(his.count) of them)")
+                let set = PaintedFolk.draconian(race == "orc" ? .orc : .elf)!
+                check(!set.contains { $0.painting == "draconian-\(race)-3" } && set.allSatisfy { Portraits.image($0.painting) != nil },
+                      "his \(race) paintings load, all but the crossbowman")
+            }
             check(Set(hisOrcs.compactMap(\.weapon)).isSuperset(of: [.hammer, .axe, .spear]), "his orcs carry war hammers, axes and spears")
             check(everyday.filter { !$0.servesDraconian }.allSatisfy { n in
                 guard let p = Populace.painted(look: n.look) else { return false }

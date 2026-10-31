@@ -275,11 +275,11 @@ enum Populace {
 
     /// Paints someone from their everyday set. Draconian's servants keep his livery on
     /// the map and are only given the portrait. The pick is fixed by who they are, so it
-    /// is the same each time (it also repaints people from older saves). His orcs have a
-    /// painting of their own, and carry the weapon it shows.
+    /// is the same each time (it also repaints people from older saves). His orcs and elves
+    /// have paintings of their own, and carry the weapon theirs shows.
     static func paint(_ n: NPC) {
-        if n.race == .orc && n.servesDraconian {
-            let mine = PaintedFolk.draconianOrcs.filter { $0.female == n.female }
+        if n.servesDraconian, let set = PaintedFolk.draconian(n.race) {
+            let mine = set.filter { $0.female == n.female }
             let pick = mine[Int(Hash.of(0xD7A60, n.id, 0) % UInt64(mine.count))]
             n.portrait = pick.painting
             if let w = pick.weapon, n.hp > 0 { n.weapon = w }

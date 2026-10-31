@@ -285,16 +285,37 @@ enum PaintedFolk {
                                                           legs: 0x5A3A2A, longHair: true, dress: true), prop: .none),
     ]
 
-    /// Lord Draconian's orcs, in his black and red, with the weapon each one holds (nil:
+    /// One of Lord Draconian's people, in his black and red, with the weapon they hold (nil:
     /// none in sight, so they keep what they carry). Only the portraits are painted: on the
-    /// map they wear his livery like all his servants. Painting 3, an orc with a crossbow,
-    /// waits until there are bows.
-    static let draconianOrcs: [(painting: String, female: Bool, weapon: Weapon?)] = [
+    /// map they wear his livery like all his servants.
+    typealias Servant = (painting: String, female: Bool, weapon: Weapon?)
+
+    /// His painted servants by race: so far his orcs and his elves (humans in his pay are
+    /// painted from their everyday set).
+    static func draconian(_ race: Race) -> [Servant]? {
+        switch race {
+        case .orc: return draconianOrcs
+        case .elf: return draconianElves
+        default: return nil
+        }
+    }
+
+    /// His orcs. Painting 3, an orc with a crossbow, waits until there are bows.
+    static let draconianOrcs: [Servant] = [
         ("draconian-orc-0", false, .shortSword), ("draconian-orc-1", false, .spear),
         ("draconian-orc-2", false, .hammer), ("draconian-orc-4", false, .axe),
         ("draconian-orc-5", true, .spear), ("draconian-orc-6", true, nil),
         ("draconian-orc-7", true, .shortSword), ("draconian-orc-8", true, .longSword),
         ("draconian-orc-9", true, .axe),
+    ]
+
+    /// His elves. Painting 3, an elf with a crossbow, likewise waits for bows.
+    static let draconianElves: [Servant] = [
+        ("draconian-elf-0", false, .longSword), ("draconian-elf-1", false, .spear),
+        ("draconian-elf-2", false, nil), ("draconian-elf-4", false, .longSword),
+        ("draconian-elf-5", true, .spear), ("draconian-elf-6", true, .shortSword),
+        ("draconian-elf-7", true, nil), ("draconian-elf-8", true, .shortSword),
+        ("draconian-elf-9", true, .axe),
     ]
 
     /// The person facing south, built on an ordinary figure, with hat, apron and prop.
