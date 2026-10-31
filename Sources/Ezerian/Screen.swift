@@ -398,7 +398,7 @@ final class Screen {
         let title = npc.known ? npc.name : npc.stranger
         texts.append(TextItem(text: title, x: Double(fx + fw / 2), y: Double(fy + fh + 6), size: 15, font: .title,
                               color: Screen.brown, align: .center, shadow: false))
-        texts.append(TextItem(text: "\(npc.race.name.capitalizedFirst) \(npc.title)", x: Double(fx + fw / 2),
+        texts.append(TextItem(text: npc.kind.capitalizedFirst, x: Double(fx + fw / 2),
                               y: Double(fy + fh + 26), size: 11, font: .italic, color: 0x5A4024, align: .center, shadow: false))
         if npc.servesDraconian {
             texts.append(TextItem(text: "Serves Lord Draconian", x: Double(fx + fw / 2), y: Double(fy + fh + 40), size: 10.5,

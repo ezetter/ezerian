@@ -1,8 +1,8 @@
 import Foundation
 import simd
 
-/// Folk with painted portraits, by trade: the bards, the peasants, the human farmhands
-/// and the human townsmen and townswomen. Each one's figure on the map wears the painting's colours
+/// Folk with painted portraits, by trade: the bards, the peasants, the human farmhands,
+/// the human townsmen and townswomen, and the elves drinking in taverns. Each one's figure on the map wears the painting's colours
 /// and hat, and holds what they hold in it (an instrument, a hoe, a loaf, a broom). The bard sheet's horned, red-skinned fiddler belongs
 /// to no race of Ezerian, so bard painting 4 is not used.
 enum PaintedFolk {
@@ -11,6 +11,7 @@ enum PaintedFolk {
         case hoe, flourSack, woodAxe, crook, net, vegetables, loaf, spindle, bucket, herbs
         case sack, rope, broom, tray, brush, laundry, jug, pot, crate
         case pitchfork, sheaf, apples, rake, sickle, spade
+        case mug, bread, dice, bowl
     }
     enum Hat { case none, feather, straw, cap(UInt32), scarf(UInt32), hood }
 
@@ -34,7 +35,7 @@ enum PaintedFolk {
     }
 
     // New lists go on the end: a person's look is their index here, kept in saves.
-    static let all: [Painted] = bards + peasants + townsfolk + farmhands
+    static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers
     private static let linen: UInt32 = 0xDCD0B4, leather: UInt32 = 0x5A3A22
 
     static let bards: [Painted] = [
@@ -135,6 +136,29 @@ enum PaintedFolk {
         Painted(role: "farmhand", painting: "farmhand-9", look: look(.human, female: true, skin: 0xD8A07A, hair: 0x2A1A10, tunic: 0x4A5432,
                                                                     legs: 0x4A5432, longHair: false, dress: true),
                 prop: .spade, hat: .scarf(0x8A5A34)),
+    ]
+
+    static let elvenDrinkers: [Painted] = [
+        Painted(role: "drinker", painting: "elven-drinker-0", look: look(.elf, female: false, skin: 0xC89070, hair: 0x14100C, tunic: 0x5A3A22,
+                                                                        legs: 0x2A2420, longHair: true), prop: .mug, apron: linen),
+        Painted(role: "drinker", painting: "elven-drinker-1", look: look(.elf, female: false, skin: 0x5A3624, hair: 0xE0E0DC, tunic: 0x4A5A32,
+                                                                        legs: 0x3A3428, longHair: false), prop: .mug),
+        Painted(role: "drinker", painting: "elven-drinker-2", look: look(.elf, female: false, skin: 0xF0C8A8, hair: 0xB8481E, tunic: 0x5A3A22,
+                                                                        legs: 0x3A2A22, cape: 0x26305E, longHair: false), prop: .bread),
+        Painted(role: "drinker", painting: "elven-drinker-3", look: look(.elf, female: false, skin: 0xD8A27A, hair: 0xA8A4A0, tunic: 0x4A4440,
+                                                                        legs: 0x3A3632, cape: 0x3A3632, longHair: true), prop: .mug),
+        Painted(role: "drinker", painting: "elven-drinker-4", look: look(.elf, female: false, skin: 0xF0D0B0, hair: 0xE0C070, tunic: 0x6A1A24,
+                                                                        legs: 0x3A2A22, longHair: true), prop: .dice),
+        Painted(role: "drinker", painting: "elven-drinker-5", look: look(.elf, female: true, skin: 0xF4D0B8, hair: 0xB8481E, tunic: 0x4A5A32,
+                                                                        legs: 0x4A5A32, longHair: true, dress: true), prop: .mug),
+        Painted(role: "drinker", painting: "elven-drinker-6", look: look(.elf, female: true, skin: 0x9A6A48, hair: 0x14100C, tunic: 0x5A3A22,
+                                                                        legs: 0x5A3A22, longHair: true, dress: true), prop: .mug),
+        Painted(role: "drinker", painting: "elven-drinker-7", look: look(.elf, female: true, skin: 0x8A5A3A, hair: 0xD8D8D4, tunic: 0x3A4A62,
+                                                                        legs: 0x3A4A62, cape: 0x26305E, longHair: true, dress: true), prop: .bowl),
+        Painted(role: "drinker", painting: "elven-drinker-8", look: look(.elf, female: true, skin: 0xF0D0B8, hair: 0x14100C, tunic: 0x6A1A24,
+                                                                        legs: 0x6A1A24, longHair: false, dress: true), prop: .mug),
+        Painted(role: "drinker", painting: "elven-drinker-9", look: look(.elf, female: true, skin: 0x9A6A48, hair: 0xA8A4A0, tunic: 0xA07A2A,
+                                                                        legs: 0xA07A2A, cape: 0x4A4440, longHair: true, dress: true), prop: .bread),
     ]
 
     /// The person facing south, built on an ordinary figure, with hat, apron and prop.
@@ -270,6 +294,21 @@ enum PaintedFolk {
             m.rod(V3(6.2, 1.8, 6), V3(7.4, 1.2, 28), 0.6, pale)
             m.box(5.8, 0.9, 28, 9, 1.6, 35, iron)
             m.rod(V3(6.2, 1.8, 6), V3(6, 1.8, 4), 0.9, pale)
+        case .mug:
+            let copper = Paint(0x8A4A2A, .metal, jitter: 0.06, shine: 0.35)
+            m.cone(-1.6, 4.4, 1.2, 1.1, 17, 20.4, copper)
+            m.rod(V3(-3, 4.4, 18), V3(-3, 4.4, 19.8), 0.35, copper)
+        case .bread:
+            m.blob(0.8, 4.6, 16.6, 2.4, 1.6, 1.4, Paint(0xC8904A, jitter: 0.1))
+            m.blob(1.6, 4.8, 17.4, 1, 0.8, 0.6, Paint(0xF0E0C0, jitter: 0.08))
+        case .dice:
+            for (dx, dz) in [(0, 0), (1.4, 0.6)] as [(Float, Float)] {
+                m.box(0.4 + dx, 4.2, 16 + dz, 1.4 + dx, 5.2, 17 + dz, Paint(0xF0E8D4))
+            }
+        case .bowl:
+            m.cone(0.6, 4.8, 1.6, 2.8, 14.6, 16.6, Paint(0x6A3A1E, .wood(1)))
+            m.blob(0.6, 4.8, 16.5, 2.5, 2.5, 0.4, Paint(0xA05A2A, jitter: 0.15))
+            m.rod(V3(1.8, 4.8, 16.6), V3(3.6, 4.4, 19), 0.25, Paint(0x8A6A42))
         }
         switch p.hat {
         case .none: break

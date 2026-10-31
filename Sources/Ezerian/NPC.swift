@@ -202,7 +202,11 @@ final class NPC: Codable {
     var title: String { role == "townsperson" || role == "townsfolk" ? (female ? "townswoman" : "townsman") : role }
     /// Humans (and so the watch) are known by their trade until introduced: "the bard",
     /// "the watchwoman"; the other races by their race: "the dwarf".
-    private var knownBy: String { race == .human ? title : race.name }
+    private var knownBy: String { race == .human ? title : elvenDrinker ? kind : race.name }
+    /// Elves drinking in a tavern are "elven drinkers", not "elf drinkers".
+    private var elvenDrinker: Bool { race == .elf && role == "drinker" }
+    /// Race and trade together: "human farmhand", "elven drinker".
+    var kind: String { elvenDrinker ? "elven \(title)" : "\(race.name) \(title)" }
     var shortName: String { known ? name : "the \(knownBy)" }
     /// "A dwarf", or "An innkeeper", for someone not yet introduced.
     var stranger: String {
@@ -210,7 +214,7 @@ final class NPC: Codable {
         return (vowel ? "An " : "A ") + knownBy
     }
     var description: String {
-        "\(race.article) \(race.name) \(title)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
+        "\(race.article) \(kind)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
             + (weapon.map { ", armed with a \($0.name)" } ?? ", unarmed")
     }
 
@@ -364,7 +368,8 @@ enum Populace {
                 look = guardLook(rank: r, female: female)
                 job = GuardArt.title(r, female: female)
             }
-            // Bards and peasants look like one of the painted folk of their trade, race and sex.
+            // Bards, peasants, townsfolk, farmhands and elven drinkers look like one of the painted
+            // folk of their trade, race and sex.
             let mine = PaintedFolk.all.indices.filter {
                 let p = PaintedFolk.all[$0]
                 return p.role == job && p.race == race && p.look.female == female

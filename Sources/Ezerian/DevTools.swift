@@ -62,6 +62,7 @@ enum DevTools {
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
                     if what == "bard" || what == "peasant" || what == "farmhand" { return n.role == what }
+                    if what == "elvenDrinker" { return n.role == "drinker" && n.race == .elf }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
                     guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
                     return rank == nil || rank == r
@@ -974,10 +975,16 @@ extension DevTools {
                   && humans.contains { $0.title == "townsman" && !$0.female } && humans.contains { $0.title == "townswoman" && $0.female }
                   && !humans.contains { $0.title == "townsperson" },
                   "there are peasants on farms and in the country, and townsmen and townswomen (\(peasants.count) peasants, \(humans.filter { $0.title.hasPrefix("towns") }.count) town folk)")
-            check(all.filter { $0.race != .human }.allSatisfy { $0.shortName == "the \($0.race.name)" }, "the other races go by their race")
-            // Bards and peasants look like their paintings.
-            for trade in ["bard", "peasant", "townsperson"] {
-                let folk = all.filter { $0.role == trade && (trade != "townsperson" || $0.race == .human) }
+            let elvenDrinkers = all.filter { $0.race == .elf && $0.role == "drinker" }
+            check(all.filter { $0.race != .human && !($0.race == .elf && $0.role == "drinker") }.allSatisfy { $0.shortName == "the \($0.race.name)" },
+                  "the other races go by their race")
+            check(!elvenDrinkers.isEmpty && elvenDrinkers.allSatisfy { $0.shortName == "the elven drinker" && $0.stranger == "An elven drinker"
+                                                                       && $0.description.hasPrefix("an elven drinker") },
+                  "elves drinking in taverns are elven drinkers (\(elvenDrinkers.count) of them)")
+            // Painted folk look like their paintings.
+            let paintedRace: [String: Race] = ["townsperson": .human, "farmhand": .human, "drinker": .elf]
+            for trade in ["bard", "peasant", "townsperson", "farmhand", "drinker"] {
+                let folk = all.filter { n in n.role == trade && (paintedRace[trade].map { n.race == $0 } ?? true) }
                 check(!folk.isEmpty && folk.allSatisfy { n in
                     guard let p = Populace.painted(look: n.look) else { return false }
                     return p.role == trade && p.race == n.race && p.look.female == n.female && n.painting == p.painting
@@ -986,7 +993,7 @@ extension DevTools {
             check(all.filter { $0.role == "peasant" }.allSatisfy { $0.race == .human }, "peasants are all human, like their portraits")
             check(PaintedFolk.all.enumerated().allSatisfy { i, p in Portraits.image(p.painting) != nil
                 && SpriteBank.shared.people[p.race.index][Populace.paintedLooks + i][0][0].sprite.w > 1 },
-                  "every bard's, peasant's and townsperson's painting loads, and each is drawn on the map")
+                  "every painted person's painting loads, and each is drawn on the map")
             // The town watch.
             let guards = all.filter { $0.guardRank != nil }
             let ranks = Set(guards.compactMap(\.guardRank))
