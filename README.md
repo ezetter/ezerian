@@ -161,7 +161,7 @@ keep their old clothes and pixel portraits.
 
 ## Painted folk
 
-Every human but the town watch looks like one of twenty everyday paintings, whatever
+Every grown human but the town watch looks like one of twenty everyday paintings, whatever
 their trade, shown when you talk to them: ten townsfolk (five men, five women) for
 those who live in a town or one of its buildings, and ten country folk for those of a
 farmhouse or the wilds. On the map they wear their painting's colours, and carry what
@@ -171,7 +171,9 @@ Draconian's human mercenaries keep his black-and-red livery on the map, so you c
 tell them apart, and have ten paintings of their own in his black and red (five men,
 five women), each carrying the weapon painted: a sword, an axe, a spear, a war hammer
 or a mace. The watch keeps
-its own paintings, by rank.
+its own paintings, by rank. Human children have ten paintings of their own (five boys,
+five girls, in patched and muddy homespun), wherever they live, and on the map they
+stand a head shorter than grown folk.
 
 Every elf looks like one of ten elf paintings (five men, five women), whatever their
 trade or wherever they live, dressed to match on the map. Elves drinking in taverns

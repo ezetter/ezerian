@@ -287,13 +287,15 @@ enum Populace {
 
     /// The everyday set someone is painted from, if any: every elf from the elf set,
     /// every orc from the orc set;
-    /// every human but the watch from the townsfolk if they live in a town, or the
+    /// human children from the children;
+    /// every other human but the watch from the townsfolk if they live in a town, or the
     /// country folk if they live at a farmhouse or in the wilds.
     static func everydaySet(_ n: NPC) -> [PaintedFolk.Painted]? {
         if n.race == .dwarf { return n.role == "warrior" ? PaintedFolk.dwarfWarriors : PaintedFolk.dwarfFolk }
         if n.race == .elf { return PaintedFolk.elfFolk }
         if n.race == .orc { return PaintedFolk.orcFolk }
         guard n.race == .human, n.guardRank == nil else { return nil }
+        if n.role == "child" { return PaintedFolk.humanChildren }
         return n.home.map { $0.hasSuffix("Farmhouse") } ?? true ? PaintedFolk.countryFolk : PaintedFolk.townFolk
     }
 

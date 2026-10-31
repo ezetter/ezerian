@@ -44,7 +44,7 @@ enum PaintedFolk {
 
     // New lists go on the end: a person's look is their index here, kept in saves.
     static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers + drinkers + townFolk + countryFolk + elfFolk + orcFolk
-        + dwarfFolk + dwarfWarriors
+        + dwarfFolk + dwarfWarriors + humanChildren
     private static let linen: UInt32 = 0xDCD0B4, leather: UInt32 = 0x5A3A22
 
     static let bards: [Painted] = [
@@ -344,6 +344,31 @@ enum PaintedFolk {
                 prop: .none, weapon: .hammer),
     ]
 
+    /// Human children, five boys then five girls, in patched and muddy homespun. On the map
+    /// they stand a head shorter than grown folk.
+    static let humanChildren: [Painted] = [
+        Painted(role: "child", painting: "child-0", look: look(.human, female: false, skin: 0xF0C0A0, hair: 0xC0501E, tunic: 0x5A6A3A,
+                                                              legs: 0x5A6A3A, longHair: false), prop: .none),
+        Painted(role: "child", painting: "child-1", look: look(.human, female: false, skin: 0x4A2E1E, hair: 0x14100C, tunic: 0x5A6480,
+                                                              legs: 0x5A6480, longHair: false), prop: .none),
+        Painted(role: "child", painting: "child-2", look: look(.human, female: false, skin: 0xC8906A, hair: 0x2A1A12, tunic: 0x6A3E2A,
+                                                              legs: 0x5A4A3A, longHair: false), prop: .none),
+        Painted(role: "child", painting: "child-3", look: look(.human, female: false, skin: 0xD8A880, hair: 0x14100C, tunic: 0x5A6A3A,
+                                                              legs: 0x5A4A3A, longHair: false), prop: .sack),
+        Painted(role: "child", painting: "child-4", look: look(.human, female: false, skin: 0xE8B898, hair: 0xD8B870, tunic: 0x5A6480,
+                                                              legs: 0x5A6480, longHair: false), prop: .none),
+        Painted(role: "child", painting: "child-5", look: look(.human, female: true, skin: 0x4A2E1E, hair: 0x14100C, tunic: 0xA87A30,
+                                                              legs: 0xA87A30, longHair: true, dress: true), prop: .none),
+        Painted(role: "child", painting: "child-6", look: look(.human, female: true, skin: 0xF0C0A0, hair: 0xB8481E, tunic: 0x5A6480,
+                                                              legs: 0x5A6480, longHair: true, dress: true), prop: .none),
+        Painted(role: "child", painting: "child-7", look: look(.human, female: true, skin: 0xC8906A, hair: 0x3A2214, tunic: 0x5A6A3A,
+                                                              legs: 0x5A6A3A, longHair: true, dress: true), prop: .none),
+        Painted(role: "child", painting: "child-8", look: look(.human, female: true, skin: 0xE0B090, hair: 0x14100C, tunic: 0x7A4A50,
+                                                              legs: 0x7A4A50, longHair: false, dress: true), prop: .none),
+        Painted(role: "child", painting: "child-9", look: look(.human, female: true, skin: 0xE0AC88, hair: 0x7A4A2A, tunic: 0x6A7450,
+                                                              legs: 0x6A7450, longHair: false, dress: true), prop: .none),
+    ]
+
     /// One of Lord Draconian's people, in his black and red, with the weapon they hold (nil:
     /// none in sight, so they keep what they carry). Only the portraits are painted: on the
     /// map they wear his livery like all his servants.
@@ -557,6 +582,6 @@ enum PaintedFolk {
     }
 
     static func model(_ p: Painted, facing: Direction, step: Int) -> Model {
-        Posing.stand(figure(p, step: step), facing: facing, scale: PeopleArt.build(p.race))
+        Posing.stand(figure(p, step: step), facing: facing, scale: PeopleArt.build(p.race) * (p.role == "child" ? 0.72 : 1))
     }
 }

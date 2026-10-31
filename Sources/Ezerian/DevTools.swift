@@ -69,6 +69,7 @@ enum DevTools {
                     if what == "draconianHuman" { return n.race == .human && n.servesDraconian }
                     if what == "draconianElf" { return n.race == .elf && n.servesDraconian }
                     if what == "dwarfWarrior" { return n.race == .dwarf && n.role == "warrior" }
+                    if what == "child" { return n.race == .human && n.role == "child" }
                     guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
                     return rank == nil || rank == r
                 }
@@ -1205,6 +1206,13 @@ extension DevTools {
             check(!warriors.isEmpty && Set(warriors.compactMap(\.weapon)).isSuperset(of: [.axe, .hammer]),
                   "dwarf warriors carry the axes and hammers painted (\(warriors.count) of them)")
             check(!PaintedFolk.dwarfWarriors.contains { $0.painting == "dwarf-warrior-3" }, "the dwarf crossbowman waits for bows")
+            // Human children are painted from the children, and every painting is there.
+            let kids = all.filter { $0.race == .human && $0.role == "child" }
+            check(!kids.isEmpty && kids.allSatisfy { n in
+                PaintedFolk.humanChildren.contains { $0.painting == n.painting && $0.look.female == n.female }
+            }, "human children have children's paintings, boys and girls alike (\(kids.count) of them)")
+            check(PaintedFolk.humanChildren.allSatisfy { Portraits.image($0.painting) != nil },
+                  "the children's paintings load")
             // A dwarf woman in Draconian's pay, from an older save, becomes a free dwarf warrior.
             let oldDwarf = NPC(id: 4242, name: "Thora", race: .dwarf, female: true, look: 3, friendliness: -50, x: 0, y: 0, z: 0,
                                bounds: [0, 0, 1, 1], role: "mercenary", home: nil)
@@ -1215,7 +1223,7 @@ extension DevTools {
                   "an older save's dwarf woman in Draconian's pay becomes a free dwarf warrior, with a man's name")
             // Every human but the watch is painted from the town or the country set, by where they live;
             // every elf and orc from their own set.
-            let everyday = all.filter { ($0.race == .human && $0.guardRank == nil) || $0.race == .elf || $0.race == .orc }
+            let everyday = all.filter { ($0.race == .human && $0.guardRank == nil && $0.role != "child") || $0.race == .elf || $0.race == .orc }
             let names: (String) -> Set<String> = { kind in
                 Set((kind == "town" ? PaintedFolk.townFolk : kind == "country" ? PaintedFolk.countryFolk : kind == "orc" ? PaintedFolk.orcFolk : PaintedFolk.elfFolk).map(\.painting))
             }
@@ -1223,7 +1231,7 @@ extension DevTools {
             let setOf: (NPC) -> String = { $0.servesDraconian ? "draconian" : $0.race == .elf ? "elf" : $0.race == .orc ? "orc" : isCountry($0) ? "country" : "town" }
             let servantPainting = Dictionary(uniqueKeysWithValues: (PaintedFolk.draconianOrcs + PaintedFolk.draconianElves + PaintedFolk.draconianHumans).map { ($0.painting, $0) })
             check(everyday.filter { setOf($0) != "draconian" }.allSatisfy { n in n.painting.map { names(setOf(n)).contains($0) } ?? false },
-                  "every human but the watch has a town or country painting by where they live, every free elf an elf painting and every free orc an orc painting (\(everyday.count) of them)")
+                  "every human but the watch and the children has a town or country painting by where they live, every free elf an elf painting and every free orc an orc painting (\(everyday.count) of them)")
             let hisOrcs = everyday.filter { setOf($0) == "draconian" && $0.race == .orc }
             let hisElves = everyday.filter { setOf($0) == "draconian" && $0.race == .elf }
             let hisHumans = everyday.filter { setOf($0) == "draconian" && $0.race == .human }
