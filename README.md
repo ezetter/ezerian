@@ -188,6 +188,14 @@ cook with an iron pot, an old charwoman with bucket and brush, and a girl carryi
 crate.
 Elf and dwarf townsfolk keep their ordinary looks, as do townsfolk met before this.
 
+## Farmhands
+
+Human farmhands each look like one of ten painted farmhands of their sex, shown when
+you talk to them, and on the map wear that painting's colours and carry what it shows:
+a hoe and straw hat, a pitchfork, a sheaf of wheat, a sack of grain, and a basket of
+apples; a rake, a wooden bucket, a basket of cabbages, a sheaf and sickle, and a spade.
+Elf and dwarf farmhands keep their ordinary looks.
+
 ## Lord Draconian
 
 The Wizard Lord Draconian, Emperor of Sespooland, means to conquer Ezerian, and his

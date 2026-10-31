@@ -61,7 +61,7 @@ enum DevTools {
                 let rank = what.hasPrefix("guard") ? Int(what.dropFirst(5)) : nil
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
-                    if what == "bard" || what == "peasant" { return n.role == what }
+                    if what == "bard" || what == "peasant" || what == "farmhand" { return n.role == what }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
                     guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
                     return rank == nil || rank == r

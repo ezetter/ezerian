@@ -1,8 +1,8 @@
 import Foundation
 import simd
 
-/// Folk with painted portraits, by trade: the bards, the peasants and the human
-/// townsmen and townswomen. Each one's figure on the map wears the painting's colours
+/// Folk with painted portraits, by trade: the bards, the peasants, the human farmhands
+/// and the human townsmen and townswomen. Each one's figure on the map wears the painting's colours
 /// and hat, and holds what they hold in it (an instrument, a hoe, a loaf, a broom). The bard sheet's horned, red-skinned fiddler belongs
 /// to no race of Ezerian, so bard painting 4 is not used.
 enum PaintedFolk {
@@ -10,6 +10,7 @@ enum PaintedFolk {
         case lute, lyre, drum, flute, harp, tambourine, hurdyGurdy
         case hoe, flourSack, woodAxe, crook, net, vegetables, loaf, spindle, bucket, herbs
         case sack, rope, broom, tray, brush, laundry, jug, pot, crate
+        case pitchfork, sheaf, apples, rake, sickle, spade
     }
     enum Hat { case none, feather, straw, cap(UInt32), scarf(UInt32), hood }
 
@@ -32,7 +33,8 @@ enum PaintedFolk {
                        longHair: longHair, bald: false, beard: beard, dress: dress, helmet: false)
     }
 
-    static let all: [Painted] = bards + peasants + townsfolk
+    // New lists go on the end: a person's look is their index here, kept in saves.
+    static let all: [Painted] = bards + peasants + townsfolk + farmhands
     private static let linen: UInt32 = 0xDCD0B4, leather: UInt32 = 0x5A3A22
 
     static let bards: [Painted] = [
@@ -106,6 +108,33 @@ enum PaintedFolk {
                 prop: .bucket, hat: .scarf(0xD8CCB0), apron: linen),
         Painted(role: "townsperson", painting: "townsfolk-9", look: look(.human, female: true, skin: 0xF0D0B0, hair: 0x14100C, tunic: 0x4A5438,
                                                                         legs: 0x4A5438, longHair: false, dress: true), prop: .crate),
+    ]
+
+    static let farmhands: [Painted] = [
+        Painted(role: "farmhand", painting: "farmhand-0", look: look(.human, female: false, skin: 0xD8A07A, hair: 0x1A1410, tunic: 0xD8CCB0,
+                                                                    legs: 0x4A3A2A, longHair: false, beard: true), prop: .hoe, hat: .straw),
+        Painted(role: "farmhand", painting: "farmhand-1", look: look(.human, female: false, skin: 0x3A2418, hair: 0x14100C, tunic: 0x5A3A22,
+                                                                    legs: 0x4A3A2A, longHair: false), prop: .pitchfork),
+        Painted(role: "farmhand", painting: "farmhand-2", look: look(.human, female: false, skin: 0xE0B090, hair: 0xC8C4C0, tunic: 0x3A4A62,
+                                                                    legs: 0x3A4A62, longHair: false, beard: true),
+                prop: .sheaf, hat: .scarf(0x8A7A62)),
+        Painted(role: "farmhand", painting: "farmhand-3", look: look(.human, female: false, skin: 0xD8A87A, hair: 0x14100C, tunic: 0x7A7470,
+                                                                    legs: 0x5A4A3A, longHair: false, beard: true), prop: .flourSack, apron: 0x8A7A62),
+        Painted(role: "farmhand", painting: "farmhand-4", look: look(.human, female: false, skin: 0xF0C0A0, hair: 0xC8501E, tunic: 0x4A5432,
+                                                                    legs: 0x4A5432, longHair: false, beard: true), prop: .apples),
+        Painted(role: "farmhand", painting: "farmhand-5", look: look(.human, female: true, skin: 0x3A2418, hair: 0x14100C, tunic: 0x6A4A2E,
+                                                                    legs: 0x6A4A2E, longHair: false, dress: true),
+                prop: .rake, hat: .scarf(0xD8CCB0), apron: linen),
+        Painted(role: "farmhand", painting: "farmhand-6", look: look(.human, female: true, skin: 0xD8A07A, hair: 0x14100C, tunic: 0xD8CCB0,
+                                                                    legs: 0xC8B898, longHair: true, dress: true), prop: .bucket, apron: 0x4A4440),
+        Painted(role: "farmhand", painting: "farmhand-7", look: look(.human, female: true, skin: 0xE8C0A0, hair: 0xC8C4C0, tunic: 0x3A4A62,
+                                                                    legs: 0x3A4A62, longHair: false, dress: true),
+                prop: .vegetables, hat: .scarf(0xD8CCB0), apron: 0xC8B898),
+        Painted(role: "farmhand", painting: "farmhand-8", look: look(.human, female: true, skin: 0xF0D0B0, hair: 0x14100C, tunic: 0x6A4A2E,
+                                                                    legs: 0x6A4A2E, longHair: false, dress: true), prop: .sickle),
+        Painted(role: "farmhand", painting: "farmhand-9", look: look(.human, female: true, skin: 0xD8A07A, hair: 0x2A1A10, tunic: 0x4A5432,
+                                                                    legs: 0x4A5432, longHair: false, dress: true),
+                prop: .spade, hat: .scarf(0x8A5A34)),
     ]
 
     /// The person facing south, built on an ordinary figure, with hat, apron and prop.
@@ -214,6 +243,33 @@ enum PaintedFolk {
         case .crate:
             m.box(-3.2, 3.6, 12.6, 4.2, 7.2, 17.4, Paint(0x6A4A2A, .wood(1), jitter: 0.08))
             m.box(-3.3, 3.5, 14.8, 4.3, 7.3, 15.3, dark)
+        case .pitchfork:
+            m.rod(V3(6.2, 1.8, 0.6), V3(7.4, 1.2, 33), 0.6, pale)
+            m.rod(V3(6.4, 1.2, 33), V3(8.4, 1.2, 33), 0.3, iron)
+            for dx: Float in [-1, 0, 1] { m.rod(V3(7.4 + dx, 1.2, 33), V3(7.4 + dx, 1.2, 37), 0.25, iron) }
+        case .sheaf, .sickle:
+            let straw = Paint(0xD8B060, .cloth, jitter: 0.12)
+            m.rod(V3(-0.6, 4.6, 9.6), V3(3.4, 4.4, 24), 1.3, straw)
+            m.blob(3.8, 4.4, 24.6, 1.8, 1.2, 2, straw)
+            m.blob(0.8, 4.8, 16.4, 1.4, 1, 0.5, Paint(0xB08A40, .cloth))
+            if p.prop == .sickle {
+                m.rod(V3(-1.6, 4.8, 14.6), V3(-1.8, 5, 17.4), 0.4, dark)
+                m.rod(V3(-1.8, 5, 17.4), V3(0.6, 5.4, 21), 0.35, iron)
+                m.rod(V3(0.6, 5.4, 21), V3(2.4, 5.4, 19.6), 0.3, iron)
+            }
+        case .apples:
+            m.blob(0.8, 4.8, 15, 3.8, 2.4, 1.6, Paint(0x7A5228, .wood(2)))
+            for (dx, dy) in [(-2.2, 0.2), (-0.6, -0.4), (1, 0.4), (2.6, -0.2), (0, 1), (1.8, -0.8)] as [(Float, Float)] {
+                m.ball(0.8 + dx, 4.8 + dy, 16.6, 0.8, Paint(0xB0242A, jitter: 0.08, shine: 0.3))
+            }
+        case .rake:
+            m.rod(V3(6.2, 1.8, 0.6), V3(7.4, 1.2, 35), 0.6, pale)
+            m.rod(V3(5.2, 1.2, 35), V3(9.6, 1.2, 35), 0.4, pale)
+            for i in 0..<5 { let x = 5.4 + Float(i) * 1; m.rod(V3(x, 1.2, 35), V3(x, 2.6, 34), 0.2, pale) }
+        case .spade:
+            m.rod(V3(6.2, 1.8, 6), V3(7.4, 1.2, 28), 0.6, pale)
+            m.box(5.8, 0.9, 28, 9, 1.6, 35, iron)
+            m.rod(V3(6.2, 1.8, 6), V3(6, 1.8, 4), 0.9, pale)
         }
         switch p.hat {
         case .none: break
