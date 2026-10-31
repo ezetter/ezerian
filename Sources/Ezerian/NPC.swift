@@ -65,7 +65,7 @@ final class NPC: Codable {
     let race: Race
     let female: Bool
     /// Which of the race's looks (clothes, hair) the NPC wears.
-    let look: Int
+    var look: Int
     /// -100 (extremely hostile) ... 100 (adoring).
     var friendliness: Int
     var x: Int
@@ -101,6 +101,9 @@ final class NPC: Codable {
     private var draconianStore: Bool?
     /// Members of one of Draconian's roving warbands share a band number.
     var warband: Int?
+    /// The painting shown when talking to someone whose figure isn't painted (Lord
+    /// Draconian's humans keep his livery on the map).
+    var portrait: String?
     /// Health; at 0 the NPC dies. (Optional storage: saves from before combat lack it.)
     private var hpStore: Int?
     private var maxHPStore: Int?
@@ -144,7 +147,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, goldStore = "gold", weaponStore = "weapon"
+             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon"
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,
@@ -169,9 +172,11 @@ final class NPC: Codable {
 
     var disposition: Disposition { Disposition(friendliness) }
 
-    /// The painted portrait shown when talking to them, for the watch and the bards.
+    /// The painted portrait shown when talking to them: every human, and the painted
+    /// folk of the other races.
     var painting: String? {
         if let r = guardRank { return Portraits.guardName(rank: r, female: female) }
+        if let p = portrait { return p }
         if let p = Populace.painted(look: look), p.race == race { return p.painting }
         return nil
     }
@@ -255,6 +260,27 @@ enum Populace {
     /// The race a look belongs to, for the looks only one race wears (the watch, the painted folk).
     static func lookRace(_ look: Int) -> Race? {
         guardRank(look: look) != nil ? .human : painted(look: look)?.race
+    }
+
+    /// Paints a human from the everyday sets, by where they live: the townsfolk for
+    /// those of a town, the country folk for those of a farmhouse or the wilds. The
+    /// watch keep their own paintings. Draconian's humans keep his livery on the map and
+    /// are only given the portrait. The pick is fixed by who they are, so it is the same
+    /// each time (it also repaints people from older saves).
+    static func paint(_ n: NPC) {
+        guard n.race == .human, n.guardRank == nil else { return }
+        let country = n.home.map { $0.hasSuffix("Farmhouse") } ?? true
+        let set = country ? PaintedFolk.countryFolk : PaintedFolk.townFolk
+        let first = paintedLooks + PaintedFolk.all.count - PaintedFolk.countryFolk.count - (country ? 0 : PaintedFolk.townFolk.count)
+        let everyday = (paintedLooks + PaintedFolk.all.count - PaintedFolk.countryFolk.count - PaintedFolk.townFolk.count)..<looks
+        let mine = set.indices.filter { set[$0].look.female == n.female }
+        let pick = mine[Int(Hash.of(0x9A1D7, n.id, 0) % UInt64(mine.count))]
+        if n.servesDraconian {
+            n.portrait = set[pick].painting
+        } else if !everyday.contains(n.look) {
+            n.look = first + pick
+            n.portrait = nil
+        }
     }
 
     static func guardLook(rank: Int, female: Bool) -> Int { 8 + rank * 2 + (female ? 1 : 0) }
@@ -368,9 +394,9 @@ enum Populace {
                 look = guardLook(rank: r, female: female)
                 job = GuardArt.title(r, female: female)
             }
-            // Bards, peasants, townsfolk, farmhands and elven drinkers look like one of the painted
-            // folk of their trade, race and sex.
-            let mine = PaintedFolk.all.indices.filter {
+            // Elf and dwarf bards and elven drinkers look like one of the painted folk of their
+            // trade, race and sex. (Humans are all painted from the everyday sets: see `paint`.)
+            let mine = race == .human ? [] : PaintedFolk.all.indices.filter {
                 let p = PaintedFolk.all[$0]
                 return p.role == job && p.race == race && p.look.female == female
             }
@@ -383,6 +409,7 @@ enum Populace {
                           role: job, home: home)
             npc.servesDraconian = servant
             npc.warband = warband
+            paint(npc)
             npc.facing = rng.int(4)
             let u = rng.double()
             npc.maxHP = guardRank.map { guardHealth(rank: $0, u) } ?? health(u)

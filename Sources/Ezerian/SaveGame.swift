@@ -81,11 +81,11 @@ enum SaveGame {
             region.places = rec.places
             region.signs = rec.signs
             if let npcs = rec.npcs { region.npcs = npcs } else { Populace.populate(region, seed: seed) }
-            for n in region.npcs { n.prevX = n.x; n.prevY = n.y }
+            for n in region.npcs { n.prevX = n.x; n.prevY = n.y; Populace.paint(n) }
             world.adopt(region)
         }
         world.party = file.party ?? []
-        for n in world.party { n.prevX = n.x; n.prevY = n.y }
+        for n in world.party { n.prevX = n.x; n.prevY = n.y; Populace.paint(n) }
         let game = Game(world: world, name: file.name ?? "Avatar", female: file.female ?? false, look: file.look ?? 0, x: file.x, y: file.y, z: file.z,
                         facing: Direction(rawValue: file.facing) ?? .south, turn: file.turn)
         game.hp = file.hp ?? 100

@@ -1,7 +1,10 @@
 import Foundation
 import simd
 
-/// Folk with painted portraits, by trade: the bards, the peasants, the human farmhands,
+/// Folk with painted portraits. Every human but the watch is now painted from one of
+/// two everyday sets, the townsfolk and the country folk, whatever their trade; the
+/// earlier sets by trade below are kept so the look numbers in saves stay put, and
+/// still dress the elves and dwarves among them. By trade: the bards, the peasants, the human farmhands,
 /// the human townsmen and townswomen, and the humans and elves drinking in taverns. Each one's figure on the map wears the painting's colours
 /// and hat, and holds what they hold in it (an instrument, a hoe, a loaf, a broom). The bard sheet's horned, red-skinned fiddler belongs
 /// to no race of Ezerian, so bard painting 4 is not used.
@@ -12,6 +15,7 @@ enum PaintedFolk {
         case sack, rope, broom, tray, brush, laundry, jug, pot, crate
         case pitchfork, sheaf, apples, rake, sickle, spade
         case mug, bread, dice, bowl
+        case none
     }
     enum Hat { case none, feather, straw, cap(UInt32), scarf(UInt32), hood }
 
@@ -35,7 +39,7 @@ enum PaintedFolk {
     }
 
     // New lists go on the end: a person's look is their index here, kept in saves.
-    static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers + drinkers
+    static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers + drinkers + townFolk + countryFolk
     private static let linen: UInt32 = 0xDCD0B4, leather: UInt32 = 0x5A3A22
 
     static let bards: [Painted] = [
@@ -184,6 +188,54 @@ enum PaintedFolk {
                                                                   legs: 0x9A7A2A, longHair: false, dress: true), prop: .mug, apron: 0x4A3022),
     ]
 
+    /// The everyday folk of the towns, five men then five women.
+    static let townFolk: [Painted] = [
+        Painted(role: "town", painting: "town-0", look: look(.human, female: false, skin: 0xE8A88A, hair: 0x6A5A4A, tunic: 0x7A4A2E,
+                                                            legs: 0x4A3A2A, longHair: false, beard: true), prop: .none, apron: linen),
+        Painted(role: "town", painting: "town-1", look: look(.human, female: false, skin: 0x5A3A26, hair: 0x14100C, tunic: 0x7A7468,
+                                                            legs: 0x4A4038, longHair: false), prop: .none),
+        Painted(role: "town", painting: "town-2", look: look(.human, female: false, skin: 0xC8946A, hair: 0x2A1E16, tunic: 0x4A5A7A,
+                                                            legs: 0x4A3A2A, longHair: false, beard: true), prop: .none),
+        Painted(role: "town", painting: "town-3", look: look(.human, female: false, skin: 0xD8A87A, hair: 0x14100C, tunic: 0x6A6A3A,
+                                                            legs: 0x4A3A2A, longHair: false), prop: .none),
+        Painted(role: "town", painting: "town-4", look: look(.human, female: false, skin: 0xD8A27A, hair: 0xD8D4D0, tunic: 0xC8B898,
+                                                            legs: 0x5A5048, cape: 0x5A5654, longHair: false, beard: true), prop: .flourSack),
+        Painted(role: "town", painting: "town-5", look: look(.human, female: true, skin: 0x5A3A26, hair: 0x14100C, tunic: 0x7A4A2E,
+                                                            legs: 0x7A4A2E, longHair: false, dress: true), prop: .none, hat: .scarf(0xD8CCB0), apron: linen),
+        Painted(role: "town", painting: "town-6", look: look(.human, female: true, skin: 0xF0C8A8, hair: 0xC8501E, tunic: 0x5A4A3A,
+                                                            legs: 0x5A4A3A, longHair: false, dress: true), prop: .none, apron: linen),
+        Painted(role: "town", painting: "town-7", look: look(.human, female: true, skin: 0xC8946A, hair: 0x2A1A10, tunic: 0x4A5A7A,
+                                                            legs: 0x4A5A7A, cape: 0x6A4A3A, longHair: true, dress: true), prop: .none),
+        Painted(role: "town", painting: "town-8", look: look(.human, female: true, skin: 0xE8C0A0, hair: 0xD8D4D0, tunic: 0xC8B898,
+                                                            legs: 0xC8B898, cape: 0x5A5A32, longHair: false, dress: true), prop: .none, hat: .scarf(0xD8CCB0)),
+        Painted(role: "town", painting: "town-9", look: look(.human, female: true, skin: 0xE0B090, hair: 0x14100C, tunic: 0x6A3E26,
+                                                            legs: 0x6A3E26, longHair: false, dress: true), prop: .none),
+    ]
+
+    /// The everyday folk of farms and the wilds, five men then five women.
+    static let countryFolk: [Painted] = [
+        Painted(role: "country", painting: "country-0", look: look(.human, female: false, skin: 0xD8A27A, hair: 0x4A3020, tunic: 0x6A4028,
+                                                                  legs: 0x5A4A3A, longHair: false, beard: true), prop: .hoe, apron: linen),
+        Painted(role: "country", painting: "country-1", look: look(.human, female: false, skin: 0x4A2E1E, hair: 0x14100C, tunic: 0x5A3A26,
+                                                                  legs: 0x4A3A2A, longHair: false, beard: true), prop: .none, apron: linen),
+        Painted(role: "country", painting: "country-2", look: look(.human, female: false, skin: 0xE0B090, hair: 0xE0DCD4, tunic: 0x6A4A30,
+                                                                  legs: 0x5A4A3A, longHair: false, beard: true), prop: .sack, hat: .cap(0x9A8A6A)),
+        Painted(role: "country", painting: "country-3", look: look(.human, female: false, skin: 0xD0A07A, hair: 0x14100C, tunic: 0x5A5A32,
+                                                                  legs: 0x4A3A2A, longHair: true, beard: true), prop: .none),
+        Painted(role: "country", painting: "country-4", look: look(.human, female: false, skin: 0xF0C8A8, hair: 0xC8501E, tunic: 0x4A5A7A,
+                                                                  legs: 0x4A3A2A, longHair: false), prop: .flourSack),
+        Painted(role: "country", painting: "country-5", look: look(.human, female: true, skin: 0xC8946A, hair: 0x2A1A10, tunic: 0x6A3E26,
+                                                                  legs: 0x6A3E26, longHair: false, dress: true), prop: .none, hat: .scarf(0x6A3E26), apron: linen),
+        Painted(role: "country", painting: "country-6", look: look(.human, female: true, skin: 0x5A3A26, hair: 0x14100C, tunic: 0xA08A3A,
+                                                                  legs: 0x6A4A2E, longHair: false, dress: true), prop: .sheaf),
+        Painted(role: "country", painting: "country-7", look: look(.human, female: true, skin: 0xC8946A, hair: 0xA8A4A0, tunic: 0x7A6A5A,
+                                                                  legs: 0x7A6A5A, cape: 0x5A4030, longHair: true, dress: true), prop: .none, hat: .scarf(0xD8CCB0)),
+        Painted(role: "country", painting: "country-8", look: look(.human, female: true, skin: 0xE8B898, hair: 0x8A5A34, tunic: 0x5A5A32,
+                                                                  legs: 0x5A5A32, longHair: false, dress: true), prop: .none),
+        Painted(role: "country", painting: "country-9", look: look(.human, female: true, skin: 0xE0B090, hair: 0x14100C, tunic: 0xD8CCB0,
+                                                                  legs: 0x6A3E2A, longHair: true, dress: true), prop: .none, apron: 0x6A3E2A),
+    ]
+
     /// The person facing south, built on an ordinary figure, with hat, apron and prop.
     static func figure(_ p: Painted, step: Int) -> Model {
         var m = PeopleArt.figure(p.look, step: step)
@@ -317,6 +369,8 @@ enum PaintedFolk {
             m.rod(V3(6.2, 1.8, 6), V3(7.4, 1.2, 28), 0.6, pale)
             m.box(5.8, 0.9, 28, 9, 1.6, 35, iron)
             m.rod(V3(6.2, 1.8, 6), V3(6, 1.8, 4), 0.9, pale)
+        case .none:
+            break
         case .mug:
             let copper = Paint(0x8A4A2A, .metal, jitter: 0.06, shine: 0.35)
             m.cone(-1.6, 4.4, 1.2, 1.1, 17, 20.4, copper)

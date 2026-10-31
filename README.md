@@ -158,55 +158,27 @@ keep shops, inns and homes. The other races go by their race ("the dwarf"). Clau
 loathe Lord Draconian's mercenaries. Guards in towns explored before the watch existed
 keep their old clothes and pixel portraits.
 
-## Bards
+## Painted folk
 
-Bards (humans, elves and dwarves in the town streets) each look like one of nine
-painted bards of their race and sex, shown when you talk to them, and on the map
-wear that painting's colours and play its instrument: a human lute player in a
-feathered hat, a grey-haired flautist, an elf with a lyre and a dwarf with a drum;
-and among the women, a lute player, a harpist and a grey-haired flautist, a dwarf
-with a tambourine and an elf with a hurdy-gurdy. (The sheet's horned fiddler belongs
-to no race of Ezerian and is not used.) Bards in towns explored before this keep
-their old clothes and pixel portraits.
+Every human but the town watch looks like one of twenty everyday paintings, whatever
+their trade, shown when you talk to them: ten townsfolk (five men, five women) for
+those who live in a town or one of its buildings, and ten country folk for those of a
+farmhouse or the wilds. On the map they wear their painting's colours, and carry what
+it shows (a sack, a hoe, a sheaf of wheat). The pick is fixed by who they are, so
+people met in older saves are repainted the same way when the game loads. Lord
+Draconian's human mercenaries keep his black-and-red livery on the map, so you can
+tell them apart, but they too have an everyday painting to talk to. The watch keeps
+its own paintings, by rank.
 
-## Peasants
+Elves and dwarves are painted by trade: elf and dwarf bards each look like one of the
+painted bards of their race and sex, playing its instrument (an elf with a lyre, a
+dwarf with a drum, a dwarf woman with a tambourine, an elf woman with a hurdy-gurdy),
+and elves drinking in taverns look like one of ten painted elven drinkers, holding a
+mug, bread, dice or a bowl of stew. They are known as elven drinkers ("The elven
+drinker hits you…"). Other elves, dwarves and orcs keep their ordinary looks.
 
-Peasants (always human) each look like one of ten painted peasants of their sex,
-shown when you talk to them, and on the map wear that painting's colours and hat and
-carry what they carry in it. The men are a farmer in a straw hat with a hoe, a miller
-in a cap and apron with a sack of flour, a red-bearded woodcutter with his axe on his
-shoulder, an old shepherd in a hood with a crook, and a fisherman in an apron with
-his net. The women, in headscarves, carry a basket of vegetables, a loaf of bread,
-a drop spindle and wool, a bucket, or a bunch of herbs. Peasants met before this keep
-their old clothes and pixel portraits.
-
-## Townsmen and townswomen
-
-Human townsmen and townswomen each look like one of ten painted townsfolk of their
-sex, shown when you talk to them, and on the map wear that painting's colours and
-carry what the painting shows: a porter with a sack on his shoulder, a ropemaker with
-a coil of rope, an old sweeper with his broom, a potboy with a tray of mugs, and a
-groom with a brush; a laundress with an armful of washing, a girl with a clay jug, a
-cook with an iron pot, an old charwoman with bucket and brush, and a girl carrying a
-crate.
-Elf and dwarf townsfolk keep their ordinary looks, as do townsfolk met before this.
-
-## Farmhands
-
-Human farmhands each look like one of ten painted farmhands of their sex, shown when
-you talk to them, and on the map wear that painting's colours and carry what it shows:
-a hoe and straw hat, a pitchfork, a sheaf of wheat, a sack of grain, and a basket of
-apples; a rake, a wooden bucket, a basket of cabbages, a sheaf and sickle, and a spade.
-Elf and dwarf farmhands keep their ordinary looks.
-
-## Tavern drinkers
-
-Humans and elves drinking in taverns each look like one of ten painted drinkers of
-their race and sex, shown when you talk to them, and on the map wear that painting's
-colours and hold what it shows: a mug, a crust of bread, a pair of dice, or a bowl of
-stew. Elves among them are known as elven drinkers ("The elven drinker hits you…");
-humans, like every human, go by their trade ("the drinker"). Dwarf and orc drinkers
-keep their ordinary looks.
+The earlier paintings of human bards, peasants, townsfolk, farmhands and drinkers are
+still in `Resources/Portraits` (and `PaintedFolk`), but no human uses them for now.
 
 ## Lord Draconian
 
