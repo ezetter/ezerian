@@ -604,8 +604,9 @@ final class Game {
             c.goldFocus = false
             return
         }
-        let p = Trade.healingPrice(npc)
-        let line: Dialogue.Healing = offered.map { .tooLittle(offered: $0, price: p) } ?? .quote(p)
+        let k = woundedCompanions.count
+        let p = Trade.healingPrice(npc, companions: k)
+        let line: Dialogue.Healing = offered.map { .tooLittle(offered: $0, price: p) } ?? .quote(p, companions: k)
         c.lines.append(Conversation.Line(text: Dialogue.healer(npc, line, player: playerName), fromAvatar: false))
         c.price = p
         c.goldInput = "\(p)"
@@ -658,17 +659,23 @@ final class Game {
         c.goldInput = ""
         c.goldFocus = false
         c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .accepted, player: playerName), fromAvatar: false))
+        let healed = woundedCompanions
         restTheNight()
-        c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .morning, player: playerName), fromAvatar: false))
+        c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .morning(companions: healed.count), player: playerName), fromAvatar: false))
         conversation = c
-        log("You pay \(amount) gold and rest the night at \(npc.home ?? "the healer's"). You wake whole again. You have \(gold) gold left.")
+        let who = healed.isEmpty ? "You wake" : healed.count == 1 ? "You and \(healed[0].shortName) wake" : "You and your companions wake"
+        log("You pay \(amount) gold and rest the night at \(npc.home ?? "the healer's"). \(who) whole again. You have \(gold) gold left.")
     }
 
     /// How many nights the Avatar has slept (the view fades out and in for each).
     private(set) var nights = 0
 
-    /// Sleeps until 8 in the morning and wakes fully healed.
+    /// Companions who would be healed with the Avatar (each costs the healer's fee more).
+    var woundedCompanions: [NPC] { party.filter { $0.hp < $0.maxHP } }
+
+    /// Sleeps until 8 in the morning; the Avatar and the companions wake fully healed.
     private func restTheNight() {
+        for n in party { n.hp = n.maxHP }
         let m = minutes
         var wake = m / (24 * 60) * (24 * 60) + 8 * 60
         if wake <= m { wake += 24 * 60 }

@@ -210,7 +210,7 @@ enum AIDialogue {
         }
         if npc.role == "healer" {
             facts.append(Trade.willTrade(npc)
-                ? "As a healer you offer a night's rest in your care, which leaves the Avatar wholly healed, for \(Trade.healingPrice(npc)) gold. Coins are handed over apart from your words; never pretend to take payment or to heal in your reply."
+                ? "As a healer you offer a night's rest in your care, which leaves the Avatar wholly healed, for \(Trade.healingPrice(npc)) gold, and \(Trade.healingPerCompanion) gold more for each wounded companion healed with them\(game.woundedCompanions.isEmpty ? "" : " (they have \(game.woundedCompanions.count) now, so \(Trade.healingPrice(npc, companions: game.woundedCompanions.count)) gold in all)"). Coins are handed over apart from your words; never pretend to take payment or to heal in your reply."
                 : "As a healer you could heal the Avatar, but you dislike them too much and refuse to serve them.")
         }
         facts.append("It is \(game.timeString) on day \(game.day).")

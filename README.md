@@ -269,11 +269,11 @@ Draconian".
   When a foe is killed in a fight, their gold passes to you; your total shows beside
   your health. Gold is kept in the save file.
 * **Houses of healing:** a healer asks whether you require healing. Say yes (or ask
-  about healing or its price) and they name a price for a night's rest in their care,
-  usually 10 gold. A gold field and a **Give gold.** button appear beside the line you
+  about healing or its price) and they name a price for a night's rest in their care:
+  usually 10 gold, and 5 more for each wounded companion, who is healed with you. A gold field and a **Give gold.** button appear beside the line you
   type; Tab or a click moves between them, and Return or the button hands the gold
   over. If the healer takes it, the screen fades through the night and you wake at 8
-  the next morning at full health.
+  the next morning at full health, your companions too.
 * **Paying merchants:** these rules hold for every merchant's services, the healer's
   first. Paying the asking price raises their friendliness by 1, and every coin more
   by 2 more. Every coin short lowers it by 2, whether or not they take it; they take

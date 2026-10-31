@@ -243,20 +243,32 @@ enum Dialogue {
 
     /// What a healer says while selling a night's rest. Healers are humans and elves;
     /// elves speak in the old way.
-    enum Healing { case ask, quote(Int), declined, refuse, accepted, morning, tooLittle(offered: Int, price: Int) }
+    enum Healing { case ask, quote(Int, companions: Int), declined, refuse, accepted, morning(companions: Int), tooLittle(offered: Int, price: Int) }
+
+    /// "your companion", "your two companions".
+    private static func companions(_ n: Int, elf: Bool) -> String {
+        let your = elf ? "thy" : "your"
+        return n == 1 ? "\(your) companion" : "\(your) \(["two", "three"][min(n, 3) - 2]) companions"
+    }
 
     static func healer(_ npc: NPC, _ h: Healing, player: String) -> String {
         let elf = npc.race == .elf
         let s: String
         switch h {
         case .ask: s = elf ? "Dost thou require healing, {addr}?" : "Do you require healing, {addr}?"
-        case let .quote(n):
+        case let .quote(n, 0):
             s = elf ? "Rest one night beneath my roof, in my care, and thou shalt wake whole. \(n) gold is my price."
                 : "A night's rest here under my care, and you'll wake whole again. That will be \(n) gold."
+        case let .quote(n, k):
+            s = elf ? "Rest one night beneath my roof, thou and \(companions(k, elf: true)), and ye shall all wake whole. \(n) gold is my price."
+                : "A night's rest here under my care, for you and \(companions(k, elf: false)), and you'll all wake whole again. That will be \(n) gold."
         case .declined: s = elf ? "As thou wilt. I am here should thy wounds trouble thee." : "As you wish. I'm here if your wounds trouble you."
         case .refuse: s = elf ? "I will not tend thee, {addr}. Seek thy healing elsewhere." : "I'll not tend the likes of you. Find your healing elsewhere."
         case .accepted: s = elf ? "Then lie thee down and rest. I shall tend thy hurts." : "Then lie down and rest. I'll see to your wounds."
-        case .morning: s = elf ? "Good morrow. Thy wounds are mended; thou art whole again." : "Good morning! Your wounds have mended. You're whole again."
+        case .morning(0): s = elf ? "Good morrow. Thy wounds are mended; thou art whole again." : "Good morning! Your wounds have mended. You're whole again."
+        case let .morning(k):
+            s = elf ? "Good morrow. Thy wounds are mended, and \(companions(k, elf: true))' too; ye are whole again."
+                : "Good morning! Your wounds have mended, and \(companions(k, elf: false))' too. You're all whole again."
         case let .tooLittle(offered, price):
             s = elf ? "\(offered) gold? That will not suffice. My price is \(price)." : "\(offered) gold? That won't do. My price is \(price)."
         }

@@ -14,9 +14,12 @@ enum Trade {
         base + max(0, -friendliness) / 5
     }
 
-    /// The healer's price for a night's rest that heals the Avatar completely.
-    static let healingBase = 10
-    static func healingPrice(_ npc: NPC) -> Int { price(base: healingBase, friendliness: npc.friendliness) }
+    /// The healer's price for a night's rest that heals the Avatar completely, and 5 more
+    /// for each wounded companion healed with them.
+    static let healingBase = 10, healingPerCompanion = 5
+    static func healingPrice(_ npc: NPC, companions: Int = 0) -> Int {
+        price(base: healingBase + healingPerCompanion * companions, friendliness: npc.friendliness)
+    }
 
     /// What an offer does. Paying the asking price pleases the merchant a little (+1),
     /// and every coin over it pleases them more (+2 each); every coin short costs 2

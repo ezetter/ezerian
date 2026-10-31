@@ -857,6 +857,27 @@ extension DevTools {
                 check(g.hp == 50 && g.gold == 4 && g.conversation?.notice == "You have only 4 gold.", "the Avatar can't give gold they don't have")
                 check(AIDialogue.prompt(healer, game: g, history: [], said: "hello").contains("for 10 gold"),
                       "Claude is told the healer's price")
+                // Wounded companions are healed too, for 5 gold more each.
+                let mates = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs.filter { $0 !== healer && !$0.servesDraconian && $0.guardRank == nil }.prefix(3)
+                if mates.count == 3 {
+                    for m in mates { g.addToParty(m) }
+                    let (m0, m1, m2) = (mates[mates.startIndex], mates[mates.startIndex + 1], mates[mates.startIndex + 2])
+                    m0.hp = 1; m1.hp = max(1, m1.maxHP / 2); m2.hp = m2.maxHP
+                    g.hp = 50; g.gold = 40; dice = 0.5
+                    visit(10); say("yes")
+                    check(g.conversation?.price == 20 && g.conversation?.lines.last?.text.contains("two companions") == true,
+                          "with two wounded companions (and one hale) the healer asks 10 + 5 + 5 = 20")
+                    offer(20)
+                    check(g.hp == g.maxHP && m0.hp == m0.maxHP && m1.hp == m1.maxHP && g.gold == 20
+                          && g.conversation?.lines.last?.text.contains("companions' too") == true,
+                          "and the Avatar and the companions all wake healed")
+                    visit(-10); say("heal us")
+                    check(g.conversation?.price == 12, "with no one wounded but the Avatar, 10 plus the dislike surcharge")
+                    m0.hp = 1
+                    visit(-10); say("heal us")
+                    check(g.conversation?.price == 17, "a wounded companion adds 5 before the surcharge: 15 + 2")
+                    for m in mates { g.removeFromParty(m, lockOut: false) }
+                } else { check(false, "found three companions to take to the healer") }
                 g.endConversation()
             } else { check(false, "found a healer to visit") }
             let f = Screen.talkFields(trading: true), box = Screen.talkBox
