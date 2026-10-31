@@ -197,7 +197,7 @@ enum PaintedFolk {
     static let townFolk: [Painted] = [
         Painted(role: "town", painting: "town-0", look: look(.human, female: false, skin: 0xE8A88A, hair: 0x6A5A4A, tunic: 0x7A4A2E,
                                                             legs: 0x4A3A2A, longHair: false, beard: true), prop: .none, apron: linen),
-        Painted(role: "town", painting: "town-1", look: look(.human, female: false, skin: 0x5A3A26, hair: 0x14100C, tunic: 0x7A7468,
+        Painted(role: "town", painting: "town-1", look: look(.human, female: false, skin: 0x5A3A26, hair: 0x14100C, tunic: 0xC8BA9E,
                                                             legs: 0x4A4038, longHair: false), prop: .none),
         Painted(role: "town", painting: "town-2", look: look(.human, female: false, skin: 0xC8946A, hair: 0x2A1E16, tunic: 0x4A5A7A,
                                                             legs: 0x4A3A2A, longHair: false, beard: true), prop: .none),
