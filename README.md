@@ -4,7 +4,7 @@ The Land of Ezerian, made again with richer graphics. It is still a Mac-native,
 single-player, turn-based RPG in the spirit of **Ultima VI** in which, for now, you
 explore: walk an endless, randomly generated land of meadows, forests, rivers,
 mountains, towns, taverns and caves, talk to the people you meet, gather companions,
-and fight. There are no weapons or items yet.
+fight, and carry off the weapons of those you defeat.
 
 The look follows the high-resolution Ultima VI remake in the reference screenshots
 (kept in `screens/`, which git ignores): 32-pixel tiles with painterly textures, thick
@@ -50,6 +50,7 @@ swift run -c release Ezerian
 | F, then a direction | Attack whoever is there |
 | Space | Wait a turn (in a fight: let your turn pass) |
 | L | Look at the tile ahead |
+| I, or click your box in the side panel | Your character sheet: stats and belongings (click a companion's line for theirs) |
 | M | Map of the lands you have explored (+/- or scroll to zoom) |
 | G | Show region borders on the map view |
 | H or ? | Help |
@@ -244,8 +245,8 @@ Draconian".
   swords). Other people may carry one: the tougher they are, the likelier they're armed
   (about a third of the frail, three quarters of the toughest) and the better the
   weapon; Lord Draconian's people nearly always are, and children never. Kill someone
-  yourself and you take their weapon; you always fight with the best one you have,
-  shown under your health. Foes your companions kill keep theirs. Every blow names the
+  yourself and you take everything they carried (see below); you fight with the weapon
+  in hand, shown under your health. Foes your companions kill keep theirs. Every blow names the
   weapon: "The orc hits you with his short sword.", "You miss the elf with your bare
   hands." Looking at someone tells you what they carry, and on the map everyone,
   you included, holds the weapon they really have (drawn as its own sprite in the
@@ -282,6 +283,28 @@ Draconian".
   and offers are weighed against that price. Below -50 they won't deal with you at all.
 * **Death:** anyone at 0 health dies. A companion who dies is gone from your party.
   If the Avatar dies the game is over, and Return begins a new adventure in a new world.
+
+## Character sheets and belongings
+
+Press I, or click your portrait and stats in the side panel, for your character sheet.
+It shows a larger portrait, your health, the weapon in hand and the damage of each
+blow, your gold, how much you carry and how you look. Beside it are your belongings.
+
+* **Ten things each:** you and each companion can carry up to ten things, the weapon
+  in hand among them. So far every item is a weapon. When you slay someone you take
+  everything they carried, duplicates too, until you are full; anything that won't fit
+  is left behind. If your hands are empty you take up the first weapon.
+* **Equip, Put away, Drop:** each line has buttons. Equip takes up a weapon from the
+  pack, swapping it with the one in hand. Put away empties your hands. Drop leaves the
+  item behind for good.
+* **Give:** with companions, Give asks whom to give the item to; a weapon goes into an
+  empty hand, anything else into the pack. No one takes more than ten things.
+* **Companions:** the ◀ ▶ arrows at the top (or ← →) go from your sheet to each
+  companion's: their portrait, trade, health, weapon, gold, belongings and mood. They
+  carry, equip, drop and give things just as you do, and fight with what you hand them.
+* **While the sheet is open** time stands still. It can't be opened in a fight. I, Esc
+  or Close puts it away. Belongings are kept in the save file; weapons from older saves
+  become your belongings, the best one in hand.
 
 ## How the world works
 
@@ -350,6 +373,7 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | `Party.swift` | Companions: joining, leaving, following |
 | `Combat.swift` | Health, fights, turns, blows and death |
 | `Trade.swift` | Merchants' prices, haggling and the healer's night of rest |
+| `Inventory.swift` | Items, belongings, looting and the character sheet's actions |
 | `NPC.swift`, `Dialogue.swift` | Races, friendliness, Lord Draconian's people, where people live, scripted replies |
 | `ClaudeDialogue.swift` | Claude API client, NPC character sheets, structured replies, API key storage |
 | `World.swift`, `Tiles.swift` | Regions, lazy generation, terrain and objects |
@@ -379,7 +403,7 @@ that typed words reach Claude and its judgement moves friendliness
 (against a stand-in for the API, so no key or network is needed), that caves lead down and back up, that every object has a sprite, that keys
 reach the game, and that saves round-trip.
 
-* `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name,look,woman,avatar0-9] [--scale 2]`
+* `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name,look,woman,avatar0-9,party,loaded,sheet,sheet1,giving] [--scale 2]`
   renders a screenshot. A walk can also contain `find:<feature>` (for example
   `find:shrine` or `find:t.forest`) to jump next to the nearest one, `npc:orc` to stand
   beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation, `recruit` to fill the party, `fight` to attack the person you face, and `warband` or

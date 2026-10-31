@@ -42,10 +42,14 @@ final class Game {
     var maxHP = 100
     /// Gold coins; the adventure begins with none.
     var gold = 0
-    /// Weapons taken from foes the Avatar has slain; the adventure begins with none.
-    var weapons: [Weapon] = []
-    /// The Avatar fights with the best weapon they have.
-    var weapon: Weapon? { weapons.max() }
+    /// The weapon in the Avatar's hand, and everything else they carry (see `Inventory`);
+    /// the adventure begins with neither.
+    var weapon: Weapon?
+    var pack: [Item] = []
+    /// The character sheet on show, if any: 0 the Avatar's, then each companion's.
+    var sheet: Int?
+    /// On the sheet, the line of belongings waiting for someone to give it to.
+    var sheetGiving: Int?
     var gameOver = false
     /// F was pressed: the next direction key attacks.
     var attackPending = false
@@ -161,7 +165,7 @@ final class Game {
 
     @discardableResult
     func move(dx: Int, dy: Int) -> Bool {
-        guard dx != 0 || dy != 0, conversation == nil, !gameOver else { return false }
+        guard dx != 0 || dy != 0, conversation == nil, sheet == nil, !gameOver else { return false }
         facing = dx != 0 && dy != 0 ? (dy < 0 ? .north : .south) : Direction.from(dx: dx, dy: dy)
         let nx = x + dx, ny = y + dy
         // In a fight, walking into an enemy strikes them; bystanders are in the way.
@@ -306,7 +310,7 @@ final class Game {
 
     /// Lets a turn pass without moving.
     func waitTurn() {
-        guard conversation == nil, !gameOver else { return }
+        guard conversation == nil, sheet == nil, !gameOver else { return }
         if combat != nil { endAvatarTurn(); return }
         turn += 1
         updateNPCs()

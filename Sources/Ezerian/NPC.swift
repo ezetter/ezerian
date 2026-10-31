@@ -153,6 +153,13 @@ final class NPC: Codable {
         }
     }
 
+    /// What else they carry besides the weapon in hand (companions fill this; see `Inventory`).
+    private var packStore: [Item]?
+    var pack: [Item] {
+        get { packStore ?? [] }
+        set { packStore = newValue.isEmpty ? nil : newValue }
+    }
+
     /// "his short sword", or "his bare hands".
     var armedWith: String { "\(his) \(weapon?.name ?? "bare hands")" }
 
@@ -163,7 +170,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon"
+             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack"
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,

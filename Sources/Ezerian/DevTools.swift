@@ -14,7 +14,7 @@ enum DevTools {
             if token == "talk" { game.talk(); continue }
             if token.hasPrefix("wield:") {
                 // Hands the Avatar a weapon: wield:shortSword
-                if let w = Weapon.allCases.first(where: { "\($0)" == token.dropFirst(6) }) { game.weapons.append(w) }
+                if let w = Weapon.allCases.first(where: { "\($0)" == token.dropFirst(6) }) { if let old = game.weapon { game.pack.append(.weapon(old)) }; game.weapon = w }
                 continue
             }
             if token.hasPrefix("type:") {
@@ -233,6 +233,25 @@ extension DevTools {
         game.showMap = options.contains("map")
         game.showGrid = options.contains("grid")
         game.showHelp = options.contains("help")
+        if options.contains("party") {
+            // Two companions from among the nearest free folk, with something to carry.
+            let near = game.world.npcs(near: game.x, game.y, game.z, radius: 30)
+                .filter { !$0.servesDraconian && $0.guardRank == nil && $0.role != "child" }
+                .sorted { abs($0.x - game.x) + abs($0.y - game.y) < abs($1.x - game.x) + abs($1.y - game.y) }
+            for n in near.prefix(2) { game.addToParty(n) }
+            if let a = game.party.first { a.weapon = .spear; a.pack = [.weapon(.dagger)]; a.hp = a.maxHP * 2 / 3 }
+        }
+        if options.contains("loaded") {
+            game.weapon = .shortSword
+            game.pack = [.weapon(.dagger), .weapon(.axe), .weapon(.staff), .weapon(.hammer)]
+            game.gold = 37
+            game.hp = 64
+        }
+        // "sheet" shows the Avatar's character sheet, "sheet1" the first companion's; "giving" picks a line to give.
+        if let k = options.compactMap({ $0 == "sheet" ? 0 : $0.hasPrefix("sheet") ? Int($0.dropFirst(5)) : nil }).first {
+            game.openSheet(k)
+            if options.contains("giving") { game.perform(.give(1)) }
+        }
         let screen = Screen(world: game.world)
         _ = SpriteBank.shared
         let t0 = Date()
@@ -892,7 +911,7 @@ extension DevTools {
             check([Weapon.hammer, .longSword, .axe, .dagger].max() == .longSword && [Weapon.hammer, .mace].max() == .mace
                   && [Weapon.dagger, .hammer].max() == .hammer && Weapon.axe.article == "an",
                   "the Avatar fights with the weapon that does the most damage, and an axe is an axe")
-            check(Game(seed: seed).weapons.isEmpty, "the Avatar starts with no weapon")
+            check(Game(seed: seed).weapon == nil && Game(seed: seed).pack.isEmpty, "the Avatar starts with no weapon")
             check(WeaponArt.Carrier.allCases.allSatisfy { c in Weapon.allCases.allSatisfy { w in
                 Direction.allCases.allSatisfy { SpriteBank.shared.weapon(w, carrier: c, facing: $0, step: 1).sprite.w > 1 } } },
                   "every weapon is drawn in the hand of every kind of figure")
@@ -932,7 +951,7 @@ extension DevTools {
                 g.roll = { k += 1; return k % 2 == 1 ? 0.0 : 0.99 }
                 foe.hp = 5
                 g.move(dx: dx, dy: dy)
-                check(g.weapons == [.mace] && g.weapon == .mace && foe.weapon == nil, "slaying a foe gives the Avatar their weapon")
+                check(g.weapon == .mace && g.pack.isEmpty && foe.weapon == nil, "slaying a foe gives the Avatar their weapon")
                 let other = folk.first { $0 !== foe && g.world.npc(at: $0.x, $0.y, 0) === $0 }!
                 other.weapon = .dagger
                 other.maxHP = 200; other.hp = 30
@@ -942,7 +961,7 @@ extension DevTools {
                     check(other.hp == 30 - 16, "the Avatar's mace adds 6 to each blow")
                     g.combat = nil
                 }
-                check(g.weapon == .mace, "the Avatar fights with the best weapon they have")
+                check(g.weapon == .mace, "the Avatar fights with the weapon in hand")
             } else { check(false, "found room to test weapons") }
             // Only the Avatar's own kills yield a weapon.
             let (g2, folk2) = arena()
@@ -952,8 +971,68 @@ extension DevTools {
             g2.combat = Combat(enemies: [foe2], order: [nil, friend, foe2])
             g2.roll = { 0.0 }
             g2.strike(friend, foe2)
-            check(foe2.hp == 0 && g2.weapons.isEmpty, "a foe slain by a companion leaves the Avatar no weapon")
+            check(foe2.hp == 0 && g2.weapon == nil && g2.pack.isEmpty, "a foe slain by a companion leaves the Avatar no weapon")
             g2.combat = nil
+        }
+        do {
+            // Belongings: looting the slain, ten things each, equipping, dropping and giving, and the character sheet.
+            let (g, folk) = arena()
+            let foe = folk[1], mate = folk[2], mate2 = folk[3]
+            foe.weapon = .axe; foe.pack = [.weapon(.dagger), .weapon(.dagger)]
+            g.loot(foe)
+            check(g.weapon == .axe && g.pack == [.weapon(.dagger), .weapon(.dagger)] && foe.weapon == nil && foe.pack.isEmpty,
+                  "the Avatar takes everything a slain foe carried, duplicates too, and fights with the weapon if empty-handed")
+            g.pack += Array(repeating: .weapon(.staff), count: 6)
+            let full = folk[4]
+            full.weapon = .longSword; full.pack = [.weapon(.spear)]
+            g.loot(full)
+            check(g.carried(0) == 10 && g.pack.last == .weapon(.longSword) && g.messages.last?.contains("carry no more") == true,
+                  "no one carries more than ten things: what doesn't fit is left behind")
+            g.weapon = .dagger; g.pack = [.weapon(.axe), .weapon(.staff)]
+            g.openSheet()
+            check(g.sheet == 0 && !g.move(dx: 1, dy: 0), "I opens the Avatar's sheet, and the Avatar stays put while it is open")
+            g.perform(.equip(1))
+            check(g.weapon == .axe && g.pack == [.weapon(.dagger), .weapon(.staff)], "equipping a weapon from the pack swaps it with the one in hand")
+            g.perform(.unequip)
+            check(g.weapon == nil && g.pack == [.weapon(.axe), .weapon(.dagger), .weapon(.staff)], "putting a weapon away leaves the hands empty")
+            g.perform(.drop(2))
+            check(g.pack == [.weapon(.axe), .weapon(.dagger)], "dropping an item leaves it behind")
+            g.perform(.give(0))
+            check(g.sheetGiving == nil, "with no companions there is no one to give things to")
+            g.perform(.close)
+            for m in [mate, mate2] { m.servesDraconian = false; g.addToParty(m) }
+            mate.weapon = nil; mate.pack = []; mate2.weapon = .mace
+            mate2.pack = Array(repeating: .weapon(.staff), count: 9)
+            g.openSheet()
+            g.perform(.next)
+            check(g.sheet == 1, "→ shows the first companion's sheet")
+            g.perform(.previous); g.perform(.previous)
+            check(g.sheet == 2, "← from the Avatar wraps round to the last companion")
+            g.perform(.next)
+            g.perform(.give(0))
+            g.perform(.giveTo(1))
+            check(g.pack == [.weapon(.dagger)] && mate.weapon == .axe, "the Avatar gives a companion an axe, which goes into their empty hand")
+            g.perform(.give(0)); g.perform(.giveTo(2))
+            check(g.pack == [.weapon(.dagger)] && g.messages.last?.contains("can carry no more") == true, "a companion carrying ten things takes no more")
+            g.perform(.next)
+            g.perform(.give(0)); g.perform(.giveTo(0))
+            check(g.weapon == .axe && mate.weapon == nil, "a companion gives the axe back")
+            g.perform(.next)
+            g.perform(.equip(1))
+            check(mate2.weapon == .staff && mate2.pack.first == .weapon(.mace), "companions can be given a different weapon to fight with")
+            check(Screen.sheetButtons(g).filter { if case .drop = $0.action { return true }; return false }.count == 10
+                  && Screen.sheetButtons(g).allSatisfy { b in Screen.sheetAction(g, atX: b.rect.x + b.rect.w / 2, y: b.rect.y + b.rect.h / 2) == b.action },
+                  "every line has its buttons, and a click on each one does what it says")
+            let box = Screen.avatarBox
+            check(Screen.inside(box, box.x + 10, box.y + 10) && !Screen.inside(box, box.x + 10, box.y + box.h + 2), "the Avatar's box in the panel is where the click opens the sheet")
+            g.perform(.close)
+            check(g.sheet == nil, "Close puts the sheet away")
+            g.combat = Combat(enemies: [foe], order: [nil, foe])
+            g.openSheet()
+            check(g.sheet == nil, "no rummaging through packs in the middle of a fight")
+            let carried = try? PropertyListDecoder().decode(NPC.self, from: PropertyListEncoder().encode(mate2))
+            check(carried?.weapon == .staff && carried?.pack == mate2.pack, "what a companion carries survives a save")
+            g.combat = nil
         }
         do {
             // Companions join in; a companion who falls leaves the party.
@@ -1278,7 +1357,8 @@ extension DevTools {
         check(keyGame.showHelp && !keyGame.showMap, "H opens help, M closes the map")
 
         // Save, reload and compare.
-        game.weapons = [.dagger, .staff]
+        game.weapon = .dagger
+        game.pack = [.weapon(.staff), .weapon(.axe)]
         let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-selftest-\(ProcessInfo.processInfo.processIdentifier).plist")
         do {
             try SaveGame.save(game, to: url)
@@ -1298,7 +1378,7 @@ extension DevTools {
                 check(loaded.playerName == game.playerName && !loaded.creatingCharacter, "the name is restored without asking again")
                 check(loaded.female == game.female && loaded.avatarLook == game.avatarLook && loaded.avatarLook == 3,
                       "how the Avatar looks survives a save")
-                check(loaded.weapons == game.weapons, "the Avatar's weapons survive a save")
+                check(loaded.weapon == game.weapon && loaded.pack == game.pack, "the Avatar's weapon and belongings survive a save")
                 check(zip(saved, back).allSatisfy { $0.weapon == $1.weapon }, "what people carry survives a save")
             }
         } catch {

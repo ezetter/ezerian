@@ -50,6 +50,7 @@ final class Screen {
         if !game.showMap, game.inCombat { drawCombat(game, pose: pose) }
         if let c = game.conversation, !game.showMap { drawConversation(c, game) }
         if game.gameOver { drawGameOver(game) }
+        if game.sheet != nil, !game.showMap { drawSheet(game) }
         if game.showHelp { drawHelp() }
         if let entry = game.nameEntry { drawNamePrompt(entry, frame: frame) }
         if let chosen = game.lookEntry { drawLookPrompt(game.playerName, chosen: chosen) }
@@ -61,7 +62,8 @@ final class Screen {
             : game.conversation.map { $0.price != nil && !$0.over } == true
                 ? "Type what you say  ·  Tab or click between words and gold  ·  Return or Give gold. to pay  ·  Esc to leave"
             : game.conversation != nil ? "Type what you say  ·  Return to say it  ·  Esc to leave"
-            : "Arrows walk  ·  T talk  ·  F fight  ·  Space wait  ·  L look  ·  M map  ·  H help"
+            : game.sheet != nil ? (game.sheetCount > 1 ? "◀ ▶ or ← → for your companions  ·  I or Esc closes" : "I or Esc closes")
+            : "Arrows walk  ·  T talk  ·  F fight  ·  Space wait  ·  L look  ·  I character  ·  M map  ·  H help"
         texts.append(TextItem(text: hint, x: Double(Screen.mapX + 4), y: 502, size: 12, color: Screen.dim))
         return fb
     }
@@ -357,6 +359,155 @@ final class Screen {
                               color: 0xE8C878, align: .center, shadow: true))
         texts.append(TextItem(text: "Click a portrait or use the arrows  ·  Return or the button to begin", x: cx, y: Double(y + h - 24), size: 12,
                               color: 0x5A4024, align: .center, shadow: false))
+    }
+
+    // MARK: Character sheet
+
+    /// The Avatar's box in the side panel, and each companion's line below it: a click opens their sheet.
+    static let avatarBox: Rect = (panelX, 116, panelW, 90)
+    static func companionLine(_ i: Int) -> Rect { (panelX, 312 + i * 16, panelW, 16) }
+
+    static let sheetBox: Rect = (mapX + 16, mapY + 12, MapRenderer.pixelW - 32, MapRenderer.pixelH - 24)
+
+    struct SheetButton {
+        var rect: Rect
+        var action: Game.SheetAction
+        var label: String
+    }
+
+    /// Where the belongings are listed, one line each.
+    static func sheetRow(_ r: Int) -> Rect {
+        let b = sheetBox
+        return (b.x + 250, b.y + 84 + r * 29, b.w - 266, 27)
+    }
+
+    /// Every button on the sheet now, for drawing and for clicks alike.
+    static func sheetButtons(_ game: Game) -> [SheetButton] {
+        guard let s = game.sheet else { return [] }
+        let k = min(s, game.sheetCount - 1)
+        let b = sheetBox
+        var out: [SheetButton] = []
+        if game.sheetCount > 1 {
+            out.append(SheetButton(rect: (b.x + 14, b.y + 12, 36, 30), action: .previous, label: "◀"))
+            out.append(SheetButton(rect: (b.x + b.w - 50, b.y + 12, 36, 30), action: .next, label: "▶"))
+        }
+        out.append(SheetButton(rect: (b.x + b.w - 104, b.y + b.h - 38, 90, 26), action: .close, label: "Close"))
+        if let r = game.sheetGiving {
+            // Whom to give it to.
+            var x = b.x + 250 + Int(TextRenderer.width("Give the \(game.belongings(k)[r].item.name) to", size: 13, font: .italic)) + 12
+            for j in 0..<game.sheetCount where j != k {
+                let name = j == 0 ? game.playerName : game.party[j - 1].name
+                let w = Int(TextRenderer.width(name, size: 12, font: .bold)) + 18
+                out.append(SheetButton(rect: (x, b.y + 388, w, 24), action: .giveTo(j), label: name))
+                x += w + 6
+            }
+            out.append(SheetButton(rect: (x, b.y + 388, 64, 24), action: .cancelGive, label: "Cancel"))
+            return out
+        }
+        for (r, line) in game.belongings(k).enumerated() {
+            let row = sheetRow(r)
+            var x = row.x + row.w - 4
+            func add(_ w: Int, _ a: Game.SheetAction, _ label: String) {
+                x -= w
+                out.append(SheetButton(rect: (x, row.y + 2, w, row.h - 4), action: a, label: label))
+                x -= 6
+            }
+            add(50, .drop(r), "Drop")
+            if game.sheetCount > 1 { add(50, .give(r), "Give") }
+            if line.item.weapon != nil { add(72, line.inHand ? .unequip : .equip(r), line.inHand ? "Put away" : "Equip") }
+        }
+        return out
+    }
+
+    static func sheetAction(_ game: Game, atX px: Int, y py: Int) -> Game.SheetAction? {
+        sheetButtons(game).first { inside($0.rect, px, py) }?.action
+    }
+
+    private func button(_ b: SheetButton) {
+        let r = b.rect
+        box(r.x, r.y, r.w, r.h)
+        texts.append(TextItem(text: b.label, x: Double(r.x + r.w / 2), y: Double(r.y + (r.h - 15) / 2), size: 12, font: .bold,
+                              color: 0xE8C878, align: .center))
+    }
+
+    private func drawSheet(_ game: Game) {
+        let k = min(game.sheet ?? 0, game.sheetCount - 1)
+        let npc = k == 0 ? nil : game.party[k - 1]
+        let (x, y, w, h) = Screen.sheetBox
+        fb.wash(Screen.mapX, Screen.mapY, MapRenderer.pixelW, MapRenderer.pixelH, hex(0x000000), 0.55)
+        parchmentBox(x, y, w, h)
+        let cx = Double(x + w / 2)
+        texts.append(TextItem(text: game.sheetName(k), x: cx, y: Double(y + 10), size: 22, font: .title, color: Screen.brown,
+                              align: .center, shadow: false))
+        let sub = npc.map { "\($0.kind.capitalizedFirst)  ·  companion \(k) of \(game.party.count)" } ?? "The Avatar"
+        texts.append(TextItem(text: sub, x: cx, y: Double(y + 40), size: 12.5, font: .italic, color: 0x5A4024, align: .center, shadow: false))
+
+        // The portrait, and what the person is made of.
+        let pw = 150, ph = 196, fx = x + 20 + (220 - pw) / 2, fy = y + 64
+        fb.fill(fx, fy, pw, ph, rgb(0x4A443C))
+        if let npc {
+            if let painting = npc.painting {
+                texts.append(.picture(painting, crop: CGRect(x: 0, y: 0, width: 258, height: 258 * ph / pw),
+                                      x: Double(fx), y: Double(fy), w: Double(pw), h: Double(ph)))
+            }
+        } else {
+            texts.append(.picture(Portraits.avatarName(female: game.female, look: game.avatarLook),
+                                  crop: CGRect(x: 0, y: 0, width: 236, height: 236 * ph / pw),
+                                  x: Double(fx), y: Double(fy), w: Double(pw), h: Double(ph)))
+        }
+        gild(fx, fy, pw, ph)
+        let hp = npc?.hp ?? game.hp, maxHP = npc?.maxHP ?? game.maxHP
+        let weapon = game.inHand(k)
+        var stats: [(String, String, UInt32)] = [
+            ("Health", "\(hp) / \(maxHP)", hp * 2 < maxHP ? 0x8E2410 : 0x2A1406),
+            ("Weapon", weapon.map { "\($0.name.capitalizedFirst) +\($0.bonus)" } ?? "Bare hands", 0x2A1406),
+            ("Each blow", "\(1 + (weapon?.bonus ?? 0))–\(10 + (weapon?.bonus ?? 0)) damage", 0x2A1406),
+            ("Gold", "\(npc?.gold ?? game.gold)", 0x7A5A10),
+            ("Carrying", "\(game.carried(k)) of \(Game.carryLimit)", 0x2A1406),
+        ]
+        if let npc { stats.append(("Mood", "\(npc.disposition.word) (\(npc.friendliness > 0 ? "+" : "")\(npc.friendliness))", moodInk(npc.disposition))) }
+        var sy = Double(fy + ph + 12)
+        for (label, value, ink) in stats {
+            texts.append(TextItem(text: label, x: Double(x + 24), y: sy, size: 12.5, font: .italic, color: 0x6A5034, shadow: false))
+            texts.append(TextItem(text: value, x: Double(x + 228), y: sy, size: 12.5, font: .bold, color: ink, align: .right, shadow: false))
+            if label == "Health" { healthBar(x + 24, Int(sy) + 18, 204, 4, hp, maxHP); sy += 6 }
+            sy += 19
+        }
+        if npc == nil {
+            for line in TextRenderer.wrap(game.avatar.appearance.capitalizedFirst, width: 204, size: 11.5, font: .italic).prefix(2) {
+                texts.append(TextItem(text: line, x: Double(x + 24), y: sy + 2, size: 11.5, font: .italic, color: 0x6A5034, shadow: false))
+                sy += 15
+            }
+        }
+
+        // Belongings.
+        let lx = Double(x + 250)
+        texts.append(TextItem(text: "Belongings  (\(game.carried(k)) of \(Game.carryLimit))", x: lx, y: Double(y + 62), size: 14,
+                              font: .bold, color: Screen.brown, shadow: false))
+        let rows = game.belongings(k)
+        for r in 0..<Game.carryLimit {
+            let row = Screen.sheetRow(r)
+            fb.wash(row.x, row.y, row.w, row.h, hex(r % 2 == 0 ? 0x6A4A24 : 0x8A6A3A), r == game.sheetGiving ? 0.35 : 0.12)
+            guard r < rows.count else { continue }
+            let item = rows[r].item
+            let label = item.name.capitalizedFirst + (item.weapon.map { "  +\($0.bonus)" } ?? "")
+            texts.append(TextItem(text: label, x: Double(row.x + 8), y: Double(row.y + 5), size: 13, font: rows[r].inHand ? .bold : .body,
+                                  color: 0x2A1406, shadow: false))
+            if rows[r].inHand {
+                let tw = TextRenderer.width(label, size: 13, font: .bold)
+                texts.append(TextItem(text: "in hand", x: Double(row.x + 16) + tw, y: Double(row.y + 7), size: 11, font: .italic,
+                                      color: 0x8A5A14, shadow: false))
+            }
+        }
+        if rows.isEmpty {
+            texts.append(TextItem(text: k == 0 ? "You carry nothing." : "\(npc!.he.capitalizedFirst) carries nothing.",
+                                  x: lx + 8, y: Double(Screen.sheetRow(0).y + 5), size: 13, font: .italic, color: 0x7A6A50, shadow: false))
+        }
+        if let r = game.sheetGiving, r < rows.count {
+            texts.append(TextItem(text: "Give the \(rows[r].item.name) to", x: lx, y: Double(y + 391), size: 13, font: .italic,
+                                  color: Screen.brown, shadow: false))
+        }
+        for b in Screen.sheetButtons(game) { button(b) }
     }
 
     private func drawHelp() {

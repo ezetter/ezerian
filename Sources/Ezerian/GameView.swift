@@ -204,6 +204,17 @@ final class GameView: NSView, CALayerDelegate {
             needsRender = true
             return
         }
+        if game.sheet != nil {
+            // The character sheet: ← → through the companions, I or Esc to close.
+            switch event.keyCode {
+            case 123: game.perform(.previous)
+            case 124: game.perform(.next)
+            case 53: game.perform(game.sheetGiving == nil ? .close : .cancelGive)
+            default: if event.charactersIgnoringModifiers?.lowercased() == "i" { game.perform(.close) }
+            }
+            needsRender = true
+            return
+        }
         if let c = game.conversation {
             stopRepeating()
             heldKeys.removeAll()
@@ -267,6 +278,10 @@ final class GameView: NSView, CALayerDelegate {
         case "g": game.showGrid.toggle()
         case "h", "?", "/": game.showHelp.toggle()
         case "l": game.lookAhead()
+        case "i":
+            stopRepeating()
+            heldKeys.removeAll()
+            game.openSheet()
         case "f":
             stopRepeating()
             heldKeys.removeAll()
@@ -439,6 +454,26 @@ final class GameView: NSView, CALayerDelegate {
                 needsRender = true
             }
             return
+        }
+        if game.sheet != nil {
+            let (sx, sy) = screenPixel(for: event)
+            if let a = Screen.sheetAction(game, atX: sx, y: sy) { game.perform(a) }
+            needsRender = true
+            return
+        }
+        if game.conversation == nil {
+            // The Avatar's box in the side panel opens the character sheet; a companion's line, theirs.
+            let (sx, sy) = screenPixel(for: event)
+            let k = Screen.inside(Screen.avatarBox, sx, sy) ? 0
+                : game.party.indices.first { Screen.inside(Screen.companionLine($0), sx, sy) }.map { $0 + 1 }
+            if let k {
+                stopRepeating()
+                heldKeys.removeAll()
+                mouseDirection = nil
+                game.openSheet(k)
+                needsRender = true
+                return
+            }
         }
         if let c = game.conversation {
             // In a conversation: the gold field, the Give gold button, or the line being said.

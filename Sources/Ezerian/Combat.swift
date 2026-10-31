@@ -265,17 +265,8 @@ extension Game {
             } else {
                 log("\(n.he.capitalizedFirst) carried no gold.")
             }
-            // Whoever the Avatar slays, the Avatar takes their weapon.
-            if byAvatar, let w = n.weapon {
-                let best = weapon
-                n.weapon = nil
-                if weapons.contains(w) {
-                    log("You already have \(w.article) \(w.name) like \(n.his).")
-                } else {
-                    weapons.append(w)
-                    log("You take \(n.his) \(w.name)." + (best == nil || w > best! ? " You now fight with it (+\(w.bonus) damage)." : ""))
-                }
-            }
+            // Whoever the Avatar slays, the Avatar takes all they carried (room permitting).
+            if byAvatar { loot(n) }
         }
         if let c = combat {
             c.enemies.removeAll { $0 === n }
