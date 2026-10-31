@@ -24,8 +24,8 @@ final class Combat {
     /// How much attacking someone sours them towards the Avatar.
     static let attackedPenalty = 60
     /// Out of a fight, health comes back one point every this many turns
-    /// (a turn is two minutes, so 30 points an hour).
-    static let recoveryTurns = 2
+    /// (a turn is two minutes, so 3 points an hour; a healer is far quicker).
+    static let recoveryTurns = 20
 
     /// Enemies further away than this have been escaped.
     static let escapeDistance = 8

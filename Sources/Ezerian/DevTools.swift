@@ -1029,8 +1029,8 @@ extension DevTools {
             let (g, folk) = arena()
             g.hp = 40
             g.roll = { 0.999 }
-            for _ in 0..<20 { g.waitTurn() }
-            check(g.hp == 50, "out of a fight the Avatar heals 1 health every 2 turns (40 -> \(g.hp) in 20 turns)")
+            for _ in 0..<200 { g.waitTurn() }
+            check(g.hp == 50, "out of a fight the Avatar heals 1 health every 20 turns (40 -> \(g.hp) in 200 turns)")
             // Someone (not one of Draconian's, whose friends would join in) with room beside them.
             var spot: (NPC, (Int, Int))?
             for n in folk.dropFirst(5) where !n.servesDraconian && n.z == 0 {

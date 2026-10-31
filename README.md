@@ -262,7 +262,7 @@ Draconian".
   every blow ("You hit the orc for 7: 31 of 60 left."). The setting is remembered
   between launches.
 * **Healing:** out of a fight, you, your companions and the people around you recover
-  1 health every 2 turns (30 an hour of game time).
+  1 health every 20 turns (3 an hour of game time), so a healer is the quick way back.
 * **Gold:** you start with no gold. Everyone else carries a purse of random size
   averaging one coin for every 10 points of their starting health (a Poisson draw, so
   a 75-health foe has 7 or 8 on average, sometimes none, sometimes a dozen or more).
