@@ -52,7 +52,7 @@ final class SpriteBank {
                 if let r = painted, r != race { continue }
                 for d in Direction.allCases {
                     for step in 0..<3 {
-                        jobs.append(Job(key: 100_000 + race.index * 10000 + look * 100 + d.rawValue * 10 + step, variant: 0, frame: 0,
+                        jobs.append(Job(key: 1_000_000 + race.index * 100_000 + look * 100 + d.rawValue * 10 + step, variant: 0, frame: 0,
                                         recipe: Recipe { _, _, _ in PeopleArt.model(race, variant: look, facing: d, step: [0, -1, 1][step]) }))
                     }
                 }
@@ -96,12 +96,13 @@ final class SpriteBank {
         var av = [[[Art]]](repeating: [[Art]](repeating: [], count: 4), count: 2 * AvatarArt.perSex)
         for (i, j) in jobs.enumerated() {
             guard let art = results[i] else { continue }
-            if j.key >= 200_000 {
+            if j.key >= 1_000_000 {
+                // People: race, then look (up to 999), facing and stride.
+                let k = j.key - 1_000_000
+                folk[k / 100_000][(k / 100) % 1000][(k / 10) % 10][k % 10] = art
+            } else if j.key >= 200_000 {
                 let k = j.key - 200_000
                 held[k / 1000][(k / 100) % 10][(k / 10) % 10][k % 10] = art
-            } else if j.key >= 100_000 {
-                let k = j.key - 100_000
-                folk[k / 10000][(k / 100) % 100][(k / 10) % 10][k % 10] = art
             } else if j.key >= 50000 {
                 faceArt[(j.key - 50000) / 100][(j.key - 50000) % 100] = art.sprite
             } else if j.key >= 2000 {

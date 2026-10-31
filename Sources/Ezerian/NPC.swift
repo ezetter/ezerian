@@ -262,23 +262,26 @@ enum Populace {
         guardRank(look: look) != nil ? .human : painted(look: look)?.race
     }
 
-    /// Paints a human from the everyday sets, by where they live: the townsfolk for
-    /// those of a town, the country folk for those of a farmhouse or the wilds. The
-    /// watch keep their own paintings. Draconian's humans keep his livery on the map and
-    /// are only given the portrait. The pick is fixed by who they are, so it is the same
-    /// each time (it also repaints people from older saves).
+    /// The everyday set someone is painted from, if any: every elf from the elf set;
+    /// every human but the watch from the townsfolk if they live in a town, or the
+    /// country folk if they live at a farmhouse or in the wilds.
+    static func everydaySet(_ n: NPC) -> [PaintedFolk.Painted]? {
+        if n.race == .elf { return PaintedFolk.elfFolk }
+        guard n.race == .human, n.guardRank == nil else { return nil }
+        return n.home.map { $0.hasSuffix("Farmhouse") } ?? true ? PaintedFolk.countryFolk : PaintedFolk.townFolk
+    }
+
+    /// Paints someone from their everyday set. Draconian's servants keep his livery on
+    /// the map and are only given the portrait. The pick is fixed by who they are, so it
+    /// is the same each time (it also repaints people from older saves).
     static func paint(_ n: NPC) {
-        guard n.race == .human, n.guardRank == nil else { return }
-        let country = n.home.map { $0.hasSuffix("Farmhouse") } ?? true
-        let set = country ? PaintedFolk.countryFolk : PaintedFolk.townFolk
-        let first = paintedLooks + PaintedFolk.all.count - PaintedFolk.countryFolk.count - (country ? 0 : PaintedFolk.townFolk.count)
-        let everyday = (paintedLooks + PaintedFolk.all.count - PaintedFolk.countryFolk.count - PaintedFolk.townFolk.count)..<looks
+        guard let set = everydaySet(n) else { return }
         let mine = set.indices.filter { set[$0].look.female == n.female }
         let pick = mine[Int(Hash.of(0x9A1D7, n.id, 0) % UInt64(mine.count))]
         if n.servesDraconian {
             n.portrait = set[pick].painting
-        } else if !everyday.contains(n.look) {
-            n.look = first + pick
+        } else if !set.contains(where: { $0.painting == painted(look: n.look)?.painting }) {
+            n.look = paintedLooks + PaintedFolk.all.firstIndex { $0.painting == set[pick].painting }!
             n.portrait = nil
         }
     }
@@ -394,9 +397,9 @@ enum Populace {
                 look = guardLook(rank: r, female: female)
                 job = GuardArt.title(r, female: female)
             }
-            // Elf and dwarf bards and elven drinkers look like one of the painted folk of their
-            // trade, race and sex. (Humans are all painted from the everyday sets: see `paint`.)
-            let mine = race == .human ? [] : PaintedFolk.all.indices.filter {
+            // Dwarf bards look like one of the painted bards of their sex. (Humans and elves
+            // are all painted from the everyday sets: see `paint`.)
+            let mine = race == .human || race == .elf ? [] : PaintedFolk.all.indices.filter {
                 let p = PaintedFolk.all[$0]
                 return p.role == job && p.race == race && p.look.female == female
             }

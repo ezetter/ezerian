@@ -170,15 +170,16 @@ Draconian's human mercenaries keep his black-and-red livery on the map, so you c
 tell them apart, but they too have an everyday painting to talk to. The watch keeps
 its own paintings, by rank.
 
-Elves and dwarves are painted by trade: elf and dwarf bards each look like one of the
-painted bards of their race and sex, playing its instrument (an elf with a lyre, a
-dwarf with a drum, a dwarf woman with a tambourine, an elf woman with a hurdy-gurdy),
-and elves drinking in taverns look like one of ten painted elven drinkers, holding a
-mug, bread, dice or a bowl of stew. They are known as elven drinkers ("The elven
-drinker hits you…"). Other elves, dwarves and orcs keep their ordinary looks.
+Every elf looks like one of ten elf paintings (five men, five women), whatever their
+trade or wherever they live, dressed to match on the map. Elves drinking in taverns
+are still known as elven drinkers ("The elven drinker hits you…"), and elves in
+Draconian's pay keep his livery on the map. Dwarf bards each look like one of the
+painted dwarf bards of their sex, with a drum or a tambourine. Other dwarves and the
+orcs keep their ordinary looks.
 
-The earlier paintings of human bards, peasants, townsfolk, farmhands and drinkers are
-still in `Resources/Portraits` (and `PaintedFolk`), but no human uses them for now.
+The earlier paintings of human bards, peasants, townsfolk, farmhands and drinkers, and of
+elf bards and elven drinkers, are still in `Resources/Portraits` (and `PaintedFolk`), but
+no one uses them for now.
 
 ## Lord Draconian
 

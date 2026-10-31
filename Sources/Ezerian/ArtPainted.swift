@@ -2,9 +2,9 @@ import Foundation
 import simd
 
 /// Folk with painted portraits. Every human but the watch is now painted from one of
-/// two everyday sets, the townsfolk and the country folk, whatever their trade; the
-/// earlier sets by trade below are kept so the look numbers in saves stay put, and
-/// still dress the elves and dwarves among them. By trade: the bards, the peasants, the human farmhands,
+/// two everyday sets, the townsfolk and the country folk, and every elf from the elf
+/// set, whatever their trade; the earlier sets by trade below are kept so the look
+/// numbers in saves stay put, and still dress the dwarf bards. By trade: the bards, the peasants, the human farmhands,
 /// the human townsmen and townswomen, and the humans and elves drinking in taverns. Each one's figure on the map wears the painting's colours
 /// and hat, and holds what they hold in it (an instrument, a hoe, a loaf, a broom). The bard sheet's horned, red-skinned fiddler belongs
 /// to no race of Ezerian, so bard painting 4 is not used.
@@ -39,7 +39,7 @@ enum PaintedFolk {
     }
 
     // New lists go on the end: a person's look is their index here, kept in saves.
-    static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers + drinkers + townFolk + countryFolk
+    static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers + drinkers + townFolk + countryFolk + elfFolk
     private static let linen: UInt32 = 0xDCD0B4, leather: UInt32 = 0x5A3A22
 
     static let bards: [Painted] = [
@@ -234,6 +234,30 @@ enum PaintedFolk {
                                                                   legs: 0x5A5A32, longHair: false, dress: true), prop: .none),
         Painted(role: "country", painting: "country-9", look: look(.human, female: true, skin: 0xE0B090, hair: 0x14100C, tunic: 0xD8CCB0,
                                                                   legs: 0x6A3E2A, longHair: true, dress: true), prop: .none, apron: 0x6A3E2A),
+    ]
+
+    /// Every elf, five men then five women.
+    static let elfFolk: [Painted] = [
+        Painted(role: "elf", painting: "elf-0", look: look(.elf, female: false, skin: 0xC8946A, hair: 0x14100C, tunic: 0x7A4026,
+                                                          legs: 0x5A3A26, longHair: true), prop: .none, apron: linen),
+        Painted(role: "elf", painting: "elf-1", look: look(.elf, female: false, skin: 0x4A2E1E, hair: 0xC0BCB8, tunic: 0x4A5A7A,
+                                                          legs: 0x5A4A3A, longHair: false), prop: .none),
+        Painted(role: "elf", painting: "elf-2", look: look(.elf, female: false, skin: 0xF0C8A8, hair: 0xC8501E, tunic: 0x6A6A3A,
+                                                          legs: 0x5A4A3A, longHair: false), prop: .none),
+        Painted(role: "elf", painting: "elf-3", look: look(.elf, female: false, skin: 0xD8A27A, hair: 0x3A2416, tunic: 0xA89A84,
+                                                          legs: 0x4A3A2E, cape: 0x3A3236, longHair: true), prop: .none),
+        Painted(role: "elf", painting: "elf-4", look: look(.elf, female: false, skin: 0xF0D8C8, hair: 0xE0D8C0, tunic: 0x6A4A5A,
+                                                          legs: 0x6A4A5A, longHair: true), prop: .none),
+        Painted(role: "elf", painting: "elf-5", look: look(.elf, female: true, skin: 0x4A2E1E, hair: 0x14100C, tunic: 0x5A5A32,
+                                                          legs: 0x5A5A32, longHair: true, dress: true), prop: .none),
+        Painted(role: "elf", painting: "elf-6", look: look(.elf, female: true, skin: 0xF0C8A8, hair: 0xC8501E, tunic: 0x4A5A7A,
+                                                          legs: 0x4A5A7A, longHair: false, dress: true), prop: .none),
+        Painted(role: "elf", painting: "elf-7", look: look(.elf, female: true, skin: 0xC8946A, hair: 0x14100C, tunic: 0xC8B898,
+                                                          legs: 0x6A4028, cape: 0x6A4028, longHair: true, dress: true), prop: .none),
+        Painted(role: "elf", painting: "elf-8", look: look(.elf, female: true, skin: 0xD8B090, hair: 0xB8B4B0, tunic: 0x6A4A5A,
+                                                          legs: 0x6A4A5A, longHair: false, dress: true), prop: .none),
+        Painted(role: "elf", painting: "elf-9", look: look(.elf, female: true, skin: 0xF0D0B0, hair: 0xD8A868, tunic: 0x5A6A44,
+                                                          legs: 0x5A6A44, longHair: true, dress: true), prop: .none),
     ]
 
     /// The person facing south, built on an ordinary figure, with hat, apron and prop.
