@@ -57,9 +57,9 @@ swift run -c release Ezerian
 | ⌘S | Save (the game also saves automatically) |
 
 A new game (first launch or ⌘N) begins by asking your character's name, then how they
-look: ten painted portraits, five men above and five women below. Click one, or move
-the highlight with the arrows (up and down switch between the men and the women) and
-press Return. The name and look appear in the side panel, are kept in the save file
+look: ten painted portraits, five men above and five women below. Click one to choose
+it, or move the highlight with the arrows (up and down switch between the men and the
+women); then press Return or click "Begin thy journey". The name and look appear in the side panel, are kept in the save file
 (older saves keep the first man or woman), and NPCs voiced by Claude are told how you
 look. On the map the Avatar's figure matches: skin, hair, beard, sash and scarf. The
 Avatar sets out with no armour and no weapon: just a laced linen shirt, slacks, a belt

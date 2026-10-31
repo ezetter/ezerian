@@ -303,7 +303,14 @@ final class Screen {
 
     /// The second question of a new game: how the Avatar looks, from five men and five
     /// women, each shown in their painted portrait.
-    private static let lookBox = (w: 560, h: 420, x: mapX + (MapRenderer.pixelW - 560) / 2, y: mapY + (MapRenderer.pixelH - 420) / 2)
+    private static let lookBox = (w: 560, h: 474, x: mapX + (MapRenderer.pixelW - 560) / 2, y: mapY + (MapRenderer.pixelH - 474) / 2)
+    /// The button that takes the chosen look and begins the game.
+    static let lookBegin = (x: lookBox.x + (lookBox.w - 200) / 2, y: lookBox.y + 400, w: 200, h: 34)
+
+    static func onLookBegin(atX px: Int, y py: Int) -> Bool {
+        let b = lookBegin
+        return px >= b.x && px < b.x + b.w && py >= b.y && py < b.y + b.h
+    }
     /// Where each of the ten portraits sits: the men in the top row, the women below.
     static func lookPortrait(_ i: Int) -> (x: Int, y: Int, w: Int, h: Int) {
         let pw = 82, ph = 140, gap = 22
@@ -342,7 +349,11 @@ final class Screen {
         let look = AvatarArt.look(female: chosen >= AvatarArt.perSex, chosen % AvatarArt.perSex)
         texts.append(TextItem(text: look.appearance.capitalizedFirst, x: cx, y: Double(y + 372), size: 14, font: .italic,
                               color: Screen.brown, align: .center, shadow: false))
-        texts.append(TextItem(text: "Click a portrait  ·  or the arrows and Return", x: cx, y: Double(y + h - 24), size: 12,
+        let b = Screen.lookBegin
+        box(b.x, b.y, b.w, b.h)
+        texts.append(TextItem(text: "Begin thy journey", x: cx, y: Double(b.y + 8), size: 15, font: .bold,
+                              color: 0xE8C878, align: .center, shadow: true))
+        texts.append(TextItem(text: "Click a portrait or use the arrows  ·  Return or the button to begin", x: cx, y: Double(y + h - 24), size: 12,
                               color: 0x5A4024, align: .center, shadow: false))
     }
 

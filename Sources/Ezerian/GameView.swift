@@ -381,10 +381,13 @@ final class GameView: NSView, CALayerDelegate {
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
         if game.lookEntry != nil {
-            // Clicking one of the portraits takes it.
+            // Clicking a portrait chooses it; the button (or Return) begins the game with it.
             let (sx, sy) = screenPixel(for: event)
             if let i = Screen.lookChoice(atX: sx, y: sy) {
-                game.confirmLook(i)
+                game.lookEntry = i
+                needsRender = true
+            } else if Screen.onLookBegin(atX: sx, y: sy) {
+                game.confirmLook()
                 onTurn?()
                 needsRender = true
             }

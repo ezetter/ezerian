@@ -389,7 +389,13 @@ extension DevTools {
         check(hits == (0..<Game.lookChoices).map { $0 } && Screen.lookChoice(atX: (p0.x + p0.w + p1.x) / 2, y: p0.y + p0.h / 2) == nil
               && Screen.lookChoice(atX: p0.x + p0.w / 2, y: p0.y - 30) == nil,
               "clicking any of the ten portraits picks it, and clicks between them don't")
-        game.confirmLook(8)
+        let bb = Screen.lookBegin
+        check(Screen.onLookBegin(atX: bb.x + bb.w / 2, y: bb.y + bb.h / 2) && Screen.lookChoice(atX: bb.x + bb.w / 2, y: bb.y + bb.h / 2) == nil
+              && !Screen.onLookBegin(atX: p0.x + p0.w / 2, y: p0.y + p0.h / 2),
+              "the Begin button is apart from the portraits, so a click on a portrait only chooses it")
+        game.lookEntry = 8
+        check(game.creatingCharacter, "choosing a portrait doesn't begin the game")
+        game.confirmLook()
         check(game.female && game.avatarLook == 3 && !game.creatingCharacter, "the Avatar can be any of the ten, here the fourth woman")
         check(game.messages.contains { $0.hasPrefix("Welcome to the Land of Ezerian") }, "the welcome comes once the Avatar is made")
         let bank = SpriteBank.shared
