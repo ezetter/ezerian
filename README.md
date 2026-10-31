@@ -173,9 +173,11 @@ its own paintings, by rank.
 Every elf looks like one of ten elf paintings (five men, five women), whatever their
 trade or wherever they live, dressed to match on the map. Elves drinking in taverns
 are still known as elven drinkers ("The elven drinker hits you…"), and elves in
-Draconian's pay keep his livery on the map. Dwarf bards each look like one of the
-painted dwarf bards of their sex, with a drum or a tambourine. Other dwarves and the
-orcs keep their ordinary looks.
+Draconian's pay keep his livery on the map. Every orc likewise looks like one of ten orc
+paintings (five men, five women), dressed to match on the map; the many orcs in
+Draconian's warbands keep his livery on the map, with an orc painting to talk to. Dwarf
+bards each look like one of the painted dwarf bards of their sex, with a drum or a
+tambourine. Other dwarves keep their ordinary looks.
 
 The earlier paintings of human bards, peasants, townsfolk, farmhands and drinkers, and of
 elf bards and elven drinkers, are still in `Resources/Portraits` (and `PaintedFolk`), but

@@ -3,8 +3,9 @@ import simd
 
 /// Folk with painted portraits. Every human but the watch is now painted from one of
 /// two everyday sets, the townsfolk and the country folk, and every elf from the elf
-/// set, whatever their trade; the earlier sets by trade below are kept so the look
-/// numbers in saves stay put, and still dress the dwarf bards. By trade: the bards, the peasants, the human farmhands,
+/// set, and every orc from the orc set, whatever their trade; the earlier sets by trade
+/// below are kept so the look numbers in saves stay put, and still dress the dwarf bards.
+/// By trade: the bards, the peasants, the human farmhands,
 /// the human townsmen and townswomen, and the humans and elves drinking in taverns. Each one's figure on the map wears the painting's colours
 /// and hat, and holds what they hold in it (an instrument, a hoe, a loaf, a broom). The bard sheet's horned, red-skinned fiddler belongs
 /// to no race of Ezerian, so bard painting 4 is not used.
@@ -33,13 +34,13 @@ enum PaintedFolk {
     }
 
     private static func look(_ race: Race, female: Bool, skin: UInt32, hair: UInt32, tunic: UInt32, legs: UInt32,
-                             cape: UInt32? = nil, longHair: Bool, beard: Bool = false, dress: Bool = false) -> PeopleArt.Look {
+                             cape: UInt32? = nil, longHair: Bool, bald: Bool = false, beard: Bool = false, dress: Bool = false) -> PeopleArt.Look {
         PeopleArt.Look(race: race, female: female, skin: skin, hair: hair, tunic: tunic, legs: legs, cape: cape,
-                       longHair: longHair, bald: false, beard: beard, dress: dress, helmet: false)
+                       longHair: longHair, bald: bald, beard: beard, dress: dress, helmet: false)
     }
 
     // New lists go on the end: a person's look is their index here, kept in saves.
-    static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers + drinkers + townFolk + countryFolk + elfFolk
+    static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers + drinkers + townFolk + countryFolk + elfFolk + orcFolk
     private static let linen: UInt32 = 0xDCD0B4, leather: UInt32 = 0x5A3A22
 
     static let bards: [Painted] = [
@@ -258,6 +259,30 @@ enum PaintedFolk {
                                                           legs: 0x6A4A5A, longHair: false, dress: true), prop: .none),
         Painted(role: "elf", painting: "elf-9", look: look(.elf, female: true, skin: 0xF0D0B0, hair: 0xD8A868, tunic: 0x5A6A44,
                                                           legs: 0x5A6A44, longHair: true, dress: true), prop: .none),
+    ]
+
+    /// Every orc, five men then five women.
+    static let orcFolk: [Painted] = [
+        Painted(role: "orc", painting: "orc-0", look: look(.orc, female: false, skin: 0x7A8040, hair: 0x9A9490, tunic: 0x6A3A22,
+                                                          legs: 0x4A2E22, longHair: true), prop: .none, apron: 0xD8B8A0),
+        Painted(role: "orc", painting: "orc-1", look: look(.orc, female: false, skin: 0x7A8040, hair: 0x2A1A14, tunic: 0x4A5068,
+                                                          legs: 0x5A3A2A, longHair: false), prop: .none),
+        Painted(role: "orc", painting: "orc-2", look: look(.orc, female: false, skin: 0x7A8040, hair: 0x5A6030, tunic: 0xC8A890,
+                                                          legs: 0x5A3A2A, longHair: false, bald: true), prop: .none),
+        Painted(role: "orc", painting: "orc-3", look: look(.orc, female: false, skin: 0x7A8040, hair: 0x3A2016, tunic: 0xB89A80,
+                                                          legs: 0x5A3A2A, cape: 0x4A4A32, longHair: true), prop: .none),
+        Painted(role: "orc", painting: "orc-4", look: look(.orc, female: false, skin: 0x7A8040, hair: 0x8A8680, tunic: 0x7A2A2A,
+                                                          legs: 0x4A2E22, longHair: false, beard: true), prop: .none),
+        Painted(role: "orc", painting: "orc-5", look: look(.orc, female: true, skin: 0x7A8040, hair: 0x2A1414, tunic: 0x6A3A22,
+                                                          legs: 0x6A3A22, longHair: true, dress: true), prop: .none, apron: 0xD8B8A0),
+        Painted(role: "orc", painting: "orc-6", look: look(.orc, female: true, skin: 0x7A8040, hair: 0xD0CCC8, tunic: 0x4A5068,
+                                                          legs: 0x4A5068, longHair: false, dress: true), prop: .none),
+        Painted(role: "orc", painting: "orc-7", look: look(.orc, female: true, skin: 0x7A8040, hair: 0x8A2A1A, tunic: 0xA0602A,
+                                                          legs: 0x6A3A22, longHair: false, dress: true), prop: .none),
+        Painted(role: "orc", painting: "orc-8", look: look(.orc, female: true, skin: 0x7A8040, hair: 0x3A2420, tunic: 0xC8A890,
+                                                          legs: 0x6A2A22, cape: 0x6A2A22, longHair: true, dress: true), prop: .none),
+        Painted(role: "orc", painting: "orc-9", look: look(.orc, female: true, skin: 0x7A8040, hair: 0x2A1414, tunic: 0x7A746A,
+                                                          legs: 0x5A3A2A, longHair: true, dress: true), prop: .none),
     ]
 
     /// The person facing south, built on an ordinary figure, with hat, apron and prop.

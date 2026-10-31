@@ -262,11 +262,13 @@ enum Populace {
         guardRank(look: look) != nil ? .human : painted(look: look)?.race
     }
 
-    /// The everyday set someone is painted from, if any: every elf from the elf set;
+    /// The everyday set someone is painted from, if any: every elf from the elf set,
+    /// every orc from the orc set;
     /// every human but the watch from the townsfolk if they live in a town, or the
     /// country folk if they live at a farmhouse or in the wilds.
     static func everydaySet(_ n: NPC) -> [PaintedFolk.Painted]? {
         if n.race == .elf { return PaintedFolk.elfFolk }
+        if n.race == .orc { return PaintedFolk.orcFolk }
         guard n.race == .human, n.guardRank == nil else { return nil }
         return n.home.map { $0.hasSuffix("Farmhouse") } ?? true ? PaintedFolk.countryFolk : PaintedFolk.townFolk
     }
@@ -397,9 +399,9 @@ enum Populace {
                 look = guardLook(rank: r, female: female)
                 job = GuardArt.title(r, female: female)
             }
-            // Dwarf bards look like one of the painted bards of their sex. (Humans and elves
-            // are all painted from the everyday sets: see `paint`.)
-            let mine = race == .human || race == .elf ? [] : PaintedFolk.all.indices.filter {
+            // Dwarf bards look like one of the painted bards of their sex. (Humans, elves and
+            // orcs are all painted from the everyday sets: see `paint`.)
+            let mine = race != .dwarf ? [] : PaintedFolk.all.indices.filter {
                 let p = PaintedFolk.all[$0]
                 return p.role == job && p.race == race && p.look.female == female
             }

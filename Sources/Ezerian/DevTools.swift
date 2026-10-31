@@ -998,23 +998,23 @@ extension DevTools {
                 return p.role == "bard" && p.race == .dwarf && p.look.female == n.female && n.painting == p.painting
             }, "every dwarf bard looks like a painted dwarf bard of their sex (\(dwarfBards.count) of them)")
             // Every human but the watch is painted from the town or the country set, by where they live;
-            // every elf from the elf set.
-            let everyday = all.filter { ($0.race == .human && $0.guardRank == nil) || $0.race == .elf }
+            // every elf and orc from their own set.
+            let everyday = all.filter { ($0.race == .human && $0.guardRank == nil) || $0.race == .elf || $0.race == .orc }
             let names: (String) -> Set<String> = { kind in
-                Set((kind == "town" ? PaintedFolk.townFolk : kind == "country" ? PaintedFolk.countryFolk : PaintedFolk.elfFolk).map(\.painting))
+                Set((kind == "town" ? PaintedFolk.townFolk : kind == "country" ? PaintedFolk.countryFolk : kind == "orc" ? PaintedFolk.orcFolk : PaintedFolk.elfFolk).map(\.painting))
             }
             let isCountry: (NPC) -> Bool = { $0.home.map { $0.hasSuffix("Farmhouse") } ?? true }
-            let setOf: (NPC) -> String = { $0.race == .elf ? "elf" : isCountry($0) ? "country" : "town" }
+            let setOf: (NPC) -> String = { $0.race == .elf ? "elf" : $0.race == .orc ? "orc" : isCountry($0) ? "country" : "town" }
             check(everyday.allSatisfy { n in n.painting.map { names(setOf(n)).contains($0) } ?? false },
-                  "every human but the watch has a town or country painting by where they live, and every elf an elf painting (\(everyday.count) of them)")
+                  "every human but the watch has a town or country painting by where they live, every elf an elf painting and every orc an orc painting (\(everyday.count) of them)")
             check(everyday.filter { !$0.servesDraconian }.allSatisfy { n in
                 guard let p = Populace.painted(look: n.look) else { return false }
                 return p.painting == n.painting && p.look.female == n.female && p.race == n.race && n.portrait == nil
             }, "and their figures on the map are dressed as painted, for their race and sex")
             check(everyday.filter(\.servesDraconian).allSatisfy { [6, 7].contains($0.look) && $0.portrait != nil }
                   && everyday.contains { $0.servesDraconian },
-                  "Draconian's humans and elves keep his livery on the map, with a painting to talk to")
-            check(Set(everyday.map(setOf)) == ["town", "country", "elf"], "there are town folk, country folk and elves")
+                  "Draconian's humans, elves and orcs keep his livery on the map, with a painting to talk to")
+            check(Set(everyday.map(setOf)) == ["town", "country", "elf", "orc"], "there are town folk, country folk, elves and orcs")
             check(all.filter { $0.race == .elf && $0.role == "drinker" }.allSatisfy { $0.shortName == "the elven drinker" },
                   "elves drinking in taverns are still elven drinkers")
             // An NPC from an older save, in a plain look, is repainted on loading.
