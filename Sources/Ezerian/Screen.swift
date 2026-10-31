@@ -52,7 +52,7 @@ final class Screen {
         if game.gameOver { drawGameOver(game) }
         if game.showHelp { drawHelp() }
         if let entry = game.nameEntry { drawNamePrompt(entry, frame: frame) }
-        if let female = game.genderEntry { drawGenderPrompt(game.playerName, female: female) }
+        if let chosen = game.lookEntry { drawLookPrompt(game.playerName, chosen: chosen) }
         drawPanel(game, frame: frame)
         let hint = game.showMap ? "M or Esc closes the map  ·  + and − zoom"
             : game.gameOver ? "Press Return to begin a new adventure"
@@ -147,7 +147,7 @@ final class Screen {
         drawSky(game, x: px, y: 80, w: pw, h: 28)
 
         box(px, 116, pw, 90)
-        drawPortrait(Portraits.avatarName(female: game.female), px + 8, 122)
+        drawPortrait(Portraits.avatarName(female: game.female, look: game.avatarLook), px + 8, 122)
         let tx = Double(px + 86)
         texts.append(TextItem(text: game.nameEntry == nil ? game.playerName : "Avatar", x: tx, y: 120, size: 20,
                               font: .title, color: Screen.accent))
@@ -301,42 +301,48 @@ final class Screen {
                               x: Double(fx), y: Double(fy), w: Double(fw), h: Double(fh)))
     }
 
-    /// The second question of a new game: man or woman, each shown as they would look.
-    /// The "man or woman?" box, and each portrait in it (with room for its label below).
-    private static let genderBox = (w: 340, h: 330, x: mapX + (MapRenderer.pixelW - 340) / 2, y: mapY + (MapRenderer.pixelH - 330) / 2)
-    static func genderPortrait(female: Bool) -> (x: Int, y: Int, w: Int, h: Int) {
-        (genderBox.x + genderBox.w / 2 - 120 + (female ? 140 : 0), genderBox.y + 70, 100, 180)
+    /// The second question of a new game: how the Avatar looks, from five men and five
+    /// women, each shown in their painted portrait.
+    private static let lookBox = (w: 560, h: 420, x: mapX + (MapRenderer.pixelW - 560) / 2, y: mapY + (MapRenderer.pixelH - 420) / 2)
+    /// Where each of the ten portraits sits: the men in the top row, the women below.
+    static func lookPortrait(_ i: Int) -> (x: Int, y: Int, w: Int, h: Int) {
+        let pw = 82, ph = 140, gap = 22
+        let left = lookBox.x + (lookBox.w - (5 * pw + 4 * gap)) / 2
+        return (left + (i % 5) * (pw + gap), lookBox.y + 66 + (i / 5) * (ph + 16), pw, ph)
     }
 
-    /// Which portrait of the "man or woman?" choice is at a screen pixel, if any.
-    static func genderChoice(atX px: Int, y py: Int) -> Bool? {
-        [false, true].first { f in
-            let r = genderPortrait(female: f)
-            return px >= r.x - 6 && px < r.x + r.w + 6 && py >= r.y - 6 && py < r.y + r.h + 30
+    /// Which of the ten portraits is at a screen pixel, if any.
+    static func lookChoice(atX px: Int, y py: Int) -> Int? {
+        (0..<Game.lookChoices).first { i in
+            let r = lookPortrait(i)
+            return px >= r.x - 6 && px < r.x + r.w + 6 && py >= r.y - 6 && py < r.y + r.h + 6
         }
     }
 
-    private func drawGenderPrompt(_ name: String, female: Bool) {
-        let (w, h, x, y) = Screen.genderBox
+    private func drawLookPrompt(_ name: String, chosen: Int) {
+        let (w, h, x, y) = Screen.lookBox
         fb.wash(Screen.mapX, Screen.mapY, MapRenderer.pixelW, MapRenderer.pixelH, hex(0x000000), 0.55)
         parchmentBox(x, y, w, h)
         let cx = Double(x + w / 2)
         texts.append(TextItem(text: "A new adventure begins", x: cx, y: Double(y + 10), size: 20, font: .title,
                               color: Screen.brown, align: .center, shadow: false))
-        texts.append(TextItem(text: "Art thou a man or a woman, \(name)?", x: cx, y: Double(y + 42), size: 14,
+        texts.append(TextItem(text: "How dost thou appear, \(name)?", x: cx, y: Double(y + 40), size: 14,
                               font: .italic, color: 0x4A3018, align: .center, shadow: false))
-        for (i, (label, isFemale)) in [("Man", false), ("Woman", true)].enumerated() {
-            let (fx, fy, pw, ph) = Screen.genderPortrait(female: isFemale)
-            let chosen = isFemale == female
-            if chosen { fb.fill(fx - 6, fy - 6, pw + 12, ph + 12, rgb(0xC89A40)) }
+        for i in 0..<Game.lookChoices {
+            let (fx, fy, pw, ph) = Screen.lookPortrait(i)
+            let on = i == chosen
+            if on { fb.fill(fx - 6, fy - 6, pw + 12, ph + 12, rgb(0xE0B048)) }
             fb.fill(fx, fy, pw, ph, rgb(0x4A443C))
             gild(fx, fy, pw, ph)
-            texts.append(.picture(Portraits.avatarName(female: isFemale), crop: CGRect(x: 0, y: 0, width: 236, height: 236 * ph / pw),
-                                  x: Double(fx), y: Double(fy), w: Double(pw), h: Double(ph), dim: chosen ? 0 : 0.45))
-            texts.append(TextItem(text: label, x: Double(fx + pw / 2), y: Double(fy + ph + 8), size: 15, font: chosen ? .bold : .italic,
-                                  color: chosen ? Screen.brown : 0x7A6040, align: .center, shadow: false))
+            let female = i >= AvatarArt.perSex
+            texts.append(.picture(Portraits.avatarName(female: female, look: i % AvatarArt.perSex),
+                                  crop: CGRect(x: 0, y: 0, width: 236, height: 236 * ph / pw),
+                                  x: Double(fx), y: Double(fy), w: Double(pw), h: Double(ph), dim: on ? 0 : 0.55))
         }
-        texts.append(TextItem(text: "Click a portrait  ·  press M or W  ·  or the arrows and Return", x: cx, y: Double(y + h - 24), size: 12,
+        let look = AvatarArt.look(female: chosen >= AvatarArt.perSex, chosen % AvatarArt.perSex)
+        texts.append(TextItem(text: look.appearance.capitalizedFirst, x: cx, y: Double(y + 372), size: 14, font: .italic,
+                              color: Screen.brown, align: .center, shadow: false))
+        texts.append(TextItem(text: "Click a portrait  ·  or the arrows and Return", x: cx, y: Double(y + h - 24), size: 12,
                               color: 0x5A4024, align: .center, shadow: false))
     }
 

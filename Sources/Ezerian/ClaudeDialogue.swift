@@ -229,7 +229,7 @@ enum AIDialogue {
         }
         lines += "\n\nThe conversation so far:\n"
         for l in history { lines += (l.fromAvatar ? "Avatar: " : "\(npc.name): ") + l.text + "\n" }
-        lines += "\nThe Avatar (\(game.playerName), a \(game.female ? "woman" : "man")) now says: \"\(said)\""
+        lines += "\nThe Avatar (\(game.playerName), \(game.avatar.appearance)) now says: \"\(said)\""
         return lines
     }
 

@@ -136,8 +136,8 @@ extension DevTools {
             for s in [0, 1] {
                 for race in Race.allCases { figures.append((bank.people[race.index][0][d.rawValue][s], .of(race), d, s)) }
                 figures.append((bank.people[Race.human.index][Populace.guardLook(rank: 1, female: false)][d.rawValue][s], .guardsman, d, s))
-                figures.append((bank.avatar(female: false)[d.rawValue][s], .avatarMan, d, s))
-                figures.append((bank.avatar(female: true)[d.rawValue][s], .avatarWoman, d, s))
+                figures.append((bank.avatar(female: false, look: 0)[d.rawValue][s], .avatarMan, d, s))
+                figures.append((bank.avatar(female: true, look: 0)[d.rawValue][s], .avatarWoman, d, s))
             }
         }
         let cw = 46, ch = 70
@@ -168,7 +168,11 @@ extension DevTools {
                 if let a = bank.art(f, variant: v, frame: 0) { arts.append(("\(f)", a)) }
             }
         }
-        for g in [false, true] { for d in Direction.allCases { for s in 0..<3 { arts.append(("avatar", bank.avatar(female: g)[d.rawValue][s])) } } }
+        for g in [false, true] {
+            for look in 0..<AvatarArt.perSex {
+                for d in Direction.allCases { for s in 0..<3 { arts.append(("avatar", bank.avatar(female: g, look: look)[d.rawValue][s])) } }
+            }
+        }
         for look in 8..<Populace.looks {
             let race = Populace.lookRace(look) ?? .human
             for d in Direction.allCases { arts.append(("painted", bank.people[race.index][look][d.rawValue][0])) }
@@ -208,12 +212,14 @@ extension DevTools {
         let game = Game(seed: seed)
         if options.contains("name") {
             game.nameEntry = "Iola"
-        } else if options.contains("gender") {
+        } else if options.contains("look") || options.contains("gender") {
             game.nameEntry = "Iola"
             game.confirmName()
         } else {
+            // "woman" for the first woman, or "avatar0" ... "avatar9" for any of the ten.
+            let pick = options.compactMap { $0.hasPrefix("avatar") ? Int($0.dropFirst(6)) : nil }.first
             game.confirmName()
-            game.confirmGender(female: options.contains("woman"))
+            game.confirmLook(pick ?? (options.contains("woman") ? AvatarArt.perSex : 0))
         }
         walk(game, script)
         if let hour {
@@ -287,7 +293,7 @@ extension DevTools {
         for ry in -1...1 { for rx in -1...1 { _ = world.region(RegionKey(x: rx, y: ry, z: 0)) } }
         print("9 regions generated in \(Int(Date().timeIntervalSince(t0) * 1000)) ms")
         let game = Game(seed: seed)
-        game.confirmName(); game.confirmGender()
+        game.confirmName(); game.confirmLook()
         let screen = Screen(world: game.world)
         var pose = AvatarPose(x: Double(game.x), y: Double(game.y), facing: .south, step: 0)
         t0 = Date()
@@ -321,7 +327,7 @@ extension DevTools {
             fb.blit(oak.sprite, 74, 40)
         }
         if let well = bank.art(.well, variant: 0, frame: 0) { fb.blit(well.sprite, 6, 66) }
-        let avatar = bank.avatar(female: false)[Direction.south.rawValue][0]
+        let avatar = bank.avatar(female: false, look: 0)[Direction.south.rawValue][0]
         fb.blitScaled(avatar.sprite, 44, 38, scale: 2)
         let gold = rgb(0xD8B050), dark = rgb(0x5A3A10), light = rgb(0xF8E8A0)
         for i in 0..<size {
@@ -370,21 +376,24 @@ extension DevTools {
         let game = Game(seed: seed)
         game.nameEntry = "Iolanthe"
         game.confirmName()
-        check(game.genderEntry == false && game.creatingCharacter, "after the name, a new game asks man or woman")
-        let (man, woman) = (Screen.genderPortrait(female: false), Screen.genderPortrait(female: true))
-        check(Screen.genderChoice(atX: man.x + man.w / 2, y: man.y + man.h / 2) == false
-              && Screen.genderChoice(atX: woman.x + woman.w / 2, y: woman.y + woman.h / 2) == true
-              && Screen.genderChoice(atX: (man.x + man.w + woman.x) / 2, y: man.y + man.h / 2) == nil
-              && Screen.genderChoice(atX: man.x + man.w / 2, y: man.y - 40) == nil,
-              "clicking a portrait picks man or woman, and clicks beside them don't")
-        game.confirmGender(female: true)
-        check(game.female && !game.creatingCharacter, "the Avatar can be a woman")
+        check(game.lookEntry == 0 && game.creatingCharacter, "after the name, a new game asks how the Avatar looks")
+        let hits = (0..<Game.lookChoices).map { i -> Int? in
+            let r = Screen.lookPortrait(i)
+            return Screen.lookChoice(atX: r.x + r.w / 2, y: r.y + r.h / 2)
+        }
+        let (p0, p1) = (Screen.lookPortrait(0), Screen.lookPortrait(1))
+        check(hits == (0..<Game.lookChoices).map { $0 } && Screen.lookChoice(atX: (p0.x + p0.w + p1.x) / 2, y: p0.y + p0.h / 2) == nil
+              && Screen.lookChoice(atX: p0.x + p0.w / 2, y: p0.y - 30) == nil,
+              "clicking any of the ten portraits picks it, and clicks between them don't")
+        game.confirmLook(8)
+        check(game.female && game.avatarLook == 3 && !game.creatingCharacter, "the Avatar can be any of the ten, here the fourth woman")
         check(game.messages.contains { $0.hasPrefix("Welcome to the Land of Ezerian") }, "the welcome comes once the Avatar is made")
         let bank = SpriteBank.shared
-        check(bank.avatar(female: true)[0][0].sprite.px != bank.avatar(female: false)[0][0].sprite.px
-              , "the man and the woman look different on the map")
-        check(Portraits.Outfit.allCases.allSatisfy { o in [false, true].allSatisfy { Portraits.image(Portraits.avatarName(female: $0, outfit: o))?.width == 236 } },
-              "the painted portraits load, for a man and a woman in every outfit")
+        let figures = [false, true].flatMap { f in (0..<AvatarArt.perSex).map { bank.avatar(female: f, look: $0)[0][0].sprite.px } }
+        check(Set(figures.map { $0.hashValue }).count == Game.lookChoices, "each of the ten looks differently on the map")
+        let paintings = Portraits.Outfit.allCases.flatMap { o in [false, true].flatMap { f in (0..<AvatarArt.perSex).map { (f, $0, o) } } }
+        check(paintings.allSatisfy { f, look, o in Portraits.image(Portraits.avatarName(female: f, look: look, outfit: o))?.width == 236 },
+              "the painted portraits load, for each of the ten in every outfit (\(paintings.count))")
         game.roll = { 1.0 }   // no chance events (ambushes, offers) while checking the world itself
         var generated: [RegionKey] = []
         game.world.onGenerate = { generated.append($0.key) }
@@ -607,7 +616,7 @@ extension DevTools {
               "joining: no chance at friendliness 0 or below, rising with friendliness, certain at 100")
         game.endConversation()
         let partyTest = Game(seed: seed)
-        partyTest.confirmName(); partyTest.confirmGender()
+        partyTest.confirmName(); partyTest.confirmLook()
         partyTest.claude = mock
         mock.availableOverride = false
         let townsfolk = partyTest.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
@@ -711,7 +720,7 @@ extension DevTools {
               "an unfriendly neighbour's chance of attacking grows with unfriendliness, certain at -100")
         func arena() -> (Game, [NPC]) {
             let g = Game(seed: seed)
-            g.confirmName(); g.confirmGender()
+            g.confirmName(); g.confirmLook()
             let folk = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
             for n in folk { n.friendliness = 50; n.weapon = nil }   // bare hands, unless a test arms them
             return (g, folk)
@@ -1077,9 +1086,13 @@ extension DevTools {
         press(36, "\r")
         check(keyGame.playerName == "Nettib" && keyGame.nameEntry == nil, "typing a name and pressing Return names the Avatar")
         press(124)
-        check(keyGame.x == nx && keyGame.y == ny && keyGame.genderEntry == true, "an arrow moves the man-or-woman choice instead of walking")
+        check(keyGame.x == nx && keyGame.y == ny && keyGame.lookEntry == 1, "an arrow moves the highlight over the portraits instead of walking")
+        press(125)
+        check(keyGame.lookEntry == 6, "down moves from the men to the women")
+        press(123); press(123)
+        check(keyGame.lookEntry == 9, "left wraps around within the row")
         press(36, "\r")
-        check(keyGame.female && !keyGame.creatingCharacter, "Return takes the highlighted choice")
+        check(keyGame.female && keyGame.avatarLook == 4 && !keyGame.creatingCharacter, "Return takes the highlighted choice")
         let (kx, ky, kturn) = (keyGame.x, keyGame.y, keyGame.turn)
         for code: UInt16 in [124, 125, 123, 126] { press(code) }   // right, down, left, up
         check(keyGame.turn > kturn, "arrow keys walk the Avatar")
@@ -1109,7 +1122,8 @@ extension DevTools {
                 check(saved.count == back.count && zip(saved, back).allSatisfy { $0.friendliness == $1.friendliness && $0.x == $1.x && $0.name == $1.name },
                       "people, where they stand and how they feel survive a save")
                 check(loaded.playerName == game.playerName && !loaded.creatingCharacter, "the name is restored without asking again")
-                check(loaded.female == game.female, "whether the Avatar is a man or a woman survives a save")
+                check(loaded.female == game.female && loaded.avatarLook == game.avatarLook && loaded.avatarLook == 3,
+                      "how the Avatar looks survives a save")
                 check(loaded.weapons == game.weapons, "the Avatar's weapons survive a save")
                 check(zip(saved, back).allSatisfy { $0.weapon == $1.weapon }, "what people carry survives a save")
             }
@@ -1173,12 +1187,12 @@ extension DevTools {
         var wins = 0, losses = 0, hpLeft = 0, rounds = 0, streaks: [Int] = []
         var streak = 0
         var game = Game(seed: seed)
-        game.confirmName(); game.confirmGender()
+        game.confirmName(); game.confirmLook()
         for i in 0..<count {
             if !chain || game.gameOver {
                 if chain { streaks.append(streak); streak = 0 }
                 game = Game(seed: seed &+ UInt64(i))
-                game.confirmName(); game.confirmGender()
+                game.confirmName(); game.confirmLook()
             }
             // Time passes between fights (about the walk to the next foe).
             if chain {

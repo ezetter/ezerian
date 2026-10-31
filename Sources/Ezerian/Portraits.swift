@@ -1,15 +1,16 @@
 import AppKit
 
 /// Painted pictures shown at the display's full resolution over the pixel art: the
-/// Avatar's portraits, one per outfit, for a man and a woman, and the town watch's.
+/// Avatar's portraits, one per outfit for each of the ten looks, and the town watch's.
 enum Portraits {
     /// What the Avatar wears, from the shirt and slacks of the first day to gilded plate.
     enum Outfit: Int, CaseIterable {
         case clothes, leather, mail, breastplate, plate, gilded
     }
 
-    static func avatarName(female: Bool, outfit: Outfit = .clothes) -> String {
-        "avatar-\(female ? "woman" : "man")-\(outfit.rawValue)"
+    /// The Avatar's portrait: a man or a woman, which of their five looks, and what they wear.
+    static func avatarName(female: Bool, look: Int, outfit: Outfit = .clothes) -> String {
+        "avatar-\(female ? "woman" : "man")-\(look)-\(outfit.rawValue)"
     }
 
     /// The town watch, by rank (0 watchman ... 4 knight of the watch).

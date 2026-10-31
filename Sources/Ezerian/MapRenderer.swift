@@ -161,13 +161,13 @@ extension MapRenderer {
             }
             if let f = folk[ty] { items.append(contentsOf: f) }
             if ty == avatarRow {
-                items.append(avatarItem(avatar, bank, female: game.female))
+                items.append(avatarItem(avatar, bank, female: game.female, look: game.avatarLook))
                 if let w = game.weapon { items.append(avatarWeaponItem(avatar, bank, w, female: game.female)) }
                 avatarDone = true
             }
         }
         if !avatarDone {
-            items.append(avatarItem(avatar, bank, female: game.female))
+            items.append(avatarItem(avatar, bank, female: game.female, look: game.avatarLook))
             if let w = game.weapon { items.append(avatarWeaponItem(avatar, bank, w, female: game.female)) }
         }
         ownerOrigin = (tx0, ty0)
@@ -178,8 +178,8 @@ extension MapRenderer {
         for it in items { drawSprite(it.art.sprite, it.x, it.y, owner: it.owner, ghost: it.ghost, fb, mapX, mapY) }
     }
 
-    private func avatarItem(_ p: AvatarPose, _ bank: SpriteBank, female: Bool) -> DrawItem {
-        let a = bank.avatar(female: female)[p.facing.rawValue][p.step % 3]
+    private func avatarItem(_ p: AvatarPose, _ bank: SpriteBank, female: Bool, look: Int) -> DrawItem {
+        let a = bank.avatar(female: female, look: look)[p.facing.rawValue][p.step % 3]
         let T = Double(MapRenderer.tile)
         return DrawItem(art: a, x: Int((p.x * T).rounded()) - camX, y: Int((p.y * T).rounded()) - camY, owner: -2, ghost: true)
     }

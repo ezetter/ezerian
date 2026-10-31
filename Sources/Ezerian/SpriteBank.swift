@@ -37,11 +37,11 @@ final class SpriteBank {
             guard let r = SpriteBank.recipe(f) else { continue }
             for v in 0..<r.variants { for fr in 0..<r.frames { jobs.append(Job(key: Int(f.rawValue), variant: v, frame: fr, recipe: r)) } }
         }
-        for g in 0..<2 {
+        for (i, look) in (AvatarArt.men + AvatarArt.women).enumerated() {
             for d in Direction.allCases {
                 for step in 0..<3 {
-                    jobs.append(Job(key: 1000 + g * 10 + d.rawValue, variant: 0, frame: step,
-                                    recipe: Recipe { _, _, fr in AvatarArt.model(female: g == 1, facing: d, step: [0, -1, 1][fr]) }))
+                    jobs.append(Job(key: 1000 + i * 10 + d.rawValue, variant: 0, frame: step,
+                                    recipe: Recipe { _, _, fr in AvatarArt.model(look, facing: d, step: [0, -1, 1][fr]) }))
                 }
             }
         }
@@ -93,7 +93,7 @@ final class SpriteBank {
         var held = [[[[Art]]]](repeating: [[[Art]]](repeating: [[Art]](repeating: [Art](repeating: blank, count: 3), count: 4),
                                                     count: Weapon.allCases.count), count: WeaponArt.Carrier.allCases.count)
         var feats = [[[Art]]](repeating: [], count: 256)
-        var av = [[[Art]]](repeating: [[Art]](repeating: [], count: 4), count: 2)
+        var av = [[[Art]]](repeating: [[Art]](repeating: [], count: 4), count: 2 * AvatarArt.perSex)
         for (i, j) in jobs.enumerated() {
             guard let art = results[i] else { continue }
             if j.key >= 200_000 {
@@ -124,8 +124,8 @@ final class SpriteBank {
         weaponArt[carrier.rawValue][w.rawValue - 1][facing.rawValue][step % 3]
     }
 
-    /// The Avatar walking, for a man or a woman: [facing][stride frame].
-    func avatar(female: Bool) -> [[Art]] { avatars[female ? 1 : 0] }
+    /// The Avatar walking, for a man or a woman of one of the five looks: [facing][stride frame].
+    func avatar(female: Bool, look: Int) -> [[Art]] { avatars[(female ? AvatarArt.perSex : 0) + look] }
 
     func art(_ f: Feature, variant: Int, frame: Int) -> Art? {
         let vs = features[Int(f.rawValue)]

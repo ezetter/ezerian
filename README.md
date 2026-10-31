@@ -56,17 +56,20 @@ swift run -c release Ezerian
 | ⌘N | Begin a new world |
 | ⌘S | Save (the game also saves automatically) |
 
-A new game (first launch or ⌘N) begins by asking your character's name, then whether
-you are a man or a woman (click a portrait, press M or W, or use the arrows and Return), with both shown as they
-would look. The name appears in the side panel beside the Avatar's portrait, and both
-are kept in the save file; NPCs voiced by Claude are told which you are. The Avatar sets
-out with no armour and no weapon: just a laced linen shirt, slacks, a belt and a sash.
+A new game (first launch or ⌘N) begins by asking your character's name, then how they
+look: ten painted portraits, five men above and five women below. Click one, or move
+the highlight with the arrows (up and down switch between the men and the women) and
+press Return. The name and look appear in the side panel, are kept in the save file
+(older saves keep the first man or woman), and NPCs voiced by Claude are told how you
+look. On the map the Avatar's figure matches: skin, hair, beard, sash and scarf. The
+Avatar sets out with no armour and no weapon: just a laced linen shirt, slacks, a belt
+and a sash.
 
-The Avatar's portraits are paintings (`Resources/Portraits`, copied into the app by
-`build_app.sh`), drawn at the display's full resolution over the pixel art. There are
-six for each of the man and the woman, from plain clothes through leather, mail, a
-breastplate and plate to gilded plate (`Portraits.Outfit`); only the plain clothes are
-used so far.
+The Avatar's portraits are paintings (`Resources/Portraits/avatar-<man|woman>-<look>-<outfit>.jpg`,
+copied into the app by `build_app.sh`), drawn at the display's full resolution over the
+pixel art. Each of the ten looks has six, from plain clothes through leather, mail, a
+breastplate and plate to gilded plate (`Portraits.Outfit`), so armour will follow
+whichever look you chose; only the plain clothes are used so far.
 
 Walk into a door to go inside, into a sign to read it, and into a cave mouth to go
 underground. A ladder brings you back up. The Avatar glides from tile to tile, but the
@@ -376,7 +379,7 @@ that typed words reach Claude and its judgement moves friendliness
 (against a stand-in for the API, so no key or network is needed), that caves lead down and back up, that every object has a sprite, that keys
 reach the game, and that saves round-trip.
 
-* `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name,gender,woman] [--scale 2]`
+* `--render out.png [--seed N] [--walk "E5 N3"] [--hour 21] [--show map,help,grid,name,look,woman,avatar0-9] [--scale 2]`
   renders a screenshot. A walk can also contain `find:<feature>` (for example
   `find:shrine` or `find:t.forest`) to jump next to the nearest one, `npc:orc` to stand
   beside the nearest orc, and `talk`, `type:Hello_there` and `send` to hold a conversation, `recruit` to fill the party, `fight` to attack the person you face, and `warband` or

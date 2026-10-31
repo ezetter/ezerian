@@ -20,12 +20,18 @@ final class Game {
     /// The name being typed while a new game asks for one; nil once it is chosen.
     var nameEntry: String?
     static let maxNameLength = 12
-    /// Whether the Avatar is a woman, chosen after the name.
+    /// Whether the Avatar is a woman, and which of the five looks of a man or a woman
+    /// they have, chosen after the name.
     private(set) var female = false
-    /// While a new game asks "man or woman?": whether "woman" is highlighted. Nil once chosen.
-    var genderEntry: Bool?
-    /// Still choosing a name or whether to be a man or a woman.
-    var creatingCharacter: Bool { nameEntry != nil || genderEntry != nil }
+    private(set) var avatarLook = 0
+    /// The ten looks to choose from: the five men, then the five women.
+    static let lookChoices = 2 * AvatarArt.perSex
+    /// While a new game asks how the Avatar looks: which of the ten is highlighted
+    /// (0-4 the men, 5-9 the women). Nil once chosen.
+    var lookEntry: Int?
+    /// Still choosing a name or a look.
+    var creatingCharacter: Bool { nameEntry != nil || lookEntry != nil }
+    var avatar: AvatarArt.Look { AvatarArt.look(female: female, avatarLook) }
 
     /// The talk in progress, if any.
     var conversation: Conversation?
@@ -76,18 +82,21 @@ final class Game {
         arrive(quiet: true)
     }
 
-    /// Accepts the name typed at the start of a new game, then asks man or woman.
+    /// Accepts the name typed at the start of a new game, then asks how the Avatar looks.
     func confirmName() {
         let typed = (nameEntry ?? "").trimmingCharacters(in: .whitespaces)
         playerName = typed.isEmpty ? "Avatar" : typed
         nameEntry = nil
-        genderEntry = female
+        lookEntry = (female ? AvatarArt.perSex : 0) + avatarLook
     }
 
-    /// Accepts the choice of man or woman and sets the scene.
-    func confirmGender(female choice: Bool? = nil) {
-        female = choice ?? genderEntry ?? female
-        genderEntry = nil
+    /// Accepts one of the ten looks (0-4 the men, 5-9 the women; by default the one
+    /// highlighted) and sets the scene.
+    func confirmLook(_ choice: Int? = nil) {
+        let c = max(0, min(Game.lookChoices - 1, choice ?? lookEntry ?? 0))
+        female = c >= AvatarArt.perSex
+        avatarLook = c % AvatarArt.perSex
+        lookEntry = nil
         log("Welcome to the Land of Ezerian, \(playerName)!")
         log("Dark news travels the roads: Lord Draconian, Wizard Lord and Emperor of Sespooland, means to conquer Ezerian. Beware his black-and-red mercenaries and the orc warbands that roam the wilds.")
         log("Use the arrow keys to walk. Press H for help.")
@@ -108,10 +117,11 @@ final class Game {
     }
 
     /// Restores a saved game.
-    init(world: World, name: String, female: Bool, x: Int, y: Int, z: Int, facing: Direction, turn: Int) {
+    init(world: World, name: String, female: Bool, look: Int, x: Int, y: Int, z: Int, facing: Direction, turn: Int) {
         self.world = world
         playerName = name
         self.female = female
+        avatarLook = max(0, min(AvatarArt.perSex - 1, look))
         self.x = x
         self.y = y
         self.z = z

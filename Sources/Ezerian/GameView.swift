@@ -155,8 +155,8 @@ final class GameView: NSView, CALayerDelegate {
             enterName(event)
             return
         }
-        if game.genderEntry != nil {
-            chooseGender(event)
+        if game.lookEntry != nil {
+            chooseLook(event)
             return
         }
         if game.gameOver {
@@ -259,18 +259,20 @@ final class GameView: NSView, CALayerDelegate {
         needsRender = true
     }
 
-    /// "Man or woman?": M or W picks at once; the arrows or Tab move the choice and Return takes it.
-    private func chooseGender(_ event: NSEvent) {
-        let ch = (event.charactersIgnoringModifiers ?? "").lowercased()
+    /// "How dost thou appear?": the arrows or Tab move the highlight over the ten
+    /// portraits (men above, women below) and Return takes it.
+    private func chooseLook(_ event: NSEvent) {
+        guard let i = game.lookEntry else { return }
+        let n = Game.lookChoices, row = AvatarArt.perSex
         switch event.keyCode {
         case 36, 76:                    // Return, Enter
-            game.confirmGender()
+            game.confirmLook()
             onTurn?()
-        case 123, 124, 125, 126, 48:    // arrows, Tab
-            game.genderEntry?.toggle()
-        default:
-            if ch == "m" { game.confirmGender(female: false); onTurn?() }
-            else if ch == "w" || ch == "f" { game.confirmGender(female: true); onTurn?() }
+        case 123: game.lookEntry = i % row == 0 ? i + row - 1 : i - 1      // left, wrapping within the row
+        case 124: game.lookEntry = i % row == row - 1 ? i - row + 1 : i + 1 // right
+        case 125, 126: game.lookEntry = (i + row) % n                      // down or up: the other row
+        case 48: game.lookEntry = (i + 1) % n                              // Tab
+        default: break
         }
         needsRender = true
     }
@@ -378,11 +380,11 @@ final class GameView: NSView, CALayerDelegate {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        if game.genderEntry != nil {
-            // Clicking a portrait of the "man or woman?" choice takes it.
+        if game.lookEntry != nil {
+            // Clicking one of the portraits takes it.
             let (sx, sy) = screenPixel(for: event)
-            if let female = Screen.genderChoice(atX: sx, y: sy) {
-                game.confirmGender(female: female)
+            if let i = Screen.lookChoice(atX: sx, y: sy) {
+                game.confirmLook(i)
                 onTurn?()
                 needsRender = true
             }
