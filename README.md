@@ -181,10 +181,11 @@ their old clothes and pixel portraits.
 
 Human townsmen and townswomen each look like one of ten painted townsfolk of their
 sex, shown when you talk to them, and on the map wear that painting's colours and
-carry its wares: a merchant with his scales and purse, a smith with his hammer, an
-old scribe with a book and quill, a cobbler with a boot, and a tavern keeper with a
-tankard; a cloth merchant with bolts of cloth, a potter with a jug, an apothecary with
-mortar and bottle, an old embroiderer with her hoop, and a chandler with candles.
+carry what the painting shows: a porter with a sack on his shoulder, a ropemaker with
+a coil of rope, an old sweeper with his broom, a potboy with a tray of mugs, and a
+groom with a brush; a laundress with an armful of washing, a girl with a clay jug, a
+cook with an iron pot, an old charwoman with bucket and brush, and a girl carrying a
+crate.
 Elf and dwarf townsfolk keep their ordinary looks, as do townsfolk met before this.
 
 ## Lord Draconian
