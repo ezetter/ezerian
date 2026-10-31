@@ -1,0 +1,30 @@
+import Foundation
+
+/// Buying services (and, later, goods) from merchants: what they ask, whether they
+/// take what is offered, and how the haggling sits with them.
+enum Trade {
+    /// Below this friendliness no merchant will do business with the Avatar.
+    static let refuseBelow = -50
+
+    static func willTrade(_ npc: NPC) -> Bool { npc.friendliness >= refuseBelow }
+
+    /// The asking price: the usual price, plus a coin for every 5 points of
+    /// friendliness below 0.
+    static func price(base: Int, friendliness: Int) -> Int {
+        base + max(0, -friendliness) / 5
+    }
+
+    /// The healer's price for a night's rest that heals the Avatar completely.
+    static let healingBase = 10
+    static func healingPrice(_ npc: NPC) -> Int { price(base: healingBase, friendliness: npc.friendliness) }
+
+    /// What an offer does. Paying the asking price pleases the merchant a little (+1),
+    /// and every coin over it pleases them more (+2 each); every coin short costs 2
+    /// points whether or not they take it. They always take the asking price or more;
+    /// short of it, a 90% chance for one coin less, 80% for two, and so on.
+    static func settle(offered: Int, price: Int) -> (friendliness: Int, acceptChance: Double) {
+        let diff = offered - price
+        if diff >= 0 { return (1 + 2 * diff, 1) }
+        return (2 * diff, max(0, 1 + 0.1 * Double(diff)))
+    }
+}

@@ -268,6 +268,18 @@ Draconian".
   a 75-health foe has 7 or 8 on average, sometimes none, sometimes a dozen or more).
   When a foe is killed in a fight, their gold passes to you; your total shows beside
   your health. Gold is kept in the save file.
+* **Houses of healing:** a healer asks whether you require healing. Say yes (or ask
+  about healing or its price) and they name a price for a night's rest in their care,
+  usually 10 gold. A gold field and a **Give gold.** button appear beside the line you
+  type; Tab or a click moves between them, and Return or the button hands the gold
+  over. If the healer takes it, the screen fades through the night and you wake at 8
+  the next morning at full health.
+* **Paying merchants:** these rules hold for every merchant's services, the healer's
+  first. Paying the asking price raises their friendliness by 1, and every coin more
+  by 2 more. Every coin short lowers it by 2, whether or not they take it; they take
+  one coin short 90% of the time, two short 80%, and so on. A merchant whose
+  friendliness is below 0 asks a coin more for every 5 points below it (so 12 at -10),
+  and offers are weighed against that price. Below -50 they won't deal with you at all.
 * **Death:** anyone at 0 health dies. A companion who dies is gone from your party.
   If the Avatar dies the game is over, and Return begins a new adventure in a new world.
 
@@ -337,6 +349,7 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | `Game.swift` | Avatar movement, NPC turns, conversations, messages, game clock |
 | `Party.swift` | Companions: joining, leaving, following |
 | `Combat.swift` | Health, fights, turns, blows and death |
+| `Trade.swift` | Merchants' prices, haggling and the healer's night of rest |
 | `NPC.swift`, `Dialogue.swift` | Races, friendliness, Lord Draconian's people, where people live, scripted replies |
 | `ClaudeDialogue.swift` | Claude API client, NPC character sheets, structured replies, API key storage |
 | `World.swift`, `Tiles.swift` | Regions, lazy generation, terrain and objects |

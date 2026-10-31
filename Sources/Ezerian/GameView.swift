@@ -9,6 +9,7 @@ final class GameView: NSView, CALayerDelegate {
         didSet {
             screen.attach(game.world)
             snapToGame()
+            lastNights = game.nights
             game.onChange = { [weak self] in self?.needsRender = true }
             needsRender = true
         }
@@ -21,6 +22,13 @@ final class GameView: NSView, CALayerDelegate {
     private let start = CACurrentMediaTime()
     private var needsRender = true
     private var lastTick = -1
+
+    // A night's rest: the view fades to black and back, and holds the old picture
+    // until it is dark.
+    private let fadeLayer = CALayer()
+    private var lastNights = 0
+    private var holdUntil = 0.0
+    private static let fadeTime = 2.8
 
     // Gliding from one tile to the next.
     private var from = (x: 0.0, y: 0.0)
@@ -51,7 +59,11 @@ final class GameView: NSView, CALayerDelegate {
         textLayer.delegate = self
         root.addSublayer(mapLayer)
         root.addSublayer(textLayer)
+        fadeLayer.backgroundColor = CGColor(gray: 0, alpha: 1)
+        fadeLayer.opacity = 0
+        root.addSublayer(fadeLayer)
         snapToGame()
+        lastNights = game.nights
         game.onChange = { [weak self] in self?.needsRender = true }
         let t = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(t, forMode: .common)
@@ -89,6 +101,7 @@ final class GameView: NSView, CALayerDelegate {
         let r = displayRect()
         mapLayer.frame = r
         textLayer.frame = r
+        fadeLayer.frame = bounds
         textLayer.contentsScale = window?.backingScaleFactor ?? 2
         textLayer.setNeedsDisplay()
         CATransaction.commit()
@@ -116,6 +129,17 @@ final class GameView: NSView, CALayerDelegate {
 
     private func tick() {
         let now = CACurrentMediaTime()
+        if game.nights != lastNights {
+            lastNights = game.nights
+            let fade = CAKeyframeAnimation(keyPath: "opacity")
+            fade.values = [0, 1, 1, 0]
+            fade.keyTimes = [0, 0.3, 0.6, 1]
+            fade.duration = GameView.fadeTime
+            fadeLayer.add(fade, forKey: "night")
+            holdUntil = now + GameView.fadeTime * 0.3
+            needsRender = true
+        }
+        if now < holdUntil { return }
         let anim = Int((now - start) * 7)
         let moving = now - moveStart < moveTime + 0.02
         guard moving || anim != lastTick || needsRender else { return }
@@ -188,6 +212,29 @@ final class GameView: NSView, CALayerDelegate {
                 case "y": game.answerOffer(true)
                 case "n": game.answerOffer(false)
                 default: break
+                }
+                needsRender = true
+                return
+            }
+            let trading = c.price != nil && !c.over
+            if trading && event.keyCode == 48 {      // Tab: between the words and the gold
+                game.focusGold(!c.goldFocus)
+                needsRender = true
+                return
+            }
+            if trading && c.goldFocus && event.keyCode != 53 {
+                switch event.keyCode {
+                case 36, 76: game.offerGold()        // Return gives the gold
+                case 51, 117: game.backspaceGold()
+                default:
+                    let typed = event.characters ?? ""
+                    if typed.allSatisfy({ $0.isASCII && $0.isNumber }) {
+                        for ch in typed { game.typeGold(ch) }
+                    } else {
+                        // Words go back to the line being said.
+                        game.focusGold(false)
+                        for ch in typed { game.typeInConversation(ch) }
+                    }
                 }
                 needsRender = true
                 return
@@ -391,6 +438,21 @@ final class GameView: NSView, CALayerDelegate {
                 onTurn?()
                 needsRender = true
             }
+            return
+        }
+        if let c = game.conversation {
+            // In a conversation: the gold field, the Give gold button, or the line being said.
+            let (sx, sy) = screenPixel(for: event)
+            let f = Screen.talkFields(trading: c.price != nil && !c.over && !c.offer)
+            if c.price != nil && Screen.inside(f.give, sx, sy) {
+                game.offerGold()
+                onTurn?()
+            } else if c.price != nil && Screen.inside(f.gold, sx, sy) {
+                game.focusGold(true)
+            } else if Screen.inside(f.say, sx, sy) {
+                game.focusGold(false)
+            }
+            needsRender = true
             return
         }
         guard !game.showMap, !game.creatingCharacter, game.conversation == nil, !game.gameOver,

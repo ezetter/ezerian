@@ -208,6 +208,11 @@ enum AIDialogue {
         if let (place, dir, dist) = Dialogue.nearestPlace(game, from: (npc.x, npc.y), wantShelter: false) {
             facts.append("Nearby you know of \(place), about \(dist) paces to the \(dir).")
         }
+        if npc.role == "healer" {
+            facts.append(Trade.willTrade(npc)
+                ? "As a healer you offer a night's rest in your care, which leaves the Avatar wholly healed, for \(Trade.healingPrice(npc)) gold. Coins are handed over apart from your words; never pretend to take payment or to heal in your reply."
+                : "As a healer you could heal the Avatar, but you dislike them too much and refuse to serve them.")
+        }
         facts.append("It is \(game.timeString) on day \(game.day).")
         var lines = """
         Character sheet:

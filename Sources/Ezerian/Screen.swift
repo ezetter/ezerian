@@ -58,6 +58,8 @@ final class Screen {
             : game.gameOver ? "Press Return to begin a new adventure"
             : game.attackPending ? "Press a direction to attack  ·  Esc to cancel"
             : game.inCombat ? "Your turn: walk into a foe to strike  ·  F + direction attack  ·  Space wait  ·  walk away to flee"
+            : game.conversation.map { $0.price != nil && !$0.over } == true
+                ? "Type what you say  ·  Tab or click between words and gold  ·  Return or Give gold. to pay  ·  Esc to leave"
             : game.conversation != nil ? "Type what you say  ·  Return to say it  ·  Esc to leave"
             : "Arrows walk  ·  T talk  ·  F fight  ·  Space wait  ·  L look  ·  M map  ·  H help"
         texts.append(TextItem(text: hint, x: Double(Screen.mapX + 4), y: 502, size: 12, color: Screen.dim))
@@ -389,10 +391,27 @@ final class Screen {
 
     /// The conversation window: the NPC's face, name, race and mood (with the
     /// friendliness score as a bar), the last few things said, and what to say next.
+    typealias Rect = (x: Int, y: Int, w: Int, h: Int)
+
+    /// The conversation window.
+    static let talkBox: Rect = (mapX + 12, mapY + MapRenderer.pixelH - 200 - 12, MapRenderer.pixelW - 24, 200)
+
+    /// Along the bottom of the conversation window: the line being said and, while a
+    /// merchant has named a price, the gold to offer and the button that hands it over.
+    static func talkFields(trading: Bool) -> (say: Rect, gold: Rect, give: Rect) {
+        let b = talkBox
+        let x = b.x + 116, y = b.y + b.h - 34, w = b.w - 132, h = 22
+        guard trading else { return ((x, y, w, h), (0, 0, 0, 0), (0, 0, 0, 0)) }
+        let give: Rect = (x + w - 104, y - 2, 104, h + 4)
+        let gold: Rect = (give.x - 12 - 84, y, 84, h)
+        return ((x, y, gold.x - 12 - x, h), gold, give)
+    }
+
+    static func inside(_ r: Rect, _ px: Int, _ py: Int) -> Bool { px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h }
+
     private func drawConversation(_ c: Conversation, _ game: Game) {
         let npc = c.npc
-        let w = MapRenderer.pixelW - 24, h = 200
-        let x = Screen.mapX + 12, y = Screen.mapY + MapRenderer.pixelH - h - 12
+        let (x, y, w, h) = Screen.talkBox
         parchmentBox(x, y, w, h)
         // Portrait.
         let fx = x + 12, fy = y + 14, fw = 92, fh = 104
@@ -455,7 +474,25 @@ final class Screen {
         texts.append(TextItem(text: c.notice ?? voice, x: Double(x + w - 16), y: Double(y + 44), size: 10.5, font: .italic,
                               color: c.notice == nil ? 0x7A6A50 : 0x9A2A10, align: .right, shadow: false))
         // The line being typed.
-        let fieldX = Int(tx) - 4, fieldY = y + h - 34, fieldW = w - (fieldX - x) - 16
+        let trading = c.price != nil && !c.over && !c.offer
+        let fields = Screen.talkFields(trading: trading)
+        let fieldX = fields.say.x, fieldY = fields.say.y, fieldW = fields.say.w
+        if trading {
+            // The gold offered, and the button that hands it over.
+            let g = fields.gold
+            fb.fill(g.x, g.y, g.w, g.h, rgb(0x2A1C10))
+            gild(g.x, g.y, g.w, g.h, thick: c.goldFocus)
+            let unit = TextRenderer.width(" gold", size: 11, font: .italic)
+            texts.append(TextItem(text: " gold", x: Double(g.x + g.w - 6) - unit, y: Double(g.y + 5), size: 11, font: .italic, color: 0x9A8A6A))
+            let amountRight = Double(g.x + g.w - 6) - unit - 4
+            let amount = c.goldInput
+            texts.append(TextItem(text: amount, x: amountRight, y: Double(g.y + 3), size: 13, font: .bold, color: Screen.accent, align: .right))
+            if c.goldFocus && (frameCount / 4) % 2 == 0 { fb.fill(Int(amountRight) + 1, g.y + 4, 2, 14, gold) }
+            let b = fields.give
+            box(b.x, b.y, b.w, b.h)
+            texts.append(TextItem(text: "Give gold.", x: Double(b.x + b.w / 2), y: Double(b.y + 5), size: 13, font: .bold,
+                                  color: 0xE8C878, align: .center))
+        }
         if c.offer {
             fb.fill(fieldX, fieldY, fieldW, 22, rgb(0x2A1C10))
             gild(fieldX, fieldY, fieldW, 22)
@@ -481,7 +518,7 @@ final class Screen {
                 } else {
                     texts.append(TextItem(text: shown, x: tx, y: Double(fieldY + 3), size: 13, color: Screen.accent))
                 }
-                if (frameCount / 4) % 2 == 0 { fb.fill(Int(tx + tw) + 2, fieldY + 4, 2, 14, gold) }
+                if !(trading && c.goldFocus) && (frameCount / 4) % 2 == 0 { fb.fill(Int(tx + tw) + 2, fieldY + 4, 2, 14, gold) }
             }
         }
     }

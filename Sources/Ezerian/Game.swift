@@ -414,6 +414,11 @@ final class Game {
         c.lines.append(Conversation.Line(text: g.text, fromAvatar: false))
         c.over = g.refuses
         c.byClaude = claude.isAvailable
+        // A healer asks straight away whether the Avatar needs healing (unless they won't serve them).
+        if !c.over, npc.role == "healer", Trade.willTrade(npc) {
+            c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .ask, player: playerName), fromAvatar: false))
+            c.healingAsked = true
+        }
         conversation = c
         log(g.refuses ? g.text : "You speak with \(npc.shortName).")
     }
@@ -453,6 +458,10 @@ final class Game {
         let history = c.lines
         c.input = ""
         c.lines.append(Conversation.Line(text: said, fromAvatar: true))
+        if healerAnswer(&c, said) {
+            conversation = c
+            return
+        }
         let npc = c.npc
         guard claude.isAvailable else {
             c.byClaude = false
@@ -566,6 +575,106 @@ final class Game {
                                              fromAvatar: false))
         }
         conversation = c
+    }
+
+    // MARK: Healing
+
+    /// Answers talk of healing in a house of healing: yes or no to the healer's question, or
+    /// asking for healing or its price. Returns false when the words are about something else.
+    private func healerAnswer(_ c: inout Conversation, _ said: String) -> Bool {
+        let npc = c.npc
+        guard npc.role == "healer" else { return false }
+        let no = c.healingAsked && Dialogue.isNo(said)
+        guard no || (c.healingAsked && Dialogue.isYes(said)) || Dialogue.asksForHealing(said) else { return false }
+        c.healingAsked = false
+        if no {
+            c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .declined, player: playerName), fromAvatar: false))
+        } else {
+            quoteHealing(&c)
+        }
+        return true
+    }
+
+    /// The healer names the price, and the Avatar may offer gold; or refuses them outright.
+    private func quoteHealing(_ c: inout Conversation, after offered: Int? = nil) {
+        let npc = c.npc
+        guard Trade.willTrade(npc) else {
+            c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .refuse, player: playerName), fromAvatar: false))
+            c.price = nil
+            c.goldFocus = false
+            return
+        }
+        let p = Trade.healingPrice(npc)
+        let line: Dialogue.Healing = offered.map { .tooLittle(offered: $0, price: p) } ?? .quote(p)
+        c.lines.append(Conversation.Line(text: Dialogue.healer(npc, line, player: playerName), fromAvatar: false))
+        c.price = p
+        c.goldInput = "\(p)"
+        c.goldFocus = true
+    }
+
+    func typeGold(_ ch: Character) {
+        guard var c = conversation, c.price != nil, ch.isASCII, ch.isNumber,
+              c.goldInput.count < Conversation.maxGoldDigits else { return }
+        if c.goldInput == "0" { c.goldInput = "" }
+        c.goldInput.append(ch)
+        conversation = c
+    }
+
+    func backspaceGold() {
+        guard var c = conversation, !c.goldInput.isEmpty else { return }
+        c.goldInput.removeLast()
+        conversation = c
+    }
+
+    /// Whether typing goes to the gold offered (true) or the words said.
+    func focusGold(_ on: Bool) {
+        guard var c = conversation else { return }
+        c.goldFocus = on && c.price != nil
+        conversation = c
+    }
+
+    /// The Avatar hands over the gold in the field. The healer may take it (see `Trade`);
+    /// if they do, the Avatar rests the night and wakes whole.
+    func offerGold() {
+        guard var c = conversation, !c.over, !c.pending, let price = c.price,
+              let amount = Int(c.goldInput), amount > 0 else { return }
+        let npc = c.npc
+        guard amount <= gold else {
+            c.notice = gold == 0 ? "You have no gold." : "You have only \(gold) gold."
+            conversation = c
+            return
+        }
+        c.notice = nil
+        c.lines.append(Conversation.Line(text: Dialogue.giving(amount), fromAvatar: true))
+        let deal = Trade.settle(offered: amount, price: price)
+        npc.changeFriendliness(by: deal.friendliness)
+        guard roll() < deal.acceptChance else {
+            quoteHealing(&c, after: amount)
+            conversation = c
+            return
+        }
+        gold -= amount
+        c.price = nil
+        c.goldInput = ""
+        c.goldFocus = false
+        c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .accepted, player: playerName), fromAvatar: false))
+        restTheNight()
+        c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .morning, player: playerName), fromAvatar: false))
+        conversation = c
+        log("You pay \(amount) gold and rest the night at \(npc.home ?? "the healer's"). You wake whole again. You have \(gold) gold left.")
+    }
+
+    /// How many nights the Avatar has slept (the view fades out and in for each).
+    private(set) var nights = 0
+
+    /// Sleeps until 8 in the morning and wakes fully healed.
+    private func restTheNight() {
+        let m = minutes
+        var wake = m / (24 * 60) * (24 * 60) + 8 * 60
+        if wake <= m { wake += 24 * 60 }
+        turn = (wake - 8 * 60) / 2
+        hp = maxHP
+        nights += 1
     }
 
     private func remember(_ npc: NPC, avatar: String, npcSaid: String) {

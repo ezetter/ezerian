@@ -61,7 +61,7 @@ enum DevTools {
                 let rank = what.hasPrefix("guard") ? Int(what.dropFirst(5)) : nil
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
-                    if what == "bard" || what == "peasant" || what == "farmhand" { return n.role == what }
+                    if ["bard", "peasant", "farmhand", "healer"].contains(what) { return n.role == what }
                     if what == "drinker" { return n.role == what && n.race == .human }
                     if what == "elvenDrinker" { return n.role == "drinker" && n.race == .elf }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
@@ -779,6 +779,90 @@ extension DevTools {
                 check(foe.hp == 0 && !g.inCombat && !folk.contains { $0 === foe && g.world.npc(at: $0.x, $0.y, 0) === foe },
                       "a foe at 0 health dies, and the fight ends")
             } else { check(false, "found room to fight") }
+        }
+        do {
+            // Merchants' prices, and buying a night's healing from a healer.
+            check(Trade.price(base: 10, friendliness: 0) == 10 && Trade.price(base: 10, friendliness: -4) == 10
+                  && Trade.price(base: 10, friendliness: -5) == 11 && Trade.price(base: 10, friendliness: -23) == 14
+                  && Trade.price(base: 10, friendliness: 40) == 10,
+                  "a merchant asks a coin more for every 5 points of friendliness below 0")
+            check(Trade.settle(offered: 10, price: 10) == (1, 1) && Trade.settle(offered: 13, price: 10) == (7, 1)
+                  && Trade.settle(offered: 9, price: 10) == (-2, 0.9) && Trade.settle(offered: 7, price: 10).friendliness == -6
+                  && abs(Trade.settle(offered: 7, price: 10).acceptChance - 0.7) < 1e-9 && Trade.settle(offered: 0, price: 10).acceptChance == 0
+                  && Trade.settle(offered: 11, price: 12) == (-2, 0.9),
+                  "paying the price pleases (+1), more pleases more (+2 a coin), less costs 2 a coin and is taken 90%, 80%… of the time")
+            let g = Game(seed: seed)
+            g.confirmName(); g.confirmLook()
+            g.claude = mock
+            mock.availableOverride = false
+            var healers: [NPC] = []
+            for ry in -2...2 { for rx in -2...2 { healers += g.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs.filter { $0.role == "healer" } } }
+            if let healer = healers.first {
+                var dice = 0.5
+                g.roll = { dice }
+                func visit(_ f: Int) {
+                    g.endConversation()
+                    healer.friendliness = f
+                    g.startConversation(with: healer)
+                }
+                func say(_ text: String) {
+                    for ch in text { g.typeInConversation(ch) }
+                    g.submitConversation()
+                }
+                func offer(_ n: Int) {
+                    g.focusGold(true)
+                    while !(g.conversation?.goldInput.isEmpty ?? true) { g.backspaceGold() }
+                    for ch in String(n) { g.typeGold(ch) }
+                    g.offerGold()
+                }
+                visit(10)
+                check(g.conversation?.healingAsked == true && g.conversation?.lines.last?.text.contains("require healing") == true,
+                      "a healer asks whether the Avatar requires healing")
+                say("Yes, please.")
+                check(g.conversation?.price == 10 && g.conversation?.goldInput == "10" && g.conversation?.lines.last?.text.contains("10 gold") == true,
+                      "say yes, and the healer names the price: 10 gold")
+                g.hp = 23; g.gold = 30
+                let day = g.day
+                offer(10)
+                check(g.hp == g.maxHP && g.gold == 20 && g.day == day + 1 && g.timeString == "8:00 AM" && healer.friendliness == 11
+                      && g.nights == 1 && g.conversation?.price == nil,
+                      "10 gold buys a night's rest: the Avatar wakes at 8 the next morning, wholly healed, and the healer likes them 1 better")
+                visit(10)
+                say("No thank you.")
+                check(g.conversation?.price == nil && g.conversation?.healingAsked == false, "say no, and the healer lets it be")
+                g.hp = 50
+                visit(10); say("yes"); dice = 0.79
+                offer(8)
+                check(g.hp == g.maxHP && g.gold == 12 && healer.friendliness == 6, "8 gold is taken 80% of the time, for 4 points of friendliness")
+                g.hp = 50
+                visit(10); say("yes"); dice = 0.81
+                offer(8)
+                check(g.hp == 50 && g.gold == 12 && healer.friendliness == 6 && g.conversation?.price == 10
+                      && g.conversation?.lines.last?.text.contains("My price is 10") == true,
+                      "turned down, the healer keeps the gold, still loses 4 points, and names the price again")
+                g.gold = 40
+                visit(-12); say("How much to heal me?")
+                check(g.conversation?.price == 12, "at -12 friendliness the healer asks 12")
+                dice = 0.5
+                offer(13)
+                check(g.gold == 27 && healer.friendliness == -9, "paying a coin over the 12 asked pleases them by 3")
+                visit(-55)
+                check(g.conversation?.healingAsked == false, "a healer at -55 doesn't offer healing")
+                say("Please heal me")
+                check(g.conversation?.price == nil && g.conversation?.lines.last?.text.contains("elsewhere") == true,
+                      "and below -50 refuses to do business")
+                visit(10); say("yes")
+                g.gold = 4; g.hp = 50
+                offer(10)
+                check(g.hp == 50 && g.gold == 4 && g.conversation?.notice == "You have only 4 gold.", "the Avatar can't give gold they don't have")
+                check(AIDialogue.prompt(healer, game: g, history: [], said: "hello").contains("for 10 gold"),
+                      "Claude is told the healer's price")
+                g.endConversation()
+            } else { check(false, "found a healer to visit") }
+            let f = Screen.talkFields(trading: true), box = Screen.talkBox
+            check(f.say.x + f.say.w < f.gold.x && f.gold.x + f.gold.w < f.give.x && f.give.x + f.give.w <= box.x + box.w
+                  && Screen.inside(f.give, f.give.x + 5, f.give.y + 5) && !Screen.inside(f.gold, f.give.x + 5, f.give.y + 5),
+                  "the words, the gold and the Give gold button sit side by side in the conversation window")
         }
         do {
             // Weapons: bonuses, who carries what, naming them in blows, taking them from the slain.

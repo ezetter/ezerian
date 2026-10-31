@@ -44,6 +44,16 @@ struct Conversation {
     /// A note about Claude being unreachable, shown in the window.
     var notice: String?
     static let maxInput = 160
+
+    /// A healer has asked whether the Avatar needs healing, and awaits a yes or no.
+    var healingAsked = false
+    /// The price a merchant has named for a service. While set, the Avatar can offer gold.
+    var price: Int?
+    /// The gold being offered, as typed.
+    var goldInput = ""
+    /// Typing goes into the gold field rather than the line being said.
+    var goldFocus = false
+    static let maxGoldDigits = 5
 }
 
 /// What NPCs say. Every reply is chosen by the NPC's friendliness band, flavoured
@@ -227,6 +237,52 @@ enum Dialogue {
             ends = true
         }
         return (fill(text, npc, player), ends)
+    }
+
+    // MARK: Healing
+
+    /// What a healer says while selling a night's rest. Healers are humans and elves;
+    /// elves speak in the old way.
+    enum Healing { case ask, quote(Int), declined, refuse, accepted, morning, tooLittle(offered: Int, price: Int) }
+
+    static func healer(_ npc: NPC, _ h: Healing, player: String) -> String {
+        let elf = npc.race == .elf
+        let s: String
+        switch h {
+        case .ask: s = elf ? "Dost thou require healing, {addr}?" : "Do you require healing, {addr}?"
+        case let .quote(n):
+            s = elf ? "Rest one night beneath my roof, in my care, and thou shalt wake whole. \(n) gold is my price."
+                : "A night's rest here under my care, and you'll wake whole again. That will be \(n) gold."
+        case .declined: s = elf ? "As thou wilt. I am here should thy wounds trouble thee." : "As you wish. I'm here if your wounds trouble you."
+        case .refuse: s = elf ? "I will not tend thee, {addr}. Seek thy healing elsewhere." : "I'll not tend the likes of you. Find your healing elsewhere."
+        case .accepted: s = elf ? "Then lie thee down and rest. I shall tend thy hurts." : "Then lie down and rest. I'll see to your wounds."
+        case .morning: s = elf ? "Good morrow. Thy wounds are mended; thou art whole again." : "Good morning! Your wounds have mended. You're whole again."
+        case let .tooLittle(offered, price):
+            s = elf ? "\(offered) gold? That will not suffice. My price is \(price)." : "\(offered) gold? That won't do. My price is \(price)."
+        }
+        return fill(s, npc, player)
+    }
+
+    /// The Avatar handing over coins.
+    static func giving(_ n: Int) -> String { n == 1 ? "Here is a gold coin." : "Here are \(n) gold coins." }
+
+    private static func words(_ text: String) -> Set<String> {
+        Set(text.lowercased().split { !$0.isLetter && $0 != "'" }.map(String.init))
+    }
+
+    static func isYes(_ text: String) -> Bool {
+        let w = words(text)
+        return !w.isDisjoint(with: ["yes", "aye", "yeah", "yea", "please", "indeed", "certainly", "ok", "okay", "sure", "do"]) && !isNo(text)
+    }
+
+    static func isNo(_ text: String) -> Bool {
+        !words(text).isDisjoint(with: ["no", "nay", "not", "nope", "don't", "dont"])
+    }
+
+    /// Whether the Avatar is asking a healer for healing, or what it costs.
+    static func asksForHealing(_ text: String) -> Bool {
+        let s = text.lowercased()
+        return ["heal", "cure", "mend", "wound", "price", "cost", "how much", "rest"].contains { s.contains($0) }
     }
 
     // MARK: Joining the party
