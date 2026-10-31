@@ -175,7 +175,10 @@ trade or wherever they live, dressed to match on the map. Elves drinking in tave
 are still known as elven drinkers ("The elven drinker hits you…"), and elves in
 Draconian's pay keep his livery on the map. Every orc likewise looks like one of ten orc
 paintings (five men, five women), dressed to match on the map; the many orcs in
-Draconian's warbands keep his livery on the map, with an orc painting to talk to. Dwarf
+Draconian's warbands and service keep his livery on the map, and have nine paintings of
+their own in his black and red (four men, five women), each carrying the weapon painted:
+a war hammer, an axe, a spear or a sword (one more painting, a crossbowman, waits for
+bows). Dwarf
 bards each look like one of the painted dwarf bards of their sex, with a drum or a
 tambourine. Other dwarves keep their ordinary looks.
 
@@ -227,7 +230,8 @@ Draconian".
   foe in reach, or close in on the nearest. A pursuing foe falls behind one turn in
   four, so you can retreat: get more than 8 tiles away and you escape.
 * **Weapons:** a staff adds 2 damage to every blow, a dagger 4, a mace 6, a short sword
-  8 and a long sword 10. You start with none. The watch are armed by rank (watchmen
+  8 and a long sword 10. Lord Draconian's orcs also carry war hammers (4), axes (6) and
+  spears (6), as their paintings show. You start with none. The watch are armed by rank (watchmen
   staves, serjeants daggers, men-at-arms maces, captains short swords, knights long
   swords). Other people may carry one: the tougher they are, the likelier they're armed
   (about a third of the frail, three quarters of the toughest) and the better the

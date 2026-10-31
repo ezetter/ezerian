@@ -3,8 +3,16 @@ import Foundation
 /// What people fight with. Every blow does 1-10 damage, plus the weapon's bonus.
 enum Weapon: Int, Codable, CaseIterable, Comparable {
     case staff = 1, dagger, mace, shortSword, longSword
+    /// The arms of Lord Draconian's orcs (numbered after the first five, for saves).
+    case hammer, axe, spear
 
-    var bonus: Int { rawValue * 2 }
+    var bonus: Int {
+        switch self {
+        case .hammer: return 4
+        case .axe, .spear: return 6
+        default: return rawValue * 2
+        }
+    }
 
     var name: String {
         switch self {
@@ -13,12 +21,16 @@ enum Weapon: Int, Codable, CaseIterable, Comparable {
         case .mace: return "mace"
         case .shortSword: return "short sword"
         case .longSword: return "long sword"
+        case .hammer: return "war hammer"
+        case .axe: return "axe"
+        case .spear: return "spear"
         }
     }
 
-    var article: String { "a" }
+    var article: String { self == .axe ? "an" : "a" }
 
-    static func < (a: Weapon, b: Weapon) -> Bool { a.rawValue < b.rawValue }
+    /// Better is more damage; between equals, the later weapon.
+    static func < (a: Weapon, b: Weapon) -> Bool { (a.bonus, a.rawValue) < (b.bonus, b.rawValue) }
 
     /// The town watch are armed by rank: watchmen with staves, serjeants with daggers,
     /// men-at-arms with maces, captains with short swords, knights with long swords.

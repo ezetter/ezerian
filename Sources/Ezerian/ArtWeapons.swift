@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-/// The five weapons, modelled in the hand of whoever carries them, so the map shows
+/// The weapons, modelled in the hand of whoever carries them, so the map shows
 /// what each person really fights with. Each is drawn as its own sprite over the figure.
 enum WeaponArt {
     /// Whose hand: the four races' ordinary folk, the town watch, and the Avatar.
@@ -67,6 +67,19 @@ enum WeaponArt {
             m.rod(V3(x, y + 0.2, z + 2.2), V3(x, y + 0.3, z - 0.4), 0.5, grip)
             m.box(x - 1.8, y - 0.1, z - 1, x + 1.8, y + 0.8, z - 0.4, gold)
             m.rod(V3(x, y + 0.6, z - 0.8), V3(x - 1, y + 6.4, max(1.6, z - 11.8)), 0.8, steel)
+        // Hammers and axes are carried upright, head at the shoulder, as in the paintings.
+        case .hammer:
+            m.rod(V3(x, y + 0.2, z - 4), V3(x, y + 0.6, z + 9), 0.6, wood)
+            m.box(x - 2.4, y - 0.6, z + 8.2, x + 2.4, y + 1.8, z + 11.2, iron)
+        case .axe:
+            m.rod(V3(x, y + 0.2, z - 4), V3(x, y + 0.6, z + 10.5), 0.6, wood)
+            m.box(x - 4.4, y + 0.2, z + 6.4, x - 0.4, y + 0.9, z + 11.4, steel)
+            m.box(x + 0.3, y + 0.1, z + 8.4, x + 1.5, y + 1.0, z + 9.8, iron)
+        case .spear:
+            m.rod(V3(x, y, 0.4), V3(x, y, 29), 0.65, wood)
+            m.rod(V3(x, y, 28.6), V3(x, y, 30), 0.85, iron)
+            m.box(x - 0.9, y - 0.25, 30, x + 0.9, y + 0.25, 32, steel)
+            m.rod(V3(x, y, 31.8), V3(x, y, 34.4), 0.45, steel)
         }
         return m
     }

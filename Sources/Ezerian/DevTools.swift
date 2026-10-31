@@ -65,6 +65,7 @@ enum DevTools {
                     if what == "drinker" { return n.role == what && n.race == .human }
                     if what == "elvenDrinker" { return n.role == "drinker" && n.race == .elf }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
+                    if what == "draconianOrc" { return n.race == .orc && n.servesDraconian }
                     guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
                     return rank == nil || rank == r
                 }
@@ -772,7 +773,11 @@ extension DevTools {
         }
         do {
             // Weapons: bonuses, who carries what, naming them in blows, taking them from the slain.
-            check(Weapon.allCases.map(\.bonus) == [2, 4, 6, 8, 10], "staff, dagger, mace, short sword and long sword add 2, 4, 6, 8 and 10 damage")
+            check(Weapon.allCases.map(\.bonus) == [2, 4, 6, 8, 10, 4, 6, 6],
+                  "staff, dagger, mace, short sword and long sword add 2, 4, 6, 8 and 10 damage; war hammer 4, axe and spear 6")
+            check([Weapon.hammer, .longSword, .axe, .dagger].max() == .longSword && [Weapon.hammer, .mace].max() == .mace
+                  && [Weapon.dagger, .hammer].max() == .hammer && Weapon.axe.article == "an",
+                  "the Avatar fights with the weapon that does the most damage, and an axe is an axe")
             check(Game(seed: seed).weapons.isEmpty, "the Avatar starts with no weapon")
             check(WeaponArt.Carrier.allCases.allSatisfy { c in Weapon.allCases.allSatisfy { w in
                 Direction.allCases.allSatisfy { SpriteBank.shared.weapon(w, carrier: c, facing: $0, step: 1).sprite.w > 1 } } },
@@ -781,7 +786,7 @@ extension DevTools {
             check(poseGame.npcPoses(t: 1).allSatisfy { p in poseGame.world.npcs(near: poseGame.x, poseGame.y, 0, radius: 16)
                 .contains { Double($0.x) == p.x && Double($0.y) == p.y && $0.weapon == p.weapon } },
                   "on the map, people hold the weapon they really carry")
-            check((0..<GuardArt.ranks).map { Weapon.forGuard(rank: $0) } == Weapon.allCases, "the watch are armed by rank, staff to long sword")
+            check((0..<GuardArt.ranks).map { Weapon.forGuard(rank: $0) } == Array(Weapon.allCases.prefix(5)), "the watch are armed by rank, staff to long sword")
             var wrng = SplitMix64(seed: 77)
             func sample(_ hp: Int) -> (armed: Double, tier: Double) {
                 let ws = (0..<4000).map { _ in Weapon.roll(health: hp, servant: false, child: false, &wrng) }
@@ -1004,9 +1009,19 @@ extension DevTools {
                 Set((kind == "town" ? PaintedFolk.townFolk : kind == "country" ? PaintedFolk.countryFolk : kind == "orc" ? PaintedFolk.orcFolk : PaintedFolk.elfFolk).map(\.painting))
             }
             let isCountry: (NPC) -> Bool = { $0.home.map { $0.hasSuffix("Farmhouse") } ?? true }
-            let setOf: (NPC) -> String = { $0.race == .elf ? "elf" : $0.race == .orc ? "orc" : isCountry($0) ? "country" : "town" }
-            check(everyday.allSatisfy { n in n.painting.map { names(setOf(n)).contains($0) } ?? false },
-                  "every human but the watch has a town or country painting by where they live, every elf an elf painting and every orc an orc painting (\(everyday.count) of them)")
+            let setOf: (NPC) -> String = { $0.race == .elf ? "elf" : $0.race == .orc ? ($0.servesDraconian ? "draconian" : "orc") : isCountry($0) ? "country" : "town" }
+            let draconianOrc = Dictionary(uniqueKeysWithValues: PaintedFolk.draconianOrcs.map { ($0.painting, $0) })
+            check(everyday.filter { setOf($0) != "draconian" }.allSatisfy { n in n.painting.map { names(setOf(n)).contains($0) } ?? false },
+                  "every human but the watch has a town or country painting by where they live, every elf an elf painting and every free orc an orc painting (\(everyday.count) of them)")
+            let hisOrcs = everyday.filter { setOf($0) == "draconian" }
+            check(!hisOrcs.isEmpty && hisOrcs.allSatisfy { n in
+                guard let p = n.painting.flatMap({ draconianOrc[$0] }) else { return false }
+                return p.female == n.female && (p.weapon == nil || p.weapon == n.weapon)
+            }, "Draconian's orcs have their own paintings, of their sex, and carry the weapon painted (\(hisOrcs.count) of them)")
+            check(!PaintedFolk.draconianOrcs.contains { $0.painting == "draconian-orc-3" }
+                  && PaintedFolk.draconianOrcs.allSatisfy { Portraits.image($0.painting) != nil },
+                  "his orc paintings load, all but the crossbowman")
+            check(Set(hisOrcs.compactMap(\.weapon)).isSuperset(of: [.hammer, .axe, .spear]), "his orcs carry war hammers, axes and spears")
             check(everyday.filter { !$0.servesDraconian }.allSatisfy { n in
                 guard let p = Populace.painted(look: n.look) else { return false }
                 return p.painting == n.painting && p.look.female == n.female && p.race == n.race && n.portrait == nil
@@ -1014,7 +1029,7 @@ extension DevTools {
             check(everyday.filter(\.servesDraconian).allSatisfy { [6, 7].contains($0.look) && $0.portrait != nil }
                   && everyday.contains { $0.servesDraconian },
                   "Draconian's humans, elves and orcs keep his livery on the map, with a painting to talk to")
-            check(Set(everyday.map(setOf)) == ["town", "country", "elf", "orc"], "there are town folk, country folk, elves and orcs")
+            check(Set(everyday.map(setOf)) == ["town", "country", "elf", "orc", "draconian"], "there are town folk, country folk, elves and orcs")
             check(all.filter { $0.race == .elf && $0.role == "drinker" }.allSatisfy { $0.shortName == "the elven drinker" },
                   "elves drinking in taverns are still elven drinkers")
             // An NPC from an older save, in a plain look, is repainted on loading.

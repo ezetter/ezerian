@@ -275,8 +275,16 @@ enum Populace {
 
     /// Paints someone from their everyday set. Draconian's servants keep his livery on
     /// the map and are only given the portrait. The pick is fixed by who they are, so it
-    /// is the same each time (it also repaints people from older saves).
+    /// is the same each time (it also repaints people from older saves). His orcs have a
+    /// painting of their own, and carry the weapon it shows.
     static func paint(_ n: NPC) {
+        if n.race == .orc && n.servesDraconian {
+            let mine = PaintedFolk.draconianOrcs.filter { $0.female == n.female }
+            let pick = mine[Int(Hash.of(0xD7A60, n.id, 0) % UInt64(mine.count))]
+            n.portrait = pick.painting
+            if let w = pick.weapon, n.hp > 0 { n.weapon = w }
+            return
+        }
         guard let set = everydaySet(n) else { return }
         let mine = set.indices.filter { set[$0].look.female == n.female }
         let pick = mine[Int(Hash.of(0x9A1D7, n.id, 0) % UInt64(mine.count))]
@@ -414,7 +422,6 @@ enum Populace {
                           role: job, home: home)
             npc.servesDraconian = servant
             npc.warband = warband
-            paint(npc)
             npc.facing = rng.int(4)
             let u = rng.double()
             npc.maxHP = guardRank.map { guardHealth(rank: $0, u) } ?? health(u)
@@ -422,6 +429,7 @@ enum Populace {
             npc.gold = coins(forHealth: npc.maxHP, &rng)
             npc.weapon = guardRank.map { Weapon.forGuard(rank: $0) }
                 ?? Weapon.roll(health: npc.maxHP, servant: servant, child: job == "child", &rng)
+            paint(npc)
             taken.insert(ly * n + lx)
             people.append(npc)
         }

@@ -285,6 +285,18 @@ enum PaintedFolk {
                                                           legs: 0x5A3A2A, longHair: true, dress: true), prop: .none),
     ]
 
+    /// Lord Draconian's orcs, in his black and red, with the weapon each one holds (nil:
+    /// none in sight, so they keep what they carry). Only the portraits are painted: on the
+    /// map they wear his livery like all his servants. Painting 3, an orc with a crossbow,
+    /// waits until there are bows.
+    static let draconianOrcs: [(painting: String, female: Bool, weapon: Weapon?)] = [
+        ("draconian-orc-0", false, .shortSword), ("draconian-orc-1", false, .spear),
+        ("draconian-orc-2", false, .hammer), ("draconian-orc-4", false, .axe),
+        ("draconian-orc-5", true, .spear), ("draconian-orc-6", true, nil),
+        ("draconian-orc-7", true, .shortSword), ("draconian-orc-8", true, .longSword),
+        ("draconian-orc-9", true, .axe),
+    ]
+
     /// The person facing south, built on an ordinary figure, with hat, apron and prop.
     static func figure(_ p: Painted, step: Int) -> Model {
         var m = PeopleArt.figure(p.look, step: step)
