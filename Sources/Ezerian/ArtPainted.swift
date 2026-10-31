@@ -2,7 +2,7 @@ import Foundation
 import simd
 
 /// Folk with painted portraits, by trade: the bards, the peasants, the human farmhands,
-/// the human townsmen and townswomen, and the elves drinking in taverns. Each one's figure on the map wears the painting's colours
+/// the human townsmen and townswomen, and the humans and elves drinking in taverns. Each one's figure on the map wears the painting's colours
 /// and hat, and holds what they hold in it (an instrument, a hoe, a loaf, a broom). The bard sheet's horned, red-skinned fiddler belongs
 /// to no race of Ezerian, so bard painting 4 is not used.
 enum PaintedFolk {
@@ -35,7 +35,7 @@ enum PaintedFolk {
     }
 
     // New lists go on the end: a person's look is their index here, kept in saves.
-    static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers
+    static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers + drinkers
     private static let linen: UInt32 = 0xDCD0B4, leather: UInt32 = 0x5A3A22
 
     static let bards: [Painted] = [
@@ -159,6 +159,29 @@ enum PaintedFolk {
                                                                         legs: 0x6A1A24, longHair: false, dress: true), prop: .mug),
         Painted(role: "drinker", painting: "elven-drinker-9", look: look(.elf, female: true, skin: 0x9A6A48, hair: 0xA8A4A0, tunic: 0xA07A2A,
                                                                         legs: 0xA07A2A, cape: 0x4A4440, longHair: true, dress: true), prop: .bread),
+    ]
+
+    static let drinkers: [Painted] = [
+        Painted(role: "drinker", painting: "drinker-0", look: look(.human, female: false, skin: 0xE8A88A, hair: 0x5A4A3A, tunic: 0x7A2A22,
+                                                                  legs: 0x3A2A22, longHair: false, beard: true), prop: .mug, apron: 0x4A3022),
+        Painted(role: "drinker", painting: "drinker-1", look: look(.human, female: false, skin: 0x4A2E1E, hair: 0x14100C, tunic: 0xD8CCB0,
+                                                                  legs: 0x3A3A44, longHair: false), prop: .mug, apron: 0x3A4A62),
+        Painted(role: "drinker", painting: "drinker-2", look: look(.human, female: false, skin: 0xD8A27A, hair: 0xA8A4A0, tunic: 0x4A5432,
+                                                                  legs: 0x3A3428, longHair: false, beard: true), prop: .bowl, hat: .cap(0x5A3A22)),
+        Painted(role: "drinker", painting: "drinker-3", look: look(.human, female: false, skin: 0xD8A87A, hair: 0x14100C, tunic: 0x5A544C,
+                                                                  legs: 0x3A3632, longHair: false, beard: true), prop: .mug),
+        Painted(role: "drinker", painting: "drinker-4", look: look(.human, female: false, skin: 0xF0C0A0, hair: 0xB8501E, tunic: 0x9A7A2A,
+                                                                  legs: 0x4A3A2A, longHair: false, beard: true), prop: .dice),
+        Painted(role: "drinker", painting: "drinker-5", look: look(.human, female: true, skin: 0x3A2418, hair: 0x14100C, tunic: 0x3A4A62,
+                                                                  legs: 0x3A4A62, longHair: false, dress: true), prop: .mug, hat: .scarf(0xC8B898)),
+        Painted(role: "drinker", painting: "drinker-6", look: look(.human, female: true, skin: 0xF0C8A8, hair: 0x6A3A1E, tunic: 0xD8CCB0,
+                                                                  legs: 0x4A5432, longHair: false, dress: true), prop: .bread, apron: 0x4A5432),
+        Painted(role: "drinker", painting: "drinker-7", look: look(.human, female: true, skin: 0xC8946A, hair: 0x14100C, tunic: 0x7A2A22,
+                                                                  legs: 0x7A2A22, longHair: true, dress: true), prop: .mug),
+        Painted(role: "drinker", painting: "drinker-8", look: look(.human, female: true, skin: 0xE8C0A0, hair: 0xC8C4C0, tunic: 0x7A7468,
+                                                                  legs: 0x7A7468, cape: 0x4A3022, longHair: false, dress: true), prop: .bowl),
+        Painted(role: "drinker", painting: "drinker-9", look: look(.human, female: true, skin: 0xF0D0B0, hair: 0x14100C, tunic: 0x9A7A2A,
+                                                                  legs: 0x9A7A2A, longHair: false, dress: true), prop: .mug, apron: 0x4A3022),
     ]
 
     /// The person facing south, built on an ordinary figure, with hat, apron and prop.

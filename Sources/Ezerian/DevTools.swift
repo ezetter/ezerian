@@ -62,6 +62,7 @@ enum DevTools {
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
                     if what == "bard" || what == "peasant" || what == "farmhand" { return n.role == what }
+                    if what == "drinker" { return n.role == what && n.race == .human }
                     if what == "elvenDrinker" { return n.role == "drinker" && n.race == .elf }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
                     guard what.hasPrefix("guard"), let r = n.guardRank else { return false }
@@ -982,9 +983,9 @@ extension DevTools {
                                                                        && $0.description.hasPrefix("an elven drinker") },
                   "elves drinking in taverns are elven drinkers (\(elvenDrinkers.count) of them)")
             // Painted folk look like their paintings.
-            let paintedRace: [String: Race] = ["townsperson": .human, "farmhand": .human, "drinker": .elf]
+            let paintedRaces: [String: [Race]] = ["townsperson": [.human], "farmhand": [.human], "drinker": [.human, .elf]]
             for trade in ["bard", "peasant", "townsperson", "farmhand", "drinker"] {
-                let folk = all.filter { n in n.role == trade && (paintedRace[trade].map { n.race == $0 } ?? true) }
+                let folk = all.filter { n in n.role == trade && (paintedRaces[trade]?.contains(n.race) ?? true) }
                 check(!folk.isEmpty && folk.allSatisfy { n in
                     guard let p = Populace.painted(look: n.look) else { return false }
                     return p.role == trade && p.race == n.race && p.look.female == n.female && n.painting == p.painting

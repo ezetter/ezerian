@@ -196,12 +196,14 @@ a hoe and straw hat, a pitchfork, a sheaf of wheat, a sack of grain, and a baske
 apples; a rake, a wooden bucket, a basket of cabbages, a sheaf and sickle, and a spade.
 Elf and dwarf farmhands keep their ordinary looks.
 
-## Elven drinkers
+## Tavern drinkers
 
-Elves drinking in taverns are known as elven drinkers ("The elven drinker hits you…").
-Each looks like one of ten painted elven drinkers of their sex, shown when you talk to
-them, and on the map wears that painting's colours and holds what it shows: a copper
-mug, a crust of bread, a pair of dice, or a bowl of stew.
+Humans and elves drinking in taverns each look like one of ten painted drinkers of
+their race and sex, shown when you talk to them, and on the map wear that painting's
+colours and hold what it shows: a mug, a crust of bread, a pair of dice, or a bowl of
+stew. Elves among them are known as elven drinkers ("The elven drinker hits you…");
+humans, like every human, go by their trade ("the drinker"). Dwarf and orc drinkers
+keep their ordinary looks.
 
 ## Lord Draconian
 
