@@ -293,9 +293,13 @@ Draconian".
   is 5 gold, paid the same way, and 2 more for each companion sharing it. You
   sleep until 8 the next morning, and you and each companion wake up to 50 health
   better.
+* **Apothecaries and alchemists:** many towns have one (large towns may have both),
+  with a sign of a mortar and pestle or a green flask. They sell health salves (10
+  gold; heal 50) and ointments (5 gold; heal 25), and buy them back at half that, but
+  have no use for weapons. Use a remedy from your character sheet (see below).
 * **Buying and selling weapons:** blacksmiths and armourers keep every weapon; merchants
-  in the streets and pedlars on the roads carry 1–5 things at random (sometimes the same
-  thing twice). Talking to any of them, press **Trade** beside the line you type, or ask
+  in the streets and pedlars on the roads carry 1–5 things at random, weapons and
+  remedies alike (sometimes the same thing twice), and buy anything. Talking to any of them, press **Trade** beside the line you type, or ask
   to buy or sell, and their wares open: what they have for sale on the left, with a
   **Buy** button for each, and your belongings on the right, each with **Sell**. A weapon
   costs 10 gold for each point of damage it adds (a staff 20, a long sword 100), and they
@@ -319,18 +323,21 @@ It shows a larger portrait, your health, the weapon in hand and the damage of ea
 blow, your gold, how much you carry and how you look. Beside it are your belongings.
 
 * **Ten things each:** you and each companion can carry up to ten things, the weapon
-  in hand among them. So far every item is a weapon. When you slay someone you take
+  in hand among them: weapons, health salves and ointments. When you slay someone you take
   everything they carried, duplicates too, until you are full; anything that won't fit
   is left behind. If your hands are empty you take up the first weapon.
 * **Equip, Put away, Drop:** each line has buttons. Equip takes up a weapon from the
   pack, swapping it with the one in hand. Put away empties your hands. Drop leaves the
   item behind for good.
+* **Use:** a health salve heals 50 health at once and an ointment 25, never past full,
+  and is used up. On a companion's sheet, Use heals that companion.
 * **Give:** with companions, Give asks whom to give the item to; a weapon goes into an
   empty hand, anything else into the pack. No one takes more than ten things.
 * **Companions:** the ◀ ▶ arrows at the top (or ← →) go from your sheet to each
   companion's: their portrait, trade, health, weapon, gold, belongings and mood. They
   carry, equip, drop and give things just as you do, and fight with what you hand them.
-* **While the sheet is open** time stands still. It can't be opened in a fight. I, Esc
+* **While the sheet is open** time stands still. In a fight it opens too, with only
+  Use, Equip and Put away: doing any of them takes your turn. I, Esc
   or Close puts it away. Belongings are kept in the save file; weapons from older saves
   become your belongings, the best one in hand.
 
@@ -402,7 +409,7 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | `Combat.swift` | Health, fights, turns, blows and death |
 | `Trade.swift` | Merchants' prices, haggling and the healer's night of rest |
 | `Inventory.swift` | Items, belongings, looting and the character sheet's actions |
-| `Shop.swift` | Buying and selling weapons with smiths, armourers, merchants and pedlars |
+| `Shop.swift` | Buying and selling with smiths, armourers, apothecaries, alchemists, merchants and pedlars |
 | `NPC.swift`, `Dialogue.swift` | Races, friendliness, Lord Draconian's people, where people live, scripted replies |
 | `ClaudeDialogue.swift` | Claude API client, NPC character sheets, structured replies, API key storage |
 | `World.swift`, `Tiles.swift` | Regions, lazy generation, terrain and objects |

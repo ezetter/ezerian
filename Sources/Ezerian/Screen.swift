@@ -59,11 +59,12 @@ final class Screen {
         let hint = game.showMap ? "M or Esc closes the map  ·  + and − zoom"
             : game.gameOver ? "Press Return to begin a new adventure"
             : game.attackPending ? "Press a direction to attack  ·  Esc to cancel"
-            : game.inCombat ? "Your turn: walk into a foe to strike  ·  F + direction attack  ·  Space wait  ·  walk away to flee"
+            : game.inCombat && game.sheet == nil ? "Your turn: walk into a foe to strike  ·  F + direction attack  ·  Space wait  ·  walk away to flee"
             : game.shopping ? "Buy and Sell with the buttons  ·  Esc or Done goes back to talking"
             : game.conversation.map { $0.price != nil && !$0.over } == true
                 ? "Type what you say  ·  Tab or click between words and gold  ·  Return or Give gold. to pay  ·  Esc to leave"
             : game.conversation != nil ? "Type what you say  ·  Return to say it  ·  Esc to leave"
+            : game.sheet != nil && game.inCombat ? "Using something or changing weapons takes your turn  ·  I or Esc closes"
             : game.sheet != nil ? (game.sheetCount > 1 ? "◀ ▶ or ← → for your companions  ·  I or Esc closes" : "I or Esc closes")
             : "Arrows walk  ·  T talk  ·  F fight  ·  Space wait  ·  L look  ·  I character  ·  M map  ·  H help"
         texts.append(TextItem(text: hint, x: Double(Screen.mapX + 4), y: 502, size: 12, color: Screen.dim))
@@ -416,9 +417,13 @@ final class Screen {
                 out.append(SheetButton(rect: (x, row.y + 2, w, row.h - 4), action: a, label: label))
                 x -= 6
             }
-            add(50, .drop(r), "Drop")
-            if game.sheetCount > 1 { add(50, .give(r), "Give") }
+            // (In a fight there's only time to use something or change weapons.)
+            if !game.inCombat {
+                add(50, .drop(r), "Drop")
+                if game.sheetCount > 1 { add(50, .give(r), "Give") }
+            }
             if line.item.weapon != nil { add(72, line.inHand ? .unequip : .equip(r), line.inHand ? "Put away" : "Equip") }
+            if line.item.heals != nil { add(50, .use(r), "Use") }
         }
         return out
     }
@@ -494,7 +499,7 @@ final class Screen {
             fb.wash(row.x, row.y, row.w, row.h, hex(r % 2 == 0 ? 0x6A4A24 : 0x8A6A3A), r == game.sheetGiving ? 0.35 : 0.12)
             guard r < rows.count else { continue }
             let item = rows[r].item
-            let label = item.name.capitalizedFirst + (item.weapon.map { "  +\($0.bonus)" } ?? "")
+            let label = item.name.capitalizedFirst + "  " + item.detail
             texts.append(TextItem(text: label, x: Double(row.x + 8), y: Double(row.y + 5), size: 13, font: rows[r].inHand ? .bold : .body,
                                   color: 0x2A1406, shadow: false))
             if rows[r].inHand {
@@ -588,7 +593,7 @@ final class Screen {
             let row = shopRow(r, selling: false)
             out.append(SheetButton(rect: (row.x + row.w - 54, row.y + 2, 50, row.h - 4), action: .close, label: "Buy", shop: .buy(r)))
         }
-        for r in game.belongings(0).indices {
+        for (r, line) in game.belongings(0).enumerated() where game.buys(line.item, npc) {
             let row = shopRow(r, selling: true)
             out.append(SheetButton(rect: (row.x + row.w - 54, row.y + 2, 50, row.h - 4), action: .close, label: "Sell", shop: .sell(r)))
         }
@@ -619,12 +624,17 @@ final class Screen {
                 fb.wash(row.x, row.y, row.w, row.h, hex(r % 2 == 0 ? 0x6A4A24 : 0x8A6A3A), 0.12)
                 let item: Item? = selling ? (r < mine.count ? mine[r].item : nil) : (r < goods.count ? goods[r] : nil)
                 guard let item else { continue }
-                let label = item.name.capitalizedFirst + (item.weapon.map { "  +\($0.bonus)" } ?? "")
+                let label = item.name.capitalizedFirst + "  " + item.detail
                 let inHand = selling && mine[r].inHand
                 texts.append(TextItem(text: label, x: Double(row.x + 8), y: Double(row.y + 5), size: 13, font: inHand ? .bold : .body,
                                       color: 0x2A1406, shadow: false))
                 let price = selling ? game.offerFor(item) : game.askingPrice(item, npc)
                 let dear = !selling && price > game.gold
+                guard !selling || game.buys(item, npc) else {
+                    texts.append(TextItem(text: "not wanted", x: Double(row.x + row.w - 8), y: Double(row.y + 6), size: 11.5, font: .italic,
+                                          color: 0x8A7A60, align: .right, shadow: false))
+                    continue
+                }
                 texts.append(TextItem(text: "\(price) gold", x: Double(row.x + row.w - 64), y: Double(row.y + 5), size: 12.5, font: .bold,
                                       color: dear ? 0x9A2A10 : 0x7A5A10, align: .right, shadow: false))
             }

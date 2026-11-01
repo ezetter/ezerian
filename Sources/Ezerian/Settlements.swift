@@ -62,9 +62,13 @@ enum Settlements {
         }
 
         // Hand out the important buildings to lots big enough for them.
-        let wanted: [BuildingKind] = large
+        var wanted: [BuildingKind] = large
             ? [.tavern, .inn, .temple, .provisions, .smithy, .armory, .healer]
             : [.tavern, .provisions, .smithy, .healer]
+        // Some towns have an apothecary or an alchemist, or (if large) both.
+        let potions = b.rng.double()
+        if potions < (large ? 0.85 : 0.45) { wanted.append(b.rng.chance(0.5) ? .apothecary : .alchemist) }
+        if large && potions < 0.3 { wanted.append(wanted.last == .apothecary ? .alchemist : .apothecary) }
         let order = lots.indices.sorted { lots[$0].area > lots[$1].area }
         for kind in wanted {
             if let i = order.first(where: { lots[$0].kind == nil && lots[$0].w >= kind.minSize.w && lots[$0].h >= kind.minSize.h }) {

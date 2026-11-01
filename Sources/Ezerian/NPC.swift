@@ -655,6 +655,8 @@ enum Populace {
         if name.contains("Provisions") { return ("provisioner", [(.human, 70), (.dwarf, 15), (.elf, 10), (.orc, 5)], 1, 0) }
         if name.contains("Anvil") || name.contains("Smithy") { return ("blacksmith", [(.dwarf, 55), (.human, 40), (.orc, 5)], 1, 0) }
         if name.contains("Arms") { return ("armourer", [(.human, 45), (.dwarf, 40), (.orc, 15)], 1, 0) }
+        if name.contains("Apothecary") || name.contains("Mortar") { return ("apothecary", [(.human, 60), (.elf, 30), (.dwarf, 10)], 1, 0) }
+        if name.contains("Alembic") || name.contains("Alchemy") { return ("alchemist", [(.human, 55), (.elf, 25), (.dwarf, 15), (.orc, 5)], 1, 0) }
         if name.contains("Healing") || name.contains("Gentle") { return ("healer", [(.human, 60), (.elf, 40)], 1, 0) }
         if name.hasPrefix("Temple") { return ("cleric", [(.human, 70), (.elf, 30)], 1, 0) }
         if name.contains("Farmhouse") { return ("farmer", [(.human, 85), (.dwarf, 10), (.elf, 5)], 0.9, 0) }

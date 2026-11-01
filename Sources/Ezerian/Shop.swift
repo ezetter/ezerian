@@ -1,31 +1,45 @@
 import Foundation
 
 /// Buying and selling things. Blacksmiths and armourers keep every kind of weapon and
-/// will buy any; merchants and pedlars carry a few things of their own (their pack),
-/// and take what they buy into it. Something is worth 10 gold for each point of
-/// damage it adds; a trader sells at that (more if they dislike the Avatar: see
-/// `Trade.price`) and buys at half.
+/// will buy any; apothecaries and alchemists keep health salves and ointments, and buy
+/// those. Merchants and pedlars carry a few things of their own (their pack), weapons
+/// and remedies alike, and take whatever they buy into it. A weapon is worth 10 gold
+/// for each point of damage it adds, a salve 10 and an ointment 5; a trader sells at
+/// that (more if they dislike the Avatar: see `Trade.price`) and buys at half.
 extension Trade {
     static let goldPerDamage = 10
     /// Merchants and pedlars carry this many things for sale, chosen at random.
     static let merchantStock = 1...5
 
     /// What something is worth.
-    static func value(_ item: Item) -> Int { goldPerDamage * (item.weapon?.bonus ?? 0) }
+    static func value(_ item: Item) -> Int {
+        switch item {
+        case let .weapon(w): return goldPerDamage * w.bonus
+        case .salve: return 10
+        case .ointment: return 5
+        }
+    }
 
     /// Keepers of a smithy or an armoury: every weapon, always in stock.
-    static func keepsShop(_ npc: NPC) -> Bool { npc.role == "blacksmith" || npc.role == "armourer" }
+    static func sellsWeapons(_ npc: NPC) -> Bool { npc.role == "blacksmith" || npc.role == "armourer" }
+
+    /// Apothecaries and alchemists: every remedy, always in stock.
+    static func sellsRemedies(_ npc: NPC) -> Bool { npc.role == "apothecary" || npc.role == "alchemist" }
+
+    /// Keepers of a shop, whose stock never runs out.
+    static func keepsShop(_ npc: NPC) -> Bool { sellsWeapons(npc) || sellsRemedies(npc) }
 
     /// Merchants met in the streets and pedlars on the roads: what they carry.
     static func isMerchant(_ npc: NPC) -> Bool { npc.role == "merchant" || npc.role == "pedlar" }
 
     static func trades(_ npc: NPC) -> Bool { keepsShop(npc) || isMerchant(npc) }
 
-    /// A merchant's goods: a few things at random, duplicates and all (fixed by who they are).
+    /// A merchant's goods: a few things at random, weapons and remedies about equally,
+    /// duplicates and all (fixed by who they are).
     static func merchantGoods(id: Int) -> [Item] {
         var rng = SplitMix64(seed: Hash.of(0x5A1E5, id, 0))
         let n = merchantStock.lowerBound + rng.int(merchantStock.count)
-        return (0..<n).map { _ in .weapon(rng.pick(Weapon.allCases)) }
+        return (0..<n).map { _ in rng.chance(0.5) ? rng.pick(Item.remedies) : .weapon(rng.pick(Weapon.allCases)) }
     }
 }
 
@@ -37,7 +51,13 @@ extension Game {
 
     /// What the trader has for sale.
     func wares(_ npc: NPC) -> [Item] {
-        Trade.keepsShop(npc) ? Weapon.allCases.sorted { $0.bonus < $1.bonus }.map { .weapon($0) } : npc.pack
+        Trade.sellsWeapons(npc) ? Weapon.allCases.sorted { $0.bonus < $1.bonus }.map { .weapon($0) }
+            : Trade.sellsRemedies(npc) ? Item.remedies : npc.pack
+    }
+
+    /// Whether the trader will buy something: a shop only what it sells; a merchant anything.
+    func buys(_ item: Item, _ npc: NPC) -> Bool {
+        Trade.sellsWeapons(npc) ? item.weapon != nil : Trade.sellsRemedies(npc) ? item.heals != nil : true
     }
 
     /// What the trader asks for something.
@@ -92,6 +112,7 @@ extension Game {
             let rows = belongings(0)
             guard rows.indices.contains(r) else { return }
             let item = rows[r].item, price = offerFor(item)
+            guard buys(item, npc) else { return }
             guard !Trade.isMerchant(npc) || npc.pack.count < Game.carryLimit else {
                 shopNotice = "\(npc.shortName.capitalizedFirst) has no room for more."
                 return

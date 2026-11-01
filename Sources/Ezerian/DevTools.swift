@@ -23,6 +23,8 @@ enum DevTools {
             }
             if token == "send" { game.submitConversation(); continue }
             if token == "trade" { game.openShop(); continue }
+            if token == "bye" { game.endConversation(); continue }
+            if token.hasPrefix("hp:") { game.hp = Int(token.dropFirst(3)) ?? game.hp; continue }
             if token.hasPrefix("gold:") { game.gold = Int(token.dropFirst(5)) ?? game.gold; continue }
             if token.hasPrefix("buy:") { game.perform(Game.ShopAction.buy(Int(token.dropFirst(4)) ?? 0)); continue }
             if token == "warband" || token == "mercenary" || token == "guard" {
@@ -64,7 +66,7 @@ enum DevTools {
                 let rank = what.hasPrefix("guard") ? Int(what.dropFirst(5)) : nil
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
-                    if ["bard", "peasant", "farmhand", "healer", "innkeeper", "blacksmith", "armourer", "merchant", "pedlar"].contains(what) { return n.role == what }
+                    if ["bard", "peasant", "farmhand", "healer", "innkeeper", "blacksmith", "armourer", "merchant", "pedlar", "apothecary", "alchemist"].contains(what) { return n.role == what }
                     if what == "drinker" { return n.role == what && n.race == .human }
                     if what == "elvenDrinker" { return n.role == "drinker" && n.race == .elf }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
@@ -1092,7 +1094,12 @@ extension DevTools {
             check(g.sheet == nil, "Close puts the sheet away")
             g.combat = Combat(enemies: [foe], order: [nil, foe])
             g.openSheet()
-            check(g.sheet == nil, "no rummaging through packs in the middle of a fight")
+            check(g.sheet == 0 && Screen.sheetButtons(g).allSatisfy { b in
+                if case .drop = b.action { return false }
+                if case .give = b.action { return false }
+                return true
+            }, "in a fight the sheet opens, but with no time to drop or give things")
+            g.sheet = nil
             let carried = try? PropertyListDecoder().decode(NPC.self, from: PropertyListEncoder().encode(mate2))
             check(carried?.weapon == .staff && carried?.pack == mate2.pack, "what a companion carries survives a save")
             g.combat = nil
@@ -1506,7 +1513,7 @@ extension DevTools {
             var smiths: [NPC] = [], merchants: [NPC] = []
             for ry in -3...3 { for rx in -3...3 {
                 let r = g.world.region(RegionKey(x: rx, y: ry, z: 0))
-                smiths += r.npcs.filter(Trade.keepsShop)
+                smiths += r.npcs.filter(Trade.sellsWeapons)
                 merchants += r.npcs.filter(Trade.isMerchant)
             } }
             check(!merchants.isEmpty && merchants.allSatisfy { Trade.merchantStock.contains($0.pack.count) },
@@ -1583,6 +1590,82 @@ extension DevTools {
             }
         }
 
+        do {
+            // Remedies: apothecaries and alchemists sell salves (10, heal 50) and ointments (5, heal 25).
+            check(Trade.value(.salve) == 10 && Trade.value(.ointment) == 5 && Item.salve.heals == 50 && Item.ointment.heals == 25,
+                  "a health salve costs 10 and heals 50; an ointment costs 5 and heals 25")
+            let g = Game(seed: seed)
+            g.confirmName(); g.confirmLook()
+            g.claude = mock
+            mock.availableOverride = false
+            var sellers: [NPC] = [], merchants: [NPC] = [], towns = 0, townsWith = 0
+            for ry in -5...5 { for rx in -5...5 {
+                let r = g.world.region(RegionKey(x: rx, y: ry, z: 0))
+                sellers += r.npcs.filter(Trade.sellsRemedies)
+                merchants += r.npcs.filter(Trade.isMerchant)
+                if r.places.contains(where: { $0.kind == .town }) {
+                    towns += 1
+                    if r.places.contains(where: { $0.name.contains("Apothecary") || $0.name.contains("Mortar") || $0.name.contains("Alembic") || $0.name.contains("Alchemy") }) { townsWith += 1 }
+                }
+            } }
+            check(sellers.contains { $0.role == "apothecary" } && sellers.contains { $0.role == "alchemist" } && townsWith > 0 && townsWith < towns,
+                  "some towns (\(townsWith) of \(towns)) have an apothecary or an alchemist")
+            check(merchants.contains { $0.pack.contains(.salve) || $0.pack.contains(.ointment) } && merchants.contains { $0.pack.contains { $0.weapon != nil } },
+                  "merchants carry remedies as well as weapons")
+            if let shop = sellers.first {
+                shop.friendliness = 10
+                g.gold = 100; g.weapon = .dagger; g.pack = []
+                g.startConversation(with: shop); g.openShop()
+                check(g.shopping && g.wares(shop) == [.ointment, .salve], "an \(shop.role) sells ointments and health salves")
+                g.perform(.buy(1)); g.perform(.buy(0)); g.perform(.buy(1))
+                check(g.gold == 75 && g.pack == [.salve, .ointment, .salve], "two salves and an ointment cost 25")
+                check(!g.buys(.weapon(.dagger), shop) && g.buys(.salve, shop) && !Screen.shopButtons(g).contains { $0.shop == .sell(0) },
+                      "they buy remedies, but not weapons")
+                g.perform(.sell(2))
+                check(g.gold == 77 && g.pack == [.salve, .salve], "and pay half: 2 for an ointment")
+                g.endConversation()
+                // Using them, from the sheet.
+                g.hp = 20
+                g.openSheet()
+                let use = Screen.sheetButtons(g).first { $0.action == .use(1) }
+                check(use?.label == "Use", "a salve on the sheet has a Use button")
+                g.perform(.use(1))
+                check(g.hp == 70 && g.pack == [.salve], "a health salve heals 50 at once, and is used up")
+                g.hp = g.maxHP - 10
+                g.perform(.use(1))
+                check(g.hp == g.maxHP && g.pack.isEmpty, "no further than whole")
+                g.pack = [.ointment]; g.hp = 20
+                g.perform(.use(1))
+                check(g.hp == 45, "an ointment heals 25")
+                g.perform(.close)
+                // In a fight, using one takes the turn.
+                let foes = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs.filter { !Trade.trades($0) }
+                if let foe = foes.first {
+                    g.pack = [.salve]; g.hp = 20
+                    foe.hp = 999; foe.maxHP = 999
+                    g.combat = Combat(enemies: [foe], order: [nil, foe])
+                    g.roll = { 0.999 }
+                    let turn = g.turn
+                    g.openSheet()
+                    g.perform(.use(1))
+                    check(g.hp == 70 && g.sheet == nil && g.turn == turn + 1, "in a fight a salve can be used, which takes your turn")
+                    g.combat = nil
+                }
+                let saved = try? JSONDecoder().decode([Item].self, from: JSONEncoder().encode([Item.salve, .ointment, .weapon(.axe)]))
+                check(saved == [.salve, .ointment, .weapon(.axe)], "remedies survive a save")
+            } else { check(false, "found an apothecary or alchemist") }
+            if let m = merchants.first(where: { $0.pack.contains { $0.heals != nil } }) {
+                m.friendliness = 10
+                g.gold = 100; g.weapon = .dagger; g.pack = []
+                g.startConversation(with: m); g.openShop()
+                check(g.buys(.weapon(.dagger), m) && g.buys(.salve, m), "a merchant buys weapons and remedies alike")
+                let i = m.pack.firstIndex { $0.heals != nil }!, item = m.pack[i]
+                g.perform(.buy(i))
+                check(g.gold == 100 - Trade.value(item), "and sells remedies at the same prices")
+                g.endConversation()
+            }
+        }
+
         // Keys reach the game the same way they do in the window.
         let keyGame = Game(seed: seed)
         let view = GameView(game: keyGame)
@@ -1614,6 +1697,7 @@ extension DevTools {
         for code: UInt16 in [124, 125, 123, 126] { press(code) }   // right, down, left, up
         check(keyGame.turn > kturn, "arrow keys walk the Avatar")
         check(abs(keyGame.x - kx) <= 1 && abs(keyGame.y - ky) <= 1, "each arrow press is a single step")
+        keyGame.endConversation()   // (in case a step bumped into someone)
         press(46, "m")
         check(keyGame.showMap, "M opens the map")
         press(46, "m")

@@ -611,6 +611,8 @@ final class Game {
     private func healerAnswer(_ c: inout Conversation, _ said: String) -> Bool {
         let npc = c.npc
         guard sellsRest(npc) else { return false }
+        // Asking someone to join (or leave) the party is about that, "please" or not.
+        if let t = Dialogue.topic(for: said), t == .join || t == .dismiss { return false }
         let asks = npc.role == "innkeeper" ? Dialogue.asksForLodging(said) : Dialogue.asksForHealing(said)
         let no = c.healingAsked && Dialogue.isNo(said)
         guard no || (c.healingAsked && Dialogue.isYes(said)) || asks else { return false }

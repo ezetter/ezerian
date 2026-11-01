@@ -215,9 +215,11 @@ enum AIDialogue {
         }
         if Trade.trades(npc) {
             facts.append(Trade.willTrade(npc)
-                ? (Trade.keepsShop(npc) ? "You keep every kind of weapon for sale" : "You carry a few things to sell (\(npc.pack.map(\.name).joined(separator: ", ")))")
-                    + ", at \(Trade.goldPerDamage) gold for each point of damage a weapon adds, and buy weapons at half that. The Avatar trades with the Trade button beside the line they type; never pretend to hand over goods or take payment in your reply."
-                : "You trade in weapons, but you dislike the Avatar too much to do business with them.")
+                ? (Trade.sellsWeapons(npc) ? "You keep every kind of weapon for sale, at \(Trade.goldPerDamage) gold for each point of damage it adds, and buy weapons at half that."
+                    : Trade.sellsRemedies(npc) ? "You sell health salves (10 gold; heal 50 at once) and ointments (5 gold; heal 25), and buy them back at half that."
+                    : "You carry a few things to sell (\(npc.pack.map(\.name).joined(separator: ", "))): weapons at \(Trade.goldPerDamage) gold for each point of damage they add, salves at 10 and ointments at 5; you buy anything at half its price.")
+                    + " The Avatar trades with the Trade button beside the line they type; never pretend to hand over goods or take payment in your reply."
+                : "You trade, but you dislike the Avatar too much to do business with them.")
         }
         if npc.role == "innkeeper" {
             facts.append(Trade.willTrade(npc)

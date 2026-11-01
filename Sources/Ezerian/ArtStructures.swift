@@ -11,7 +11,7 @@ enum StructureArt {
     static let gold = Paint(0xD8A830, .metal, shine: 0.6)
     static let straw = Paint(0xC8A450, .straw, jitter: 0.08)
 
-    static let signIcons = ["tavern", "inn", "provisions", "smithy", "armory", "healer"]
+    static let signIcons = ["tavern", "inn", "provisions", "smithy", "armory", "healer", "apothecary", "alchemist"]
 
     /// Flickering flames for frame `f` of 4 around a point.
     static func flames(_ m: inout Model, _ x: Float, _ y: Float, _ z: Float, size: Float, frame f: Int) {
@@ -289,6 +289,16 @@ enum StructureArt {
         case "healer":
             m.box(18.5, y, 13.5, 20.5, y + 0.6, 20.5, Paint(0xD02020))
             m.box(16, y, 16, 23, y + 0.6, 18, Paint(0xD02020))
+        case "apothecary":
+            // A mortar and pestle.
+            m.blob(19.5, y, 15.5, 3.4, 0.6, 2, Paint(0xC8C0B0, .stone))
+            m.rod(V3(20.5, y + 0.4, 16.5), V3(23, y + 0.4, 20.5), 0.7, Paint(0x8A6A42))
+            m.box(16, y + 0.2, 17, 23, y + 0.7, 17.6, Paint(0x3E8A3A))
+        case "alchemist":
+            // A green flask.
+            m.blob(19.5, y, 15.6, 3, 0.6, 2.6, Paint(0x3AC060, shine: 0.5))
+            m.box(18.8, y, 17.8, 20.2, y + 0.6, 20.6, Paint(0x9AD0B0, shine: 0.5))
+            m.box(18.4, y + 0.1, 20.4, 20.6, y + 0.7, 21.2, Paint(0x8A6A42))
         default:
             m.box(14, y, 15, 25, y + 0.5, 19, Paint(0xD8C8A0))
         }

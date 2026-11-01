@@ -2,6 +2,8 @@ import Foundation
 
 enum BuildingKind: CaseIterable {
     case tavern, inn, provisions, smithy, armory, healer, temple, home
+    /// Shops of salves and ointments (and, one day, potions).
+    case apothecary, alchemist
 
     var minSize: (w: Int, h: Int) {
         switch self {
@@ -20,6 +22,8 @@ enum BuildingKind: CaseIterable {
         case .smithy: return "smithy"
         case .armory: return "armory"
         case .healer: return "healer"
+        case .apothecary: return "apothecary"
+        case .alchemist: return "alchemist"
         case .temple, .home: return nil
         }
     }
@@ -151,6 +155,8 @@ enum Buildings {
         case .armory: return (.stoneWall, .cobble, .slate)
         case .temple: return (.stoneWall, .marble, .slate)
         case .healer: return (.timberWall, .stoneFloor, .tile)
+        case .apothecary: return (.timberWall, .woodFloor, .tile)
+        case .alchemist: return (.stoneWall, .stoneFloor, .slate)
         case .inn: return (rng.chance(0.5) ? .timberWall : .brickWall, .woodFloor, rng.chance(0.5) ? .shingle : .tile)
         case .tavern:
             let wall: Terrain = [.brickWall, .stoneWall, .timberWall][rng.int(3)]
@@ -172,6 +178,8 @@ enum Buildings {
         case .smithy: return rng.chance(0.5) ? "The \(rng.pick(["Iron", "Red", "Black", "Ringing"])) Anvil" : "\(Names.person(&rng))'s Smithy"
         case .armory: return "\(Names.person(&rng))'s Arms"
         case .healer: return rng.chance(0.5) ? "House of Healing" : "The Gentle Hand"
+        case .apothecary: return rng.chance(0.5) ? "\(Names.person(&rng))'s Apothecary" : "The Mortar and Pestle"
+        case .alchemist: return rng.chance(0.5) ? "The \(rng.pick(["Green", "Silver", "Bubbling", "Gilded"])) Alembic" : "\(Names.person(&rng))'s Alchemy"
         case .temple: return "Temple of \(Names.virtue(&rng))"
         case .home: return "\(Names.person(&rng))'s House"
         }
@@ -222,6 +230,10 @@ enum Buildings {
         case .armory: furnishShop(r, wares: [.crate, .chest, .barrel], counterItems: [.weaponRack, .weaponRack, .chest])
         case .smithy: furnishSmithy(r)
         case .healer: furnishHealer(r)
+        case .apothecary: furnishShop(r, wares: [.barrel, .sack, .crate], counterItems: [.chest, .crate])
+        case .alchemist:
+            furnishShop(r, wares: [.barrel, .chest], counterItems: [.chest, .barrel])
+            r.place(.cauldron, (r.x0 + r.x1) / 2, r.row(r.height - 2))
         case .temple: furnishTemple(r)
         case .home: furnishHome(r)
         }

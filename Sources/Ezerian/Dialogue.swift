@@ -326,6 +326,11 @@ enum Dialogue {
     static func trader(_ npc: NPC, refuse: Bool, player: String) -> String {
         let shop = Trade.keepsShop(npc)
         let s: String
+        if Trade.sellsRemedies(npc) && !refuse {
+            let elf = npc.race == .elf
+            return fill(elf ? "Salves and ointments, {addr}, to mend thy hurts. Choose as thou wilt."
+                            : "Salves and ointments, {addr}: a little something for your hurts. Have a look.", npc, player)
+        }
         switch (npc.race, refuse) {
         case (.elf, false): s = shop ? "Look upon my wares, {addr}, and choose as thou wilt." : "Behold what I carry, {addr}. Perhaps something shall please thee."
         case (.elf, true): s = "I will not trade with thee, {addr}. Go."
@@ -451,6 +456,8 @@ enum Dialogue {
         case "blacksmith": return "I work the forge: horseshoes, nails, and a good blade now and then."
         case "armourer": return "I fit armour to those who'd rather keep their skin. Mail, plate, shields."
         case "healer": return "I mend what the road breaks. Herbs, bandages and a little prayer."
+        case "apothecary": return "I grind herbs and roots into salves and ointments. They'll mend a wound in a moment."
+        case "alchemist": return "I distil and transmute. For now, the salves and ointments pay for the rest."
         case "cleric": return "I tend the temple and the virtue it honours."
         case "farmer": return "I grow wheat and cabbages, and keep the bees from the barn."
         case "guard": return "I keep the peace in {home}, such as it is."   // guards from older saves

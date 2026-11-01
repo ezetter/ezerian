@@ -1,25 +1,50 @@
 import Foundation
 
-/// Something a person carries. So far only weapons; more kinds will follow.
+/// Something a person carries: a weapon, or a remedy (a health salve or an ointment)
+/// that heals whoever uses it at once.
 enum Item: Codable, Equatable {
     case weapon(Weapon)
+    case salve, ointment
+
+    /// Remedies sold by apothecaries and alchemists, cheapest first.
+    static let remedies: [Item] = [.ointment, .salve]
 
     var name: String {
         switch self {
         case let .weapon(w): return w.name
+        case .salve: return "health salve"
+        case .ointment: return "ointment"
         }
     }
 
     var article: String {
         switch self {
         case let .weapon(w): return w.article
+        case .salve: return "a"
+        case .ointment: return "an"
         }
     }
 
     var weapon: Weapon? {
         switch self {
         case let .weapon(w): return w
+        default: return nil
         }
+    }
+
+    /// Health restored on use, for remedies: a salve 50, an ointment 25.
+    var heals: Int? {
+        switch self {
+        case .salve: return 50
+        case .ointment: return 25
+        case .weapon: return nil
+        }
+    }
+
+    /// What it says about itself on a list: "+6" for a weapon, "heals 50" for a remedy.
+    var detail: String {
+        if let w = weapon { return "+\(w.bonus)" }
+        return heals.map { "heals \($0)" } ?? ""
     }
 }
 
@@ -38,7 +63,7 @@ extension Game {
     /// What the character sheet can do, from its buttons (and keys).
     enum SheetAction: Equatable {
         case previous, next, close
-        case equip(Int), unequip, drop(Int), give(Int)
+        case equip(Int), unequip, drop(Int), give(Int), use(Int)
         case giveTo(Int), cancelGive
     }
 
@@ -67,12 +92,10 @@ extension Game {
 
     func carried(_ k: Int) -> Int { belongings(k).count }
 
-    /// Opens the character sheet: the Avatar's, or a companion's.
+    /// Opens the character sheet: the Avatar's, or a companion's. In a fight it can be
+    /// opened too, to use a remedy or change weapons, but either takes the Avatar's turn.
     func openSheet(_ k: Int = 0) {
-        guard !inCombat, conversation == nil, !creatingCharacter, !gameOver else {
-            if inCombat { log("There's no time for that in the middle of a fight!") }
-            return
-        }
+        guard conversation == nil, !creatingCharacter, !gameOver else { return }
         sheet = max(0, min(sheetCount - 1, k))
         sheetGiving = nil
         showHelp = false
@@ -98,11 +121,13 @@ extension Game {
             setPack(k, p)
             setInHand(k, w)
             log(k == 0 ? "You take up your \(w.name) (+\(w.bonus) damage)." : "\(sheetName(k)) takes up \(party[k - 1].his) \(w.name).")
+            spendTurnIfFighting()
         case .unequip:
             guard let w = inHand(k) else { return }
             setInHand(k, nil)
             setPack(k, [.weapon(w)] + packOf(k))
             log(k == 0 ? "You put away your \(w.name)." : "\(sheetName(k)) puts away \(party[k - 1].his) \(w.name).")
+            spendTurnIfFighting()
         case let .drop(r):
             guard rows.indices.contains(r) else { return }
             take(row: r, from: k)
@@ -113,6 +138,17 @@ extension Game {
             sheetGiving = r
         case .cancelGive:
             sheetGiving = nil
+        case let .use(r):
+            guard rows.indices.contains(r), let amount = rows[r].item.heals else { return }
+            let item = rows[r].item
+            take(row: r, from: k)
+            let (before, top) = k == 0 ? (hp, maxHP) : (party[k - 1].hp, party[k - 1].maxHP)
+            let after = min(top, before + amount)
+            if k == 0 { hp = after } else { party[k - 1].hp = after }
+            let who = k == 0 ? "You use" : "\(sheetName(k)) uses"
+            log("\(who) \(k == 0 ? "your" : party[k - 1].his) \(item.name) and \(after == top ? "\(k == 0 ? "are" : "is") whole again" : "\(k == 0 ? "feel" : "feels") better") (+\(after - before) health).")
+            sheetGiving = nil
+            spendTurnIfFighting()
         case let .giveTo(j):
             guard let r = sheetGiving, rows.indices.contains(r), j != k, j >= 0, j < sheetCount else { return }
             sheetGiving = nil
@@ -126,6 +162,14 @@ extension Game {
             let giver = k == 0 ? "You give" : "\(sheetName(k)) gives"
             log("\(giver) \(k == 0 ? "your" : party[k - 1].his) \(item.name) to \(j == 0 ? "you" : sheetName(j)).")
         }
+    }
+
+    /// In a fight, using something or changing weapons takes the Avatar's turn (and puts
+    /// the sheet away to watch the others take theirs).
+    private func spendTurnIfFighting() {
+        guard inCombat else { return }
+        sheet = nil
+        endAvatarTurn()
     }
 
     /// Takes one line of belongings away from someone.
