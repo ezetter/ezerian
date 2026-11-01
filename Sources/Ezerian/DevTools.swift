@@ -951,8 +951,9 @@ extension DevTools {
                     g.addToParty(mate)
                     mate.hp = 1; g.hp = 20; g.gold = 10
                     g.startConversation(with: keeper); say("yes")
-                    check(g.conversation?.price == 5, "companions share the room at no extra cost")
-                    offer(5)
+                    check(g.conversation?.price == 7 && g.conversation?.lines.last?.text.contains("7 gold") == true,
+                          "a companion sharing the room costs 2 more: 7 gold")
+                    offer(7)
                     check(mate.hp == min(mate.maxHP, 51) && g.hp == 70, "and each wakes 50 points better")
                     g.endConversation()
                     g.removeFromParty(mate, lockOut: false)

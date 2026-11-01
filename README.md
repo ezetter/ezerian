@@ -278,7 +278,7 @@ Draconian".
   over. If the healer takes it, the screen fades through the night and you wake at 8
   the next morning at full health, your companions too.
 * **Inns and lodges:** an innkeeper asks whether you want a room for the night. A room
-  is 5 gold, paid the same way, and your companions share it at no extra cost. You
+  is 5 gold, paid the same way, and 2 more for each companion sharing it. You
   sleep until 8 the next morning, and you and each companion wake up to 50 health
   better.
 * **Paying merchants:** these rules hold for every merchant's services, the healer's

@@ -294,10 +294,10 @@ enum Dialogue {
                    dwarf: "Ye'll be wanting a bed for the night, {addr}?", orc: "You want bed? Sleep here tonight?")
         case let .quote(n, k):
             let all = k > 0
-            s = by("A room for the night is \(n) gold\(all ? ", and there's room in it for your companions too" : ""). A good night's sleep will set you right.",
-                   elf: "A room for the night is \(n) gold\(all ? ", and there is space therein for thy companions" : ""). Sleep shall mend thee.",
-                   dwarf: "A room's \(n) gold the night\(all ? ", and yer friends can bunk in with ye" : ""). Ye'll wake the better for it.",
-                   orc: "Bed is \(n) gold\(all ? ". Friends sleep too" : ""). Sleep make you strong.")
+            s = by("A room for the night\(all ? ", you and \(companions(k, elf: false)) sharing it," : "") is \(n) gold. A good night's sleep will set you right.",
+                   elf: "A room for the night\(all ? ", for thee and \(companions(k, elf: true))," : "") is \(n) gold. Sleep shall mend thee.",
+                   dwarf: "A room's \(n) gold the night\(all ? ", with yer friends bunkin' in" : ""). Ye'll wake the better for it.",
+                   orc: "Bed is \(n) gold\(all ? ", friends too" : ""). Sleep make you strong.")
         case .declined:
             s = by("As you like. The door's open if you change your mind.", elf: "As thou wilt. A bed awaits shouldst thou want it.",
                    dwarf: "Suit yerself. The bed'll keep.", orc: "No bed? Fine.")

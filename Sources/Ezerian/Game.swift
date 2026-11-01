@@ -616,7 +616,7 @@ final class Game {
         }
         let inn = npc.role == "innkeeper"
         let k = inn ? party.count : woundedCompanions.count
-        let p = inn ? Trade.lodgingPrice(npc) : Trade.healingPrice(npc, companions: k)
+        let p = inn ? Trade.lodgingPrice(npc, companions: k) : Trade.healingPrice(npc, companions: k)
         let line: Dialogue.Healing = offered.map { .tooLittle(offered: $0, price: p) } ?? .quote(p, companions: k)
         c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, line, player: playerName), fromAvatar: false))
         c.price = p
