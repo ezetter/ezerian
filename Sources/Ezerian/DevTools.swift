@@ -885,7 +885,8 @@ extension DevTools {
             g.confirmName(); g.confirmLook()
             let folk = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
             for n in folk { n.friendliness = 50; n.weapon = nil }   // bare hands, unless a test arms them
-            return (g, folk)
+            // (Storekeepers never start fights, so the fighting tests leave them be.)
+            return (g, folk.filter { !NPC.storekeepers.contains($0.role) })
         }
         func standBeside(_ g: Game, _ n: NPC) -> (Int, Int)? {
             for (dx, dy) in [(0, 1), (1, 0), (-1, 0), (0, -1)] where g.world.isPassable(n.x + dx, n.y + dy, 0)
@@ -1546,6 +1547,7 @@ extension DevTools {
             let (g, folk) = arena()
             var dice = 0.999
             g.roll = { dice }
+            for n in g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs { n.servesDraconian = false }   // no servants rallying to the foe
             if folk.count >= 4, standBeside(g, folk[0]) != nil {
                 let foe = folk[0]
                 foe.friendliness = -100; foe.maxHP = 500; foe.hp = 500
@@ -1640,6 +1642,46 @@ extension DevTools {
                           "when the guard lands the killing blow, the party gains no experience and takes no purse")
                 } else { check(false, "found room for the watch") }
             } else { check(false, "a town watch to test") }
+        }
+
+        do {
+            // Storekeepers never start a fight: no ambush, no joining in, no coming to blows
+            // over words, however much they hate the Avatar, until the Avatar strikes them.
+            let (g, _) = arena()
+            let folk = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
+            g.roll = { 0 }
+            g.claude = mock
+            mock.availableOverride = false
+            if let smith = folk.first(where: { NPC.storekeepers.contains($0.role) }), let side = standBeside(g, smith) {
+                for n in folk where n !== smith { n.x = g.x + 40; n.y = g.y + 40 }
+                smith.friendliness = -100
+                g.checkAmbush()
+                check(g.combat == nil, "a storekeeper who loathes the Avatar, standing beside them, never ambushes them (\(smith.role))")
+                g.startConversation(with: smith)
+                g.say(.insult)
+                check(g.combat == nil, "nor comes to blows over an insult")
+                g.endConversation()
+                if let other = folk.first(where: { $0 !== smith && $0.guardRank == nil && !NPC.storekeepers.contains($0.role) }) {
+                    other.friendliness = -100; other.maxHP = 500; other.hp = 500
+                    other.x = g.x - side.0; other.y = g.y - side.1
+                    if g.world.isPassable(other.x, other.y, 0) {
+                        g.startCombat(against: other, startedByEnemy: true)
+                        g.waitTurn()
+                        check(g.combat?.enemies.contains { $0 === smith } == false, "nor joins someone else's fight against the Avatar")
+                        g.combat = nil
+                    }
+                    other.x = g.x + 40; other.y = g.y + 40
+                }
+                smith.maxHP = 500; smith.hp = 500
+                g.roll = { 0.999 }
+                g.attack(dx: side.0, dy: side.1)
+                check(g.combat?.enemies.contains { $0 === smith } == true && smith.struckByAvatar && !smith.keepsThePeace,
+                      "attacked, a storekeeper fights back")
+                g.combat = nil
+                g.roll = { 0 }
+                g.checkAmbush()
+                check(g.combat != nil, "and once attacked, no longer keeps the peace")
+            } else { check(false, "a storekeeper to test") }
         }
 
         do {

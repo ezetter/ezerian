@@ -108,6 +108,7 @@ extension Game {
             log("\(enemy.shortName.capitalizedFirst) attacks you!")
         } else {
             enemy.changeFriendliness(by: -Combat.attackedPenalty)
+            enemy.struckByAvatar = true
             c = Combat(enemies: [enemy], order: [nil] + companions + [enemy])
             log("You attack \(enemy.shortName)!")
         }
@@ -145,7 +146,10 @@ extension Game {
         if enemy.servesDraconian && !c.enemies.contains(where: \.servesDraconian) {
             log("\(enemy.shortName.capitalizedFirst) cries: \"\(Combat.draconianBattleCry)\"")
         }
-        if attackedByAvatar { enemy.changeFriendliness(by: -Combat.attackedPenalty) }
+        if attackedByAvatar {
+            enemy.changeFriendliness(by: -Combat.attackedPenalty)
+            enemy.struckByAvatar = true
+        }
         // An ally the Avatar turns on is an ally no longer (and already has a turn).
         let wasAlly = c.allies.contains { $0 === enemy }
         c.allies.removeAll { $0 === enemy }
@@ -174,7 +178,8 @@ extension Game {
         callTheWatch()
         guard let c = combat, !gameOver else { return }
         for n in world.npcs(near: x, y, z, radius: Combat.joinDistance)
-        where !n.following && n.hp > 0 && n.friendliness < 0 && !c.enemies.contains(where: { $0 === n }) && !c.allies.contains(where: { $0 === n }) {
+        where !n.following && n.hp > 0 && n.friendliness < 0 && !n.keepsThePeace
+            && !c.enemies.contains(where: { $0 === n }) && !c.allies.contains(where: { $0 === n }) {
             if roll() < Combat.ambushChance(n.friendliness) { join(n, to: c, attackedByAvatar: false) }
         }
     }
@@ -198,7 +203,7 @@ extension Game {
     /// An unfriendly NPC beside the Avatar may attack (checked every turn).
     func checkAmbush() {
         guard combat == nil, conversation == nil, !gameOver else { return }
-        for n in world.npcs(near: x, y, z, radius: 1) where !n.following && n.hp > 0 && n.friendliness < 0 {
+        for n in world.npcs(near: x, y, z, radius: 1) where !n.following && n.hp > 0 && n.friendliness < 0 && !n.keepsThePeace {
             if roll() < Combat.ambushChance(n.friendliness) {
                 startCombat(against: n, startedByEnemy: true)
                 return

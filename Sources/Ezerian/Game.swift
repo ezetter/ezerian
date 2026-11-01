@@ -344,7 +344,7 @@ final class Game {
             case _ where n.race == .wolf && dist <= Combat.wolfScent && dist > 1 && roll < 0.6:
                 // Wolves pick up the Avatar's scent and close in.
                 want = toward(dx, dy)
-            case .hostile where dist <= 7 && dist > 1 && roll < 0.55: want = toward(dx, dy)
+            case .hostile where dist <= 7 && dist > 1 && roll < 0.55 && !n.keepsThePeace: want = toward(dx, dy)
             case .adoring where dist <= 4 && dist > 1 && roll < 0.35: want = toward(dx, dy)
             default:
                 if let band = n.warband, roll < 0.6 {
@@ -584,7 +584,7 @@ final class Game {
         }
         conversation = c
         // Words that sour someone below 0 may come to blows.
-        if intent != "ask_to_join", !npc.following, npc.friendliness < before, npc.friendliness < 0,
+        if intent != "ask_to_join", !npc.following, !npc.keepsThePeace, npc.friendliness < before, npc.friendliness < 0,
            roll() < Combat.provokedChance(npc.friendliness) {
             conversation = nil
             startCombat(against: npc, startedByEnemy: true)

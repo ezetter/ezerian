@@ -115,6 +115,18 @@ final class NPC: Codable {
     var hireRefused: Int?
     /// Adventurers are the only folk who will join the Avatar's party.
     var isAdventurer: Bool { role == "adventurer" }
+    /// The Avatar has attacked them (or someone they were defending).
+    var struckByAvatar: Bool {
+        get { struckStore ?? false }
+        set { struckStore = newValue }
+    }
+    private var struckStore: Bool?
+    /// Those who keep a shop, an inn or a tavern, or trade on the road.
+    static let storekeepers: Set<String> = ["blacksmith", "armourer", "apothecary", "alchemist", "provisioner",
+                                            "innkeeper", "barkeep", "healer", "merchant", "pedlar"]
+    /// Storekeepers never start a fight, however much they dislike the Avatar, unless the
+    /// Avatar has attacked them first.
+    var keepsThePeace: Bool { NPC.storekeepers.contains(role) && !struckByAvatar }
     /// Serves Lord Draconian, Wizard Lord and Emperor of Sespooland.
     var servesDraconian: Bool {
         get { draconianStore ?? false }
@@ -200,7 +212,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, flatteredDay, flatteredCount, known, memory, inParty, refusedAt, hireRefused, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack", xpStore = "xp"
+             compliments, flatteredDay, flatteredCount, known, memory, inParty, refusedAt, hireRefused, struckStore = "struck", hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack", xpStore = "xp"
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,

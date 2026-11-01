@@ -264,6 +264,11 @@ Draconian".
   may join in against you, with the same chance as an ambush (none at 0 friendliness,
   (friendliness / 100)² below it, so 9% at -30 and certain at -100). Those who join
   come at you or your companions on their turns like any other foe.
+* **Storekeepers keep the peace:** blacksmiths, armourers, apothecaries, alchemists,
+  provisioners, innkeepers, barkeeps, healers, merchants and pedlars never start a fight,
+  however much they dislike you: no ambushes, no joining others' fights against you, no
+  coming to blows over words, and they don't stalk you when hostile. Attack one, though,
+  and they fight back, and from then on they behave like anyone else.
 * **The watch lends a hand:** while you fight Lord Draconian's people, any guard of the
   town watch within 3 paces of you comes to your aid ("The watchman comes to your aid!"),
   checked every round. Guards take turns with everyone else and strike only at his
