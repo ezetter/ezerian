@@ -61,7 +61,7 @@ enum DevTools {
                 let rank = what.hasPrefix("guard") ? Int(what.dropFirst(5)) : nil
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
-                    if ["bard", "peasant", "farmhand", "healer"].contains(what) { return n.role == what }
+                    if ["bard", "peasant", "farmhand", "healer", "innkeeper"].contains(what) { return n.role == what }
                     if what == "drinker" { return n.role == what && n.race == .human }
                     if what == "elvenDrinker" { return n.role == "drinker" && n.race == .elf }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
@@ -900,6 +900,64 @@ extension DevTools {
                 } else { check(false, "found three companions to take to the healer") }
                 g.endConversation()
             } else { check(false, "found a healer to visit") }
+            // A room at an inn: 5 gold, and a night's sleep mends 50 points.
+            var keepers: [NPC] = []
+            for ry in -2...2 { for rx in -2...2 { keepers += g.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs.filter { $0.role == "innkeeper" } } }
+            if let keeper = keepers.first {
+                g.roll = { 0.5 }
+                func say(_ text: String) {
+                    for ch in text { g.typeInConversation(ch) }
+                    g.submitConversation()
+                }
+                func offer(_ n: Int) {
+                    g.focusGold(true)
+                    while !(g.conversation?.goldInput.isEmpty ?? true) { g.backspaceGold() }
+                    for ch in String(n) { g.typeGold(ch) }
+                    g.offerGold()
+                }
+                g.endConversation()
+                keeper.friendliness = 10
+                g.startConversation(with: keeper)
+                check(g.conversation?.healingAsked == true && g.conversation?.lines.last?.text.contains("room") == true
+                      || g.conversation?.lines.last?.text.contains("bed") == true,
+                      "an innkeeper asks whether the Avatar wants a room (\(keeper.race.name))")
+                say("yes")
+                check(g.conversation?.price == 5 && g.conversation?.lines.last?.text.contains("5 gold") == true,
+                      "say yes, and the innkeeper names the price: 5 gold")
+                g.hp = 20; g.gold = 10
+                let (day, nights) = (g.day, g.nights)
+                offer(5)
+                check(g.hp == 70 && g.gold == 5 && g.day == day + 1 && g.timeString == "8:00 AM" && g.nights == nights + 1
+                      && keeper.friendliness == 11 && g.conversation?.price == nil,
+                      "5 gold buys a night in a room: the Avatar wakes at 8 next morning 50 points better")
+                g.endConversation()
+                g.hp = g.maxHP - 10; g.gold = 10
+                g.startConversation(with: keeper); say("How much for a bed?")
+                offer(5)
+                check(g.hp == g.maxHP, "the night's sleep heals no further than whole")
+                g.endConversation()
+                keeper.friendliness = -20
+                g.startConversation(with: keeper); say("I need a room")
+                check(g.conversation?.price == 9, "at -20 friendliness the innkeeper asks 9")
+                g.endConversation()
+                keeper.friendliness = -60
+                g.startConversation(with: keeper); say("I need a room")
+                check(g.conversation?.price == nil && g.conversation?.healingAsked == false, "below -50 the innkeeper won't let a room")
+                g.endConversation()
+                keeper.friendliness = 10
+                check(AIDialogue.prompt(keeper, game: g, history: [], said: "hello").contains("for 5 gold"), "Claude is told the innkeeper's price")
+                let mate = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs.first { $0 !== keeper && !$0.servesDraconian && $0.guardRank == nil && $0.role != "healer" }
+                if let mate {
+                    g.addToParty(mate)
+                    mate.hp = 1; g.hp = 20; g.gold = 10
+                    g.startConversation(with: keeper); say("yes")
+                    check(g.conversation?.price == 5, "companions share the room at no extra cost")
+                    offer(5)
+                    check(mate.hp == min(mate.maxHP, 51) && g.hp == 70, "and each wakes 50 points better")
+                    g.endConversation()
+                    g.removeFromParty(mate, lockOut: false)
+                }
+            } else { check(false, "found an innkeeper to visit") }
             let f = Screen.talkFields(trading: true), box = Screen.talkBox
             check(f.say.x + f.say.w < f.gold.x && f.gold.x + f.gold.w < f.give.x && f.give.x + f.give.w <= box.x + box.w
                   && Screen.inside(f.give, f.give.x + 5, f.give.y + 5) && !Screen.inside(f.gold, f.give.x + 5, f.give.y + 5),

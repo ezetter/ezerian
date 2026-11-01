@@ -277,8 +277,12 @@ Draconian".
   type; Tab or a click moves between them, and Return or the button hands the gold
   over. If the healer takes it, the screen fades through the night and you wake at 8
   the next morning at full health, your companions too.
+* **Inns and lodges:** an innkeeper asks whether you want a room for the night. A room
+  is 5 gold, paid the same way, and your companions share it at no extra cost. You
+  sleep until 8 the next morning, and you and each companion wake up to 50 health
+  better.
 * **Paying merchants:** these rules hold for every merchant's services, the healer's
-  first. Paying the asking price raises their friendliness by 1, and every coin more
+  first, then the innkeeper's. Paying the asking price raises their friendliness by 1, and every coin more
   by 2 more. Every coin short lowers it by 2, whether or not they take it; they take
   one coin short 90% of the time, two short 80%, and so on. A merchant whose
   friendliness is below 0 asks a coin more for every 5 points below it (so 12 at -10),

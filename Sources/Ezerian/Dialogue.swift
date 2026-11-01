@@ -45,7 +45,8 @@ struct Conversation {
     var notice: String?
     static let maxInput = 160
 
-    /// A healer has asked whether the Avatar needs healing, and awaits a yes or no.
+    /// A healer has asked whether the Avatar needs healing (or an innkeeper whether they
+    /// want a room), and awaits a yes or no.
     var healingAsked = false
     /// The price a merchant has named for a service. While set, the Avatar can offer gold.
     var price: Int?
@@ -275,6 +276,52 @@ enum Dialogue {
         return fill(s, npc, player)
     }
 
+    /// What an innkeeper says while letting a room for the night, in their race's manner.
+    /// The cases are the healer's; `morning` counts the companions who slept there too.
+    static func innkeeper(_ npc: NPC, _ h: Healing, player: String) -> String {
+        func by(_ human: String, elf: String, dwarf: String, orc: String) -> String {
+            switch npc.race {
+            case .human: return human
+            case .elf: return elf
+            case .dwarf: return dwarf
+            case .orc: return orc
+            }
+        }
+        let s: String
+        switch h {
+        case .ask:
+            s = by("Will you be wanting a room for the night, {addr}?", elf: "Wilt thou have a room for the night, {addr}?",
+                   dwarf: "Ye'll be wanting a bed for the night, {addr}?", orc: "You want bed? Sleep here tonight?")
+        case let .quote(n, k):
+            let all = k > 0
+            s = by("A room for the night is \(n) gold\(all ? ", and there's room in it for your companions too" : ""). A good night's sleep will set you right.",
+                   elf: "A room for the night is \(n) gold\(all ? ", and there is space therein for thy companions" : ""). Sleep shall mend thee.",
+                   dwarf: "A room's \(n) gold the night\(all ? ", and yer friends can bunk in with ye" : ""). Ye'll wake the better for it.",
+                   orc: "Bed is \(n) gold\(all ? ". Friends sleep too" : ""). Sleep make you strong.")
+        case .declined:
+            s = by("As you like. The door's open if you change your mind.", elf: "As thou wilt. A bed awaits shouldst thou want it.",
+                   dwarf: "Suit yerself. The bed'll keep.", orc: "No bed? Fine.")
+        case .refuse:
+            s = by("I've no room for the likes of you. Find a ditch to sleep in.", elf: "There is no room here for thee, {addr}. Seek thy rest elsewhere.",
+                   dwarf: "No bed for ye here. Sleep in the rain.", orc: "No bed for you. Go away.")
+        case .accepted:
+            s = by("Here's your key. Sleep well.", elf: "Thy room is ready. Rest well.", dwarf: "Up the stairs, first door. Sleep sound.",
+                   orc: "Bed is there. Sleep.")
+        case .morning:
+            s = by("Good morning! I hope you slept well.", elf: "Good morrow. I trust thou didst sleep soundly.",
+                   dwarf: "Mornin'! Ye look the better for a night's sleep.", orc: "Morning. You sleep good?")
+        case let .tooLittle(offered, price):
+            s = by("\(offered) gold? The room's \(price), no less.", elf: "\(offered) gold? That will not suffice. A room is \(price).",
+                   dwarf: "\(offered) gold? Ha! It's \(price) for a bed.", orc: "\(offered) gold? No. Bed is \(price).")
+        }
+        return fill(s, npc, player)
+    }
+
+    /// What a healer or innkeeper says while selling a night's rest.
+    static func restSeller(_ npc: NPC, _ h: Healing, player: String) -> String {
+        npc.role == "innkeeper" ? innkeeper(npc, h, player: player) : healer(npc, h, player: player)
+    }
+
     /// The Avatar handing over coins.
     static func giving(_ n: Int) -> String { n == 1 ? "Here is a gold coin." : "Here are \(n) gold coins." }
 
@@ -289,6 +336,12 @@ enum Dialogue {
 
     static func isNo(_ text: String) -> Bool {
         !words(text).isDisjoint(with: ["no", "nay", "not", "nope", "don't", "dont"])
+    }
+
+    /// Whether the Avatar is asking an innkeeper for a room, or what it costs.
+    static func asksForLodging(_ text: String) -> Bool {
+        let s = text.lowercased()
+        return ["room", "bed", "stay", "sleep", "night", "lodging", "rest", "price", "cost", "how much"].contains { s.contains($0) }
     }
 
     /// Whether the Avatar is asking a healer for healing, or what it costs.

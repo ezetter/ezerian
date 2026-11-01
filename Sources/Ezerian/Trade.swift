@@ -21,6 +21,11 @@ enum Trade {
         price(base: healingBase + healingPerCompanion * companions, friendliness: npc.friendliness)
     }
 
+    /// An innkeeper's price for a night in a room, which heals the Avatar and each companion
+    /// by up to 50 points; the whole party shares the room.
+    static let lodgingBase = 5, lodgingHeal = 50
+    static func lodgingPrice(_ npc: NPC) -> Int { price(base: lodgingBase, friendliness: npc.friendliness) }
+
     /// What an offer does. Paying the asking price pleases the merchant a little (+1),
     /// and every coin over it pleases them more (+2 each); every coin short costs 2
     /// points whether or not they take it. They always take the asking price or more;

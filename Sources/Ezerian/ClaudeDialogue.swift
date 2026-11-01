@@ -213,6 +213,11 @@ enum AIDialogue {
                 ? "As a healer you offer a night's rest in your care, which leaves the Avatar wholly healed, for \(Trade.healingPrice(npc)) gold, and \(Trade.healingPerCompanion) gold more for each wounded companion healed with them\(game.woundedCompanions.isEmpty ? "" : " (they have \(game.woundedCompanions.count) now, so \(Trade.healingPrice(npc, companions: game.woundedCompanions.count)) gold in all)"). Coins are handed over apart from your words; never pretend to take payment or to heal in your reply."
                 : "As a healer you could heal the Avatar, but you dislike them too much and refuse to serve them.")
         }
+        if npc.role == "innkeeper" {
+            facts.append(Trade.willTrade(npc)
+                ? "As an innkeeper you let a room for the night for \(Trade.lodgingPrice(npc)) gold; the Avatar's companions may share it, and a night's sleep mends up to \(Trade.lodgingHeal) points of hurt. Coins are handed over apart from your words; never pretend to take payment or give a room in your reply."
+                : "As an innkeeper you could let the Avatar a room, but you dislike them too much and refuse to serve them.")
+        }
         facts.append("It is \(game.timeString) on day \(game.day).")
         var lines = """
         Character sheet:

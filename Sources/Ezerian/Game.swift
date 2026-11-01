@@ -418,9 +418,10 @@ final class Game {
         c.lines.append(Conversation.Line(text: g.text, fromAvatar: false))
         c.over = g.refuses
         c.byClaude = claude.isAvailable
-        // A healer asks straight away whether the Avatar needs healing (unless they won't serve them).
-        if !c.over, npc.role == "healer", Trade.willTrade(npc) {
-            c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .ask, player: playerName), fromAvatar: false))
+        // A healer asks straight away whether the Avatar needs healing, and an innkeeper whether
+        // they want a room (unless they won't serve them).
+        if !c.over, sellsRest(npc), Trade.willTrade(npc) {
+            c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, .ask, player: playerName), fromAvatar: false))
             c.healingAsked = true
         }
         conversation = c
@@ -583,35 +584,41 @@ final class Game {
 
     // MARK: Healing
 
-    /// Answers talk of healing in a house of healing: yes or no to the healer's question, or
-    /// asking for healing or its price. Returns false when the words are about something else.
+    /// Healers sell a night's rest that heals completely; innkeepers a room for the night.
+    func sellsRest(_ npc: NPC) -> Bool { npc.role == "healer" || npc.role == "innkeeper" }
+
+    /// Answers talk of healing in a house of healing, or of a room at an inn: yes or no to
+    /// the question asked, or asking for the service or its price. Returns false when the
+    /// words are about something else.
     private func healerAnswer(_ c: inout Conversation, _ said: String) -> Bool {
         let npc = c.npc
-        guard npc.role == "healer" else { return false }
+        guard sellsRest(npc) else { return false }
+        let asks = npc.role == "innkeeper" ? Dialogue.asksForLodging(said) : Dialogue.asksForHealing(said)
         let no = c.healingAsked && Dialogue.isNo(said)
-        guard no || (c.healingAsked && Dialogue.isYes(said)) || Dialogue.asksForHealing(said) else { return false }
+        guard no || (c.healingAsked && Dialogue.isYes(said)) || asks else { return false }
         c.healingAsked = false
         if no {
-            c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .declined, player: playerName), fromAvatar: false))
+            c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, .declined, player: playerName), fromAvatar: false))
         } else {
             quoteHealing(&c)
         }
         return true
     }
 
-    /// The healer names the price, and the Avatar may offer gold; or refuses them outright.
+    /// The healer or innkeeper names the price, and the Avatar may offer gold; or refuses them outright.
     private func quoteHealing(_ c: inout Conversation, after offered: Int? = nil) {
         let npc = c.npc
         guard Trade.willTrade(npc) else {
-            c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .refuse, player: playerName), fromAvatar: false))
+            c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, .refuse, player: playerName), fromAvatar: false))
             c.price = nil
             c.goldFocus = false
             return
         }
-        let k = woundedCompanions.count
-        let p = Trade.healingPrice(npc, companions: k)
+        let inn = npc.role == "innkeeper"
+        let k = inn ? party.count : woundedCompanions.count
+        let p = inn ? Trade.lodgingPrice(npc) : Trade.healingPrice(npc, companions: k)
         let line: Dialogue.Healing = offered.map { .tooLittle(offered: $0, price: p) } ?? .quote(p, companions: k)
-        c.lines.append(Conversation.Line(text: Dialogue.healer(npc, line, player: playerName), fromAvatar: false))
+        c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, line, player: playerName), fromAvatar: false))
         c.price = p
         c.goldInput = "\(p)"
         c.goldFocus = true
@@ -638,8 +645,9 @@ final class Game {
         conversation = c
     }
 
-    /// The Avatar hands over the gold in the field. The healer may take it (see `Trade`);
-    /// if they do, the Avatar rests the night and wakes whole.
+    /// The Avatar hands over the gold in the field. The healer or innkeeper may take it (see
+    /// `Trade`); if they do, the Avatar rests the night, and wakes whole at a healer's or 50
+    /// points better at an inn.
     func offerGold() {
         guard var c = conversation, !c.over, !c.pending, let price = c.price,
               let amount = Int(c.goldInput), amount > 0 else { return }
@@ -662,7 +670,16 @@ final class Game {
         c.price = nil
         c.goldInput = ""
         c.goldFocus = false
-        c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .accepted, player: playerName), fromAvatar: false))
+        c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, .accepted, player: playerName), fromAvatar: false))
+        if npc.role == "innkeeper" {
+            let before = hp
+            restTheNight(healing: Trade.lodgingHeal)
+            c.lines.append(Conversation.Line(text: Dialogue.innkeeper(npc, .morning(companions: party.count), player: playerName), fromAvatar: false))
+            conversation = c
+            let feel = hp == maxHP ? "You wake whole again." : hp > before ? "You wake much refreshed (+\(hp - before) health)." : "You wake refreshed."
+            log("You pay \(amount) gold and sleep the night at \(npc.home ?? "the inn"). \(feel) You have \(gold) gold left.")
+            return
+        }
         let healed = woundedCompanions
         restTheNight()
         c.lines.append(Conversation.Line(text: Dialogue.healer(npc, .morning(companions: healed.count), player: playerName), fromAvatar: false))
@@ -677,14 +694,16 @@ final class Game {
     /// Companions who would be healed with the Avatar (each costs the healer's fee more).
     var woundedCompanions: [NPC] { party.filter { $0.hp < $0.maxHP } }
 
-    /// Sleeps until 8 in the morning; the Avatar and the companions wake fully healed.
-    private func restTheNight() {
-        for n in party { n.hp = n.maxHP }
+    /// Sleeps until 8 in the morning; the Avatar and the companions wake fully healed, or
+    /// healed by `healing` points at most.
+    private func restTheNight(healing: Int? = nil) {
+        func mended(_ hp: Int, _ maxHP: Int) -> Int { healing.map { min(maxHP, hp + $0) } ?? maxHP }
+        for n in party { n.hp = mended(n.hp, n.maxHP) }
         let m = minutes
         var wake = m / (24 * 60) * (24 * 60) + 8 * 60
         if wake <= m { wake += 24 * 60 }
         turn = (wake - 8 * 60) / 2
-        hp = maxHP
+        hp = mended(hp, maxHP)
         nights += 1
     }
 
