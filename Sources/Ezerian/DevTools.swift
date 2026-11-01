@@ -1386,6 +1386,48 @@ extension DevTools {
             }
         }
 
+        do {
+            // In a fight, unfriendly onlookers within 3 paces may join in, and close in on the party.
+            let (g, folk) = arena()
+            var dice = 0.999
+            g.roll = { dice }
+            if folk.count >= 4, standBeside(g, folk[0]) != nil {
+                let foe = folk[0]
+                foe.friendliness = -100; foe.maxHP = 500; foe.hp = 500
+                // Free tiles exactly `d` paces from the Avatar, in the Avatar's region, with the
+                // straight step towards the Avatar open (no wall or door in the way).
+                let home = g.world.region(containing: g.x, g.y, 0)
+                func open(_ px: Int, _ py: Int) -> Bool {
+                    g.world.isPassable(px, py, 0) && g.world.npc(at: px, py, 0) == nil && home.contains(px, py)
+                        && g.world.feature(px, py, 0) != .door
+                }
+                func spot(_ d: Int, avoiding taken: [(Int, Int)]) -> (Int, Int)? {
+                    for dy in -d...d { for dx in -d...d where max(abs(dx), abs(dy)) == d {
+                        let (px, py) = (g.x + dx, g.y + dy)
+                        if open(px, py), open(px - dx.signum(), py - dy.signum()), open(px - dx.signum(), py), open(px, py - dy.signum()),
+                           !taken.contains(where: { $0 == (px, py) }) { return (px, py) }
+                    } }
+                    return nil
+                }
+                let (grim, glad, far) = (folk[1], folk[2], folk[3])
+                if let a = spot(3, avoiding: []), let b = spot(3, avoiding: [a]), let c = spot(5, avoiding: [a, b]) {
+                    (grim.x, grim.y) = a; (glad.x, glad.y) = b; (far.x, far.y) = c
+                    grim.friendliness = -90; glad.friendliness = 20; far.friendliness = -100
+                    g.startCombat(against: foe, startedByEnemy: true)
+                    check(g.combat?.enemies.count == 1, "onlookers keep out of a fight when the dice say so")
+                    dice = 0.5
+                    let before = max(abs(grim.x - g.x), abs(grim.y - g.y))
+                    g.waitTurn()
+                    let enemies = g.combat?.enemies ?? []
+                    check(enemies.contains { $0 === grim } && !enemies.contains { $0 === glad } && !enemies.contains { $0 === far },
+                          "an unfriendly onlooker within 3 paces joins the fight; a friendly one and one 5 paces off do not")
+                    check(g.messages.contains { $0 == "\(grim.shortName.capitalizedFirst) joins the fight!" }, "and the log says so")
+                    check(max(abs(grim.x - g.x), abs(grim.y - g.y)) < before, "and they move towards the party at once")
+                    check(Combat.ambushChance(-30) > 0 && Combat.ambushChance(0) == 0, "the chance is the ambush chance")
+                } else { check(false, "found room for onlookers") }
+            }
+        }
+
         // Keys reach the game the same way they do in the window.
         let keyGame = Game(seed: seed)
         let view = GameView(game: keyGame)

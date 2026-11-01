@@ -38,6 +38,10 @@ final class Combat {
         friendliness >= 0 ? 0 : pow(Double(min(100, -friendliness)) / 100, 2)
     }
 
+    /// Unfriendly people this close to the Avatar during a fight may join it against them,
+    /// each round, with the same chance as an ambush.
+    static let joinDistance = 3
+
     /// Chance that an NPC whose friendliness a conversation has just lowered below 0 attacks.
     static func provokedChance(_ friendliness: Int) -> Double {
         friendliness >= 0 ? 0 : Double(min(100, -friendliness)) / 100
@@ -113,6 +117,8 @@ extension Game {
             log("\(companions.map(\.name).joined(separator: companions.count == 2 ? " and " : ", ")) \(companions.count == 1 ? "joins" : "join") the fight.")
         }
         if startedByEnemy {
+            // (When the Avatar strikes first, the onlookers are weighed as their turn ends.)
+            checkBystanders()
             runUntilAvatarsTurn()
         } else {
             strike(nil, enemy)
@@ -133,6 +139,17 @@ extension Game {
         log("\(enemy.shortName.capitalizedFirst) joins the fight!")
     }
 
+    /// During a fight, each unfriendly onlooker within `Combat.joinDistance` of the Avatar
+    /// may take the chance to join in against them (checked every round). Those who do
+    /// come at the party on their turns like any other foe.
+    func checkBystanders() {
+        guard let c = combat, !gameOver else { return }
+        for n in world.npcs(near: x, y, z, radius: Combat.joinDistance)
+        where !n.following && n.hp > 0 && n.friendliness < 0 && !c.enemies.contains(where: { $0 === n }) {
+            if roll() < Combat.ambushChance(n.friendliness) { join(n, to: c, attackedByAvatar: false) }
+        }
+    }
+
     /// An unfriendly NPC beside the Avatar may attack (checked every turn).
     func checkAmbush() {
         guard combat == nil, conversation == nil, !gameOver else { return }
@@ -151,6 +168,8 @@ extension Game {
     func endAvatarTurn() {
         guard let c = combat else { return }
         turn += 1
+        // Onlookers who join go to the end of the round, so they act before it comes round again.
+        checkBystanders()
         c.current = (c.current + 1) % c.order.count
         runUntilAvatarsTurn()
     }

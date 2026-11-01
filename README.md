@@ -240,6 +240,10 @@ Draconian".
   Space to wait. Companions join the fight on your side; fighters strike the weakest
   foe in reach, or close in on the nearest. A pursuing foe falls behind one turn in
   four, so you can retreat: get more than 8 tiles away and you escape.
+* **Onlookers:** every round of a fight, each unfriendly person within 3 tiles of you
+  may join in against you, with the same chance as an ambush (none at 0 friendliness,
+  (friendliness / 100)² below it, so 9% at -30 and certain at -100). Those who join
+  come at you or your companions on their turns like any other foe.
 * **Weapons:** a staff adds 2 damage to every blow, a dagger 4, a mace 6, a short sword
   8 and a long sword 10. Lord Draconian's orcs and elves also carry war hammers (4), axes
   (6) and spears (6), as their paintings show. You start with none. The watch are armed by rank (watchmen
