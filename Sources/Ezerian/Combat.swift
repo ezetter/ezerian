@@ -6,6 +6,8 @@ import Foundation
 final class Combat {
     /// The people the party is fighting.
     var enemies: [NPC]
+    /// Others fighting on the party's side: the town watch, against Draconian's people.
+    var allies: [NPC] = []
     /// Turn order; nil is the Avatar.
     var order: [NPC?]
     /// Whose turn it is (an index into `order`).
@@ -41,6 +43,10 @@ final class Combat {
     /// Unfriendly people this close to the Avatar during a fight may join it against them,
     /// each round, with the same chance as an ambush.
     static let joinDistance = 3
+
+    /// The town watch within this distance of the Avatar comes to their aid against Lord
+    /// Draconian's people (checked every round).
+    static let watchAidDistance = 3
 
     /// Wolves close in on the Avatar from this far off, and a wolf's packmates within this
     /// distance of it join any fight it is in.
@@ -111,6 +117,7 @@ extension Game {
         }
         combat = c
         if enemy.race == .wolf { joinPack(of: enemy, to: c) }
+        if startedByEnemy { callTheWatch() }
         // Draconian's people stand together: his servants close by join in.
         if enemy.servesDraconian {
             for ally in world.npcs(near: enemy.x, enemy.y, z, radius: 6)
@@ -139,8 +146,11 @@ extension Game {
             log("\(enemy.shortName.capitalizedFirst) cries: \"\(Combat.draconianBattleCry)\"")
         }
         if attackedByAvatar { enemy.changeFriendliness(by: -Combat.attackedPenalty) }
+        // An ally the Avatar turns on is an ally no longer (and already has a turn).
+        let wasAlly = c.allies.contains { $0 === enemy }
+        c.allies.removeAll { $0 === enemy }
         c.enemies.append(enemy)
-        c.order.append(enemy)
+        if !wasAlly { c.order.append(enemy) }
         log("\(enemy.shortName.capitalizedFirst) joins the fight!")
         if enemy.race == .wolf { joinPack(of: enemy, to: c) }
     }
@@ -161,10 +171,27 @@ extension Game {
     /// may take the chance to join in against them (checked every round). Those who do
     /// come at the party on their turns like any other foe.
     func checkBystanders() {
+        callTheWatch()
         guard let c = combat, !gameOver else { return }
         for n in world.npcs(near: x, y, z, radius: Combat.joinDistance)
-        where !n.following && n.hp > 0 && n.friendliness < 0 && !c.enemies.contains(where: { $0 === n }) {
+        where !n.following && n.hp > 0 && n.friendliness < 0 && !c.enemies.contains(where: { $0 === n }) && !c.allies.contains(where: { $0 === n }) {
             if roll() < Combat.ambushChance(n.friendliness) { join(n, to: c, attackedByAvatar: false) }
+        }
+    }
+
+    /// While the Avatar fights Lord Draconian's people, the town watch within
+    /// `Combat.watchAidDistance` of them comes to their aid, striking only at his people.
+    /// (Their kills earn the party no experience.)
+    func callTheWatch() {
+        guard let c = combat, !gameOver, c.enemies.contains(where: { $0.servesDraconian && $0.hp > 0 }) else { return }
+        let watch = world.npcs(near: x, y, z, radius: Combat.watchAidDistance).filter { n in
+            n.guardRank != nil && n.hp > 0 && !n.following && !n.servesDraconian
+                && !c.enemies.contains { $0 === n } && !c.allies.contains { $0 === n }
+        }
+        for g in watch {
+            c.allies.append(g)
+            c.order.append(g)
+            log("\(g.shortName.capitalizedFirst) comes to your aid!")
         }
     }
 
@@ -212,6 +239,10 @@ extension Game {
         if isEnemy {
             foes.append(nil)
             foes += world.party.filter { $0.hp > 0 && $0.z == z }
+            foes += c.allies.filter { $0.hp > 0 && $0.z == z }
+        } else if c.allies.contains(where: { $0 === n }) {
+            // The watch strikes only at Draconian's people.
+            foes += c.enemies.filter { $0.hp > 0 && $0.z == z && $0.servesDraconian }
         } else {
             foes += c.enemies.filter { $0.hp > 0 && $0.z == z }
         }
@@ -294,8 +325,9 @@ extension Game {
         } else {
             world.region(containing: n.x, n.y, n.z).npcs.removeAll { $0 === n }
             log("\(n.shortName.capitalizedFirst) dies.")
-            // The victors take the fallen foe's purse (beasts have none).
-            if n.race.isBeast {
+            let foe = combat?.enemies.contains { $0 === n } ?? true
+            // The victors take the fallen foe's purse (beasts have none); a fallen ally keeps theirs.
+            if !foe || n.race.isBeast {
             } else if n.gold > 0 {
                 gold += n.gold
                 log("You take \(n.gold) gold \(n.gold == 1 ? "coin" : "coins") from \(n.his) body. You now have \(gold).")
@@ -306,10 +338,11 @@ extension Game {
             // Whoever the Avatar slays, the Avatar takes all they carried (room permitting).
             if byAvatar { loot(n) }
             // A foe the party defeats is experience for all of them.
-            if byParty { shareExperience(forDefeating: n) }
+            if byParty && foe { shareExperience(forDefeating: n) }
         }
         if let c = combat {
             c.enemies.removeAll { $0 === n }
+            c.allies.removeAll { $0 === n }
             if let i = c.order.firstIndex(where: { $0 === n }) {
                 c.order.remove(at: i)
                 if i < c.current { c.current -= 1 }

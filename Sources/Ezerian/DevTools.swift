@@ -1584,6 +1584,65 @@ extension DevTools {
         }
 
         do {
+            // The town watch within 3 paces helps the Avatar against Draconian's people, and
+            // only against them; the party earns no experience from the watch's kills.
+            let (g, folk) = arena()
+            var dice = 0.999
+            g.roll = { dice }
+            let guards = folk.filter { $0.guardRank != nil }
+            let others = folk.filter { $0.guardRank == nil }
+            if guards.count >= 2, others.count >= 2, standBeside(g, others[0]) != nil {
+                let foe = others[0], plain = others[1]
+                let home = g.world.region(containing: g.x, g.y, 0)
+                func spot(_ d: Int, avoiding taken: [(Int, Int)]) -> (Int, Int)? {
+                    for dy in -d...d { for dx in -d...d where max(abs(dx), abs(dy)) == d {
+                        let (px, py) = (g.x + dx, g.y + dy)
+                        func open(_ qx: Int, _ qy: Int) -> Bool {
+                            g.world.isPassable(qx, qy, 0) && g.world.npc(at: qx, qy, 0) == nil && home.contains(qx, qy)
+                                && g.world.feature(qx, qy, 0) != .door
+                        }
+                        // With the straight step towards the Avatar open.
+                        if open(px, py), open(px - dx.signum(), py - dy.signum()), open(px - dx.signum(), py), open(px, py - dy.signum()),
+                           !taken.contains(where: { $0 == (px, py) }) { return (px, py) }
+                    } }
+                    return nil
+                }
+                // Every other guard out of the way.
+                for k in guards.dropFirst(2) { k.x = g.x + 40; k.y = g.y + 40 }
+                let (near, far) = (guards[0], guards[1])
+                if let a = spot(3, avoiding: []), let b = spot(5, avoiding: [a]) {
+                    (near.x, near.y) = a; (far.x, far.y) = b
+                    plain.friendliness = -100
+                    let (px, py) = (plain.x, plain.y)
+                    plain.x = foe.x; plain.y = foe.y
+                    foe.x = g.x + 40; foe.y = g.y + 40
+                    g.startCombat(against: plain, startedByEnemy: true)
+                    check(g.combat?.allies.isEmpty == true, "the watch keeps out of a quarrel that isn't with Draconian's people")
+                    g.combat = nil
+                    (foe.x, foe.y) = (plain.x, plain.y)
+                    (plain.x, plain.y) = (px, py)
+                    plain.friendliness = 50
+                    foe.servesDraconian = true; foe.friendliness = -100; foe.maxHP = 500; foe.hp = 500
+                    g.startCombat(against: foe, startedByEnemy: true)
+                    let allies = g.combat?.allies ?? []
+                    check(allies.contains { $0 === near } && !allies.contains { $0 === far },
+                          "a guard within 3 paces comes to the Avatar's aid against Draconian's people; one 5 paces off does not")
+                    check(g.messages.contains { $0 == "\(near.shortName.capitalizedFirst) comes to your aid!" }, "and the log says so")
+                    let before = max(abs(near.x - foe.x), abs(near.y - foe.y))
+                    g.waitTurn()
+                    check(max(abs(near.x - foe.x), abs(near.y - foe.y)) < before || before <= 1, "the guard closes in on Draconian's servant")
+                    let xp = g.experience, purse = g.gold
+                    foe.gold = 7
+                    foe.hp = 1
+                    dice = 0
+                    g.strike(near, foe)
+                    check(foe.hp == 0 && g.experience == xp && g.gold == purse + 7,
+                          "when the guard lands the killing blow, the party gains no experience (but still takes the purse)")
+                } else { check(false, "found room for the watch") }
+            } else { check(false, "a town watch to test") }
+        }
+
+        do {
             // Wolves: packs in the wilds, 10-50 health, -100 to -50, nothing carried, no talk.
             let w = World(seed: seed)
             var wolves: [NPC] = [], townLands = 0, wolfTownLands = 0
