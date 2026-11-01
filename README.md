@@ -213,6 +213,8 @@ Draconian".
   led by a captain, roaming together across their whole region and hunting you down
   when you come within ten paces. Because the warbands are all his, orcs elsewhere
   serve him with a 35% chance, which keeps the total at half.
+* **Orcs in the wilds:** between the warbands, the bands camped at campsites, and those
+  roaming brush, sand and swamp, orcs turn up in the wilds of about half of all lands.
 * **Never friends:** nothing you say raises his people above 0, so they never join your
   party. They close in on you when you're near, are likely to attack (see Combat), and
   in every fight with them, whoever strikes first, they cry "Thou shalt bow down

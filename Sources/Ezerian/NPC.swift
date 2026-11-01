@@ -586,10 +586,10 @@ enum Populace {
         if counts[.mountain, default: 0] + counts[.hills, default: 0] > total / 10 && rng.chance(0.45) {
             band(.dwarf, 1 + rng.int(2), roles: ["prospector", "miner", "stonecutter", "warrior", "warrior"], where: terrainIs([.hills, .grass, .brush, .dirt]))
         }
-        if let camp = region.places.first(where: { $0.name.contains("campsite") }), rng.chance(0.6) {
+        if let camp = region.places.first(where: { $0.name.contains("campsite") }), rng.chance(0.75) {
             band(.orc, 2 + rng.int(3), roles: ["raider", "warrior", "scout"], where: { _, _ in true },
                  at: (camp.x - ox + camp.w / 2, camp.y - oy + camp.h / 2))
-        } else if counts[.brush, default: 0] + counts[.sand, default: 0] + counts[.swamp, default: 0] > total / 6 && rng.chance(0.3) {
+        } else if counts[.brush, default: 0] + counts[.sand, default: 0] + counts[.swamp, default: 0] > total / 8 && rng.chance(0.45) {
             band(.orc, 2 + rng.int(2), roles: ["raider", "scout", "warrior"], where: terrainIs([.brush, .sand, .swamp, .grass]))
         }
         if counts[.dirt, default: 0] > 30 && rng.chance(0.4) {
@@ -605,7 +605,7 @@ enum Populace {
             }
         }
         // A roving warband of Draconian's orcs, ranging over the whole of the wilds here.
-        if town == nil, rng.chance(0.2),
+        if town == nil, rng.chance(0.28),
            let c = spot(8, 8, n - 9, n - 9, where: { terrainIs([.grass, .brush, .sand, .hills, .dirt])($0, $1) && wild($0, $1) }) {
             let id = Int(truncatingIfNeeded: Hash.of(seed, key.x, key.y, 4242) & 0xFFFFFF)
             for k in 0..<(3 + rng.int(3)) {

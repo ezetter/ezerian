@@ -1354,6 +1354,12 @@ extension DevTools {
             check(abs(sm + 75) < 3, "his orcs are 50% more unfriendly than other orcs: mean \(String(format: "%.1f", sm)) vs -50 (in the world: \(Int(mean(theirOrcs))) vs \(Int(mean(freeOrcs))))")
             check(!bands.isEmpty && all.filter { $0.warband != nil }.allSatisfy { $0.race == .orc && $0.servesDraconian && $0.home == nil },
                   "roving warbands of his orcs roam the wilds (\(bands.count) bands)")
+            // Orcs are a common sight in the wilds: in at least two lands in five.
+            let wildOrcLands = (-8...8).flatMap { ry in (-8...8).map { rx in (rx, ry) } }.filter { (rx, ry) in
+                w.region(RegionKey(x: rx, y: ry, z: 0)).npcs.contains { $0.race == .orc && $0.home == nil }
+            }.count
+            check(Double(wildOrcLands) / 289 >= 0.4,
+                  "orcs roam the wilds of \(wildOrcLands) of 289 lands (\(all.filter { $0.race == .orc && $0.home == nil }.count) orcs)")
             if let m = mercs.first {
                 m.friendliness = -5
                 m.changeFriendliness(by: 40)
