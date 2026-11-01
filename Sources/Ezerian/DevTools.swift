@@ -1347,7 +1347,7 @@ extension DevTools {
                   "Draconian's people (\(servants.count) of \(all.count)) are always between -100 and 0")
             check(townMercs > 0 && wildMercs > 0, "his mercenaries are met in towns (\(townMercs)) and the countryside (\(wildMercs))")
             let share = Double(theirOrcs.count) / Double(max(1, orcs.count))
-            check(abs(share - 0.5) < 0.08, "about half of all orcs serve him (\(theirOrcs.count) of \(orcs.count))")
+            check(abs(share - 0.75) < 0.06, "about three orcs in four serve him (\(theirOrcs.count) of \(orcs.count))")
             var srng = SplitMix64(seed: 5)
             let sample = (0..<4000).map { _ in Populace.servantFriendliness(.orc, &srng) }
             let sm = Double(sample.reduce(0, +)) / Double(sample.count)

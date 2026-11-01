@@ -207,12 +207,12 @@ Draconian".
 * **Mercenaries:** humans and elves in his pay (never dwarves), met loitering in town streets
   and taverns and in small groups on the roads and in the countryside. Their
   friendliness is drawn around -50 and always lies between -100 and 0.
-* **His orcs:** half of all orcs serve him. They average -75, half again as
+* **His orcs:** three orcs in four serve him. They average -75, half again as
   unfriendly as other orcs (-50), and also stay between -100 and 0.
 * **Roving warbands:** some of his orcs range the wilderness in bands of three to five
   led by a captain, roaming together across their whole region and hunting you down
   when you come within ten paces. Because the warbands are all his, orcs elsewhere
-  serve him with a 35% chance, which keeps the total at half.
+  serve him with a 65% chance, which keeps the total at three in four.
 * **Orcs in the wilds:** between the warbands, the bands camped at campsites, and those
   roaming brush, sand and swamp, orcs turn up in the wilds of about half of all lands.
 * **Never friends:** nothing you say raises his people above 0, so they never join your
@@ -409,7 +409,7 @@ starting town can be walked into through a door in its south wall, that roofs li
 indoors, that each race's friendliness averages out right, that conversations follow
 the NPC's mood, that the party's joining, leaving, following and rejoining rules hold, that
 health, combat triggers, round-robin turns, damage and death follow the rules, that
-Draconian's people keep to their friendliness rules and half of all orcs serve him,
+Draconian's people keep to their friendliness rules and three orcs in four serve him,
 that purses average a tenth of starting health and pass to the Avatar on a kill,
 that typed words reach Claude and its judgement moves friendliness
 (against a stand-in for the API, so no key or network is needed), that caves lead down and back up, that every object has a sprite, that keys

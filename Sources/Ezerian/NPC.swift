@@ -391,10 +391,10 @@ enum Populace {
     }
 
     /// Chance that an orc outside a warband serves Lord Draconian. The warbands are all
-    /// his, so this is set so that, counting them, half of all orcs serve him.
-    static let orcAllegiance = 0.35
+    /// his, so this is set so that, counting them, three orcs in four serve him.
+    static let orcAllegiance = 0.65
 
-    /// Mercenaries Draconian has hired: humans and elves (a third of orcs serve him anyway).
+    /// Mercenaries Draconian has hired: humans and elves (most orcs serve him anyway).
     /// (Never dwarves: they serve no lord, though plenty of them are hostile all the same.)
     private static let hirelings: [(Race, Double)] = [(.human, 60), (.elf, 15)]
 
