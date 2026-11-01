@@ -93,6 +93,11 @@ which decide how they answer you.
 * **Talking:** walk into someone or press T. The conversation window shows their
   portrait, race, trade, mood and score, and a line where you type whatever you want
   to say. An NPC who loathes you (-85 or below) won't talk at all.
+* **Doorways stay clear:** no one lingers on the tile just inside or outside a door; anyone
+  found there steps clear on the next turn, and people never wander into one. Walk into
+  someone standing in a doorway and they step out of your way (or trade places with you)
+  instead of stopping you to talk, so you can't be shut in or out of a building. Press T
+  to talk to them there.
 * **Claude voices the NPCs.** Each line you type goes to the Claude API
   (`claude-haiku-5-5`, Anthropic's fast, inexpensive model, at low effort with
   thinking off) with a character sheet: race and manner of speech, trade, friendliness

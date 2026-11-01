@@ -184,7 +184,14 @@ final class Game {
             return false
         }
         var swapped: NPC?
-        if let npc = world.npc(at: nx, ny, z) {
+        if let npc = world.npc(at: nx, ny, z), !npc.following, inDoorway(nx, ny) {
+            // Someone standing in a doorway steps out of the way (or, with nowhere else to go,
+            // trades places), so no one can shut the Avatar in or out.
+            var taken = Set(world.npcs(near: nx, ny, z, radius: 2).map { Point(x: $0.x, y: $0.y) })
+            taken.insert(Point(x: x, y: y))
+            if !stepAside(npc, taken: taken) { swapped = npc }
+            log("\(npc.shortName.capitalizedFirst) steps out of your way.")
+        } else if let npc = world.npc(at: nx, ny, z) {
             // Companions step aside (swap places); anyone else stops you for a word.
             guard npc.following, world.isPassable(nx, ny, z) else {
                 startConversation(with: npc)
@@ -336,6 +343,13 @@ final class Game {
             n.prevY = n.y
             let dx = x - n.x, dy = y - n.y, dist = max(abs(dx), abs(dy))
             let roll = Hash.unit(world.seed, n.id, turn, 31)
+            // No one lingers in a doorway: they step clear at once.
+            if inDoorway(n.x, n.y) {
+                occupied.remove(Point(x: n.x, y: n.y))
+                _ = stepAside(n, taken: occupied)
+                occupied.insert(Point(x: n.x, y: n.y))
+                continue
+            }
             var want: (Int, Int)?
             switch n.disposition {
             case _ where n.servesDraconian && n.friendliness < 0 && dist <= (n.warband == nil ? 6 : 10) && dist > 1 && roll < 0.6:
@@ -360,7 +374,7 @@ final class Game {
                 let tx = n.x + sx, ty = n.y + sy
                 let f = world.feature(tx, ty, z)
                 if n.mayStand(tx, ty), world.isPassable(tx, ty, z), !occupied.contains(Point(x: tx, y: ty)),
-                   f != .door, f != .caveEntrance, f != .ladderUp {
+                   f != .door, f != .caveEntrance, f != .ladderUp, !inDoorway(tx, ty) {
                     occupied.remove(Point(x: n.x, y: n.y))
                     n.x = tx
                     n.y = ty
@@ -389,6 +403,42 @@ final class Game {
                 break
             }
         }
+    }
+
+    /// Whether a tile stands right before a door (inside or out), where someone standing
+    /// would block the way.
+    func inDoorway(_ px: Int, _ py: Int) -> Bool {
+        [(0, 1), (1, 0), (-1, 0), (0, -1)].contains { world.feature(px + $0.0, py + $0.1, z) == .door }
+    }
+
+    /// Moves someone off a doorway to a free tile nearby that blocks no door: one within
+    /// the bounds they keep to if possible, else any. Returns false if there's nowhere to go.
+    @discardableResult
+    func stepAside(_ n: NPC, taken: Set<Point>) -> Bool {
+        func inside(_ q: Point) -> String { world.building(at: q.x, q.y, z).map { "\($0.x),\($0.y)" } ?? "" }
+        var options: [Point] = []
+        for r in 1...3 {
+            for dy in -r...r {
+                for dx in -r...r where max(abs(dx), abs(dy)) == r {
+                    let p = Point(x: n.x + dx, y: n.y + dy)
+                    let f = world.feature(p.x, p.y, z)
+                    guard world.isPassable(p.x, p.y, z), !taken.contains(p), world.npc(at: p.x, p.y, z) == nil,
+                          p != Point(x: x, y: y), f != .door, f != .caveEntrance, f != .ladderUp, !inDoorway(p.x, p.y),
+                          // On the same side of the door: no slipping through walls into or out of a building.
+                          inside(p) == inside(Point(x: n.x, y: n.y))
+                    else { continue }
+                    options.append(p)
+                }
+            }
+            if !options.isEmpty { break }
+        }
+        guard let p = options.first(where: { n.mayStand($0.x, $0.y) }) ?? options.first else { return false }
+        n.prevX = n.x
+        n.prevY = n.y
+        n.facing = Direction.from(dx: (p.x - n.x).signum(), dy: (p.y - n.y).signum()).rawValue
+        n.x = p.x
+        n.y = p.y
+        return true
     }
 
     private func toward(_ dx: Int, _ dy: Int) -> (Int, Int) {

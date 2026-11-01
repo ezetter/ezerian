@@ -1685,6 +1685,48 @@ extension DevTools {
         }
 
         do {
+            // No one blocks a doorway: whoever stands before a door steps clear, and someone
+            // the Avatar walks into there steps out of the way instead of stopping them to talk.
+            let g = Game(seed: seed)
+            g.confirmName(); g.confirmLook()
+            let home = g.world.region(RegionKey(x: 0, y: 0, z: 0))
+            for n in home.npcs { n.friendliness = 10; n.servesDraconian = false }
+            var found: (door: Point, inner: Point, outer: Point)?
+            for b in home.roofed where found == nil {
+                for yy in b.y...(b.y + b.h - 1) { for xx in b.x...(b.x + b.w - 1) where found == nil && g.world.feature(xx, yy, 0) == .door {
+                    for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)] {
+                        let o = Point(x: xx + dx, y: yy + dy), i = Point(x: xx - dx, y: yy - dy)
+                        if !b.contains(o.x, o.y), b.contains(i.x, i.y), g.world.isPassable(o.x, o.y, 0), g.world.isPassable(i.x, i.y, 0) {
+                            found = (Point(x: xx, y: yy), i, o)
+                            break
+                        }
+                    }
+                } }
+            }
+            if let (door, inner, outer) = found, let blocker = home.npcs.first(where: { $0.guardRank == nil }) {
+                for m in home.npcs where m !== blocker && max(abs(m.x - door.x), abs(m.y - door.y)) <= 2 { m.x = g.x + 30; m.y = g.y + 30 }
+                (blocker.x, blocker.y) = (outer.x, outer.y)
+                g.teleport(inner.x, inner.y, 0)
+                g.move(dx: door.x - inner.x, dy: door.y - inner.y)
+                check(g.x == door.x && g.y == door.y && g.inDoorway(blocker.x, blocker.y) == false,
+                      "someone standing outside a door steps clear as the Avatar comes through it")
+                (blocker.x, blocker.y) = (outer.x, outer.y)
+                g.move(dx: outer.x - door.x, dy: outer.y - door.y)
+                check(g.x == outer.x && g.y == outer.y && g.conversation == nil && !(blocker.x == outer.x && blocker.y == outer.y),
+                      "walking into someone in a doorway, they step out of the way rather than stopping the Avatar to talk")
+                // Out and about, after a while no one stands in a doorway.
+                g.teleport(door.x, door.y, 0)
+                g.move(dx: inner.x - door.x, dy: inner.y - door.y)
+                var lingering = 0
+                for _ in 0..<12 {
+                    g.waitTurn()
+                    lingering = g.world.npcs(near: g.x, g.y, 0, radius: 18).filter { !$0.following && g.inDoorway($0.x, $0.y) }.count
+                }
+                check(lingering == 0, "people round about never linger in doorways")
+            } else { check(false, "a door to test") }
+        }
+
+        do {
             // Wolves: packs in the wilds, 10-50 health, -100 to -50, nothing carried, no talk.
             let w = World(seed: seed)
             var wolves: [NPC] = [], townLands = 0, wolfTownLands = 0
