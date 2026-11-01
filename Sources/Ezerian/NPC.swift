@@ -87,6 +87,18 @@ final class NPC: Codable {
     var facing: Int = Direction.south.rawValue
     var talks = 0
     var compliments = 0
+    /// The day flattery last warmed them, and how many compliments did that day.
+    private var flatteredDay: Int?
+    private var flatteredCount: Int?
+    /// Only this many compliments a day raise someone's friendliness; insults always count.
+    static let complimentsPerDay = 2
+    /// Whether a compliment paid on `day` can still raise their friendliness.
+    func flatterable(on day: Int) -> Bool { flatteredDay != day || (flatteredCount ?? 0) < NPC.complimentsPerDay }
+    /// Counts a compliment that raised their friendliness on `day`.
+    func flattered(on day: Int) {
+        flatteredCount = flatteredDay == day ? (flatteredCount ?? 0) + 1 : 1
+        flatteredDay = day
+    }
     /// Whether the NPC has told the Avatar their name.
     var known = false
     /// The last few things said between the NPC and the Avatar, remembered across meetings.
@@ -188,7 +200,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, known, memory, inParty, refusedAt, hireRefused, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack", xpStore = "xp"
+             compliments, flatteredDay, flatteredCount, known, memory, inParty, refusedAt, hireRefused, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack", xpStore = "xp"
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,

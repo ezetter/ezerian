@@ -503,7 +503,14 @@ final class Game {
             guard let self else { return }
             switch result {
             case let .success(r):
-                npc.changeFriendliness(by: r.friendliness_change)
+                // Only so many compliments a day win anyone over; insults always tell.
+                let flattery = r.intent == "compliment" && r.friendliness_change > 0
+                if flattery && !npc.flatterable(on: self.day) {
+                    // Unmoved: flattered enough today.
+                } else {
+                    npc.changeFriendliness(by: r.friendliness_change)
+                    if flattery { npc.flattered(on: self.day) }
+                }
                 if r.reveals_name { npc.known = true }
                 self.remember(npc, avatar: said, npcSaid: r.reply)
                 if var cc = self.conversation, cc.npc === npc {

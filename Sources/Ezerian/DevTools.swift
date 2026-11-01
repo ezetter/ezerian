@@ -642,6 +642,46 @@ extension DevTools {
             game.submitConversation()
             check(n.known && game.conversation?.byClaude == false, "without Claude, typed words are matched to scripted topics")
             game.endConversation()
+            // Flattery: only two compliments a day warm anyone; insults always tell.
+            mock.availableOverride = true
+            let fresh = NPC(id: 777001, name: "Wynn", race: .human, female: false, look: 0, friendliness: 0, x: n.x, y: n.y, z: 0,
+                            bounds: n.bounds, role: "adventurer", home: nil)
+            game.turn = 0
+            func flatter() -> Int {
+                let was = fresh.friendliness
+                game.startConversation(with: fresh)
+                for ch in "You are wonderful and brave!" { game.typeInConversation(ch) }
+                answer = { _ in .success(apiResponse(["reply": "Thank you!", "intent": "compliment", "friendliness_change": 8,
+                                                       "ends_conversation": false, "reveals_name": false])) }
+                game.submitConversation()
+                game.endConversation()
+                return fresh.friendliness - was
+            }
+            let gains = [flatter(), flatter(), flatter()]
+            check(gains == [8, 8, 0], "Claude's judgement: two compliments a day raise friendliness, the third doesn't (\(gains))")
+            check(AIDialogue.prompt(fresh, game: game, history: [], said: "hi").contains("flattered you twice today"),
+                  "Claude is told the NPC has been flattered enough today")
+            game.startConversation(with: fresh)
+            for ch in "You smell like a pig." { game.typeInConversation(ch) }
+            answer = { _ in .success(apiResponse(["reply": "How dare you!", "intent": "insult", "friendliness_change": -10,
+                                                   "ends_conversation": false, "reveals_name": false])) }
+            let before = fresh.friendliness
+            game.submitConversation()
+            game.endConversation()
+            check(fresh.friendliness == before - 10, "insults still lower friendliness after the day's compliments are spent")
+            game.turn += 12 * 60
+            check(flatter() == 8 && game.day == 2, "the next day, compliments work again")
+            mock.availableOverride = false
+            let plain = NPC(id: 777002, name: "Bran", race: .human, female: false, look: 0, friendliness: 0, x: n.x, y: n.y, z: 0,
+                            bounds: n.bounds, role: "townsperson", home: nil)
+            game.startConversation(with: plain)
+            var steps: [Int] = []
+            for _ in 0..<3 { let was = plain.friendliness; game.say(.compliment); steps.append(plain.friendliness - was) }
+            let was = plain.friendliness
+            game.say(.insult)
+            check(steps[0] > 0 && steps[1] > 0 && steps[2] == 0 && plain.friendliness < was,
+                  "scripted: two compliments a day raise friendliness, the third doesn't, and insults still tell (\(steps))")
+            game.endConversation()
         }
         game.claude = ClaudeClient.shared
 

@@ -104,6 +104,10 @@ which decide how they answer you.
   off, and whether they gave their name. The game applies the change at once, so
   kindness and rudeness carry over to later meetings, and each NPC remembers the last
   few exchanges.
+* **Flattery has its limits:** only two compliments a day raise any one person's
+  friendliness, adventurers included; after that they're unmoved until the next day.
+  Insults lower it as often as you care to give them. This holds for Claude's replies
+  and the scripted ones alike.
 * **Setting it up:** the game looks for a key in this order:
   1. the `ANTHROPIC_API_KEY` environment variable;
   2. a credentials file, `.claude-creds` in the project folder (found by looking

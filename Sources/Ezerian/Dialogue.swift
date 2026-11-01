@@ -203,11 +203,20 @@ enum Dialogue {
             }
             delta /= 1 + npc.compliments
             npc.compliments += 1
-            if npc.race == .orc && d <= .unfriendly && npc.talks % 3 == 0 {
+            if !npc.flatterable(on: game.day) {
+                // Flattered enough for one day: kind words leave them unmoved until tomorrow.
+                switch npc.race {
+                case .elf: text = "Thy fair words have been many today, {player}. They lose their savour."
+                case .dwarf: text = "Aye, aye, ye've said. Enough honey for one day."
+                case .orc, .wolf: text = "{name} hear enough sweet talk today."
+                case .human: text = pick(["You've flattered me enough for one day, {player}.", "Yes, yes. You've said as much already."], npc, 5)
+                }
+            } else if npc.race == .orc && d <= .unfriendly && npc.talks % 3 == 0 {
                 npc.changeFriendliness(by: -3)
                 text = "Soft words for soft pinkskin. Bah."
             } else {
                 npc.changeFriendliness(by: max(1, delta))
+                npc.flattered(on: game.day)
                 switch npc.disposition {
                 case .adoring: text = pick(["You are too kind, {player}! Truly.", "Ha! Flatterer. I like you more every day."], npc, 5)
                 case .friendly: text = pick(["Why, thank you, {addr}.", "Kind of you to say so."], npc, 5)

@@ -226,6 +226,9 @@ enum AIDialogue {
                 ? "As an innkeeper you let a room for the night for \(Trade.lodgingPrice(npc)) gold, and \(Trade.lodgingPerCompanion) gold more for each companion sharing it\(game.party.isEmpty ? "" : " (they have \(game.party.count) now, so \(Trade.lodgingPrice(npc, companions: game.party.count)) gold in all)"); a night's sleep mends up to \(Trade.lodgingHeal) points of hurt. Coins are handed over apart from your words; never pretend to take payment or give a room in your reply."
                 : "As an innkeeper you could let the Avatar a room, but you dislike them too much and refuse to serve them.")
         }
+        if !npc.flatterable(on: game.day) {
+            facts.append("The Avatar has already flattered you twice today; more compliments leave you unmoved (say so, wryly or curtly, if they try).")
+        }
         if npc.isAdventurer && !npc.following {
             facts.append("You are an adventurer, wandering the land in search of company and fortune (you have no weapon or armour yet). You would join the Avatar's party if you liked them enough, and they may offer you gold to join with the gold field beside the line they type; never pretend to take payment in your reply.")
         }
