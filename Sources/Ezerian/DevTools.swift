@@ -1636,8 +1636,8 @@ extension DevTools {
                     foe.hp = 1
                     dice = 0
                     g.strike(near, foe)
-                    check(foe.hp == 0 && g.experience == xp && g.gold == purse + 7,
-                          "when the guard lands the killing blow, the party gains no experience (but still takes the purse)")
+                    check(foe.hp == 0 && g.experience == xp && g.gold == purse && foe.gold == 7,
+                          "when the guard lands the killing blow, the party gains no experience and takes no purse")
                 } else { check(false, "found room for the watch") }
             } else { check(false, "a town watch to test") }
         }

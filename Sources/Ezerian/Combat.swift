@@ -326,8 +326,9 @@ extension Game {
             world.region(containing: n.x, n.y, n.z).npcs.removeAll { $0 === n }
             log("\(n.shortName.capitalizedFirst) dies.")
             let foe = combat?.enemies.contains { $0 === n } ?? true
-            // The victors take the fallen foe's purse (beasts have none); a fallen ally keeps theirs.
-            if !foe || n.race.isBeast {
+            // The party takes the purse of a foe they fell (beasts have none); a foe the watch
+            // fells, or a fallen ally, keeps theirs.
+            if !foe || !byParty || n.race.isBeast {
             } else if n.gold > 0 {
                 gold += n.gold
                 log("You take \(n.gold) gold \(n.gold == 1 ? "coin" : "coins") from \(n.his) body. You now have \(gold).")

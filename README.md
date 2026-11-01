@@ -268,7 +268,8 @@ Draconian".
   town watch within 3 paces of you comes to your aid ("The watchman comes to your aid!"),
   checked every round. Guards take turns with everyone else and strike only at his
   people, who may turn on them in return. A foe a guard finishes off earns the party no
-  experience, though you still take the purse; a guard who falls keeps theirs.
+  experience and leaves you no loot (their gold isn't yours); a guard who falls keeps
+  theirs too.
 * **Wolves:** packs of three to six grey wolves roam the wilds of about three lands in
   ten, and never lands with a town. Each has 10–50 health and friendliness from -100 to
   -50, which nothing raises. They scent you from 8 tiles and close in, may ambush you
