@@ -63,6 +63,8 @@ final class Screen {
             : game.shopping ? "Buy and Sell with the buttons  ·  Esc or Done goes back to talking"
             : game.conversation.map { $0.price != nil && !$0.over } == true
                 ? "Type what you say  ·  Tab or click between words and gold  ·  Return or Give gold. to pay  ·  Esc to leave"
+            : game.conversation.map(game.takesGold) == true
+                ? "Type what you say  ·  Tab or click the gold to offer some  ·  Hire. offers it to join you  ·  Esc to leave"
             : game.conversation != nil ? "Type what you say  ·  Return to say it  ·  Esc to leave"
             : game.sheet != nil && game.inCombat ? "Using something or changing weapons takes your turn  ·  I or Esc closes"
             : game.sheet != nil ? (game.sheetCount > 1 ? "◀ ▶ or ← → for your companions  ·  I or Esc closes" : "I or Esc closes")
@@ -717,7 +719,7 @@ final class Screen {
         texts.append(TextItem(text: c.notice ?? voice, x: Double(x + w - 16), y: Double(y + 44), size: 10.5, font: .italic,
                               color: c.notice == nil ? 0x7A6A50 : 0x9A2A10, align: .right, shadow: false))
         // The line being typed.
-        let trading = c.price != nil && !c.over && !c.offer
+        let trading = game.takesGold(c)
         let fields = Screen.talkFields(trading: trading, wares: Screen.showsTrade(c))
         if fields.trade.w > 0 {
             let b = fields.trade
@@ -739,7 +741,7 @@ final class Screen {
             if c.goldFocus && (frameCount / 4) % 2 == 0 { fb.fill(Int(amountRight) + 1, g.y + 4, 2, 14, gold) }
             let b = fields.give
             box(b.x, b.y, b.w, b.h)
-            texts.append(TextItem(text: "Give gold.", x: Double(b.x + b.w / 2), y: Double(b.y + 5), size: 13, font: .bold,
+            texts.append(TextItem(text: c.price == nil ? "Hire." : "Give gold.", x: Double(b.x + b.w / 2), y: Double(b.y + 5), size: 13, font: .bold,
                                   color: 0xE8C878, align: .center))
         }
         if c.offer {

@@ -158,7 +158,7 @@ final class WorldGenerator {
 
         Roads.build(b, hubs: hubs, sites: siteEntrances)
         b.region.name = Names.regionName(for: b.region, rng: &b.rng)
-        Populace.populate(b.region, seed: seed)
+        Populace.populate(b.region, seed: seed, avatarHealth: world.avatarHealth)
         return b.region
     }
 

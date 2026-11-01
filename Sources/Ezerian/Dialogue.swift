@@ -39,6 +39,8 @@ struct Conversation {
     var offer = false
     /// The chance of an offer (or a request to join) has come up once this talk.
     var offerRolled = false
+    /// The Avatar has offered gold to hire an adventurer once this talk.
+    var hireRolled = false
     /// Whether this talk is voiced by Claude (otherwise scripted).
     var byClaude = false
     /// A note about Claude being unreachable, shown in the window.
@@ -398,6 +400,13 @@ enum Dialogue {
             s = "You've three companions already. There's no room for another."
         case .already:
             s = "I'm already with you, {player}!"
+        case .notAdventurer:
+            switch npc.race {
+            case .human: s = npc.disposition >= .friendly ? "Me, go adventuring? No, {player}, my life is here." : "Wander the roads with you? I've better things to do."
+            case .elf: s = "My path lies here, {player}, not upon the open road."
+            case .dwarf: s = "Tramp about the wilds with ye? I've work to do."
+            case .orc, .wolf: s = "{name} stay here. {name} not go with you."
+            }
         }
         return s.replacingOccurrences(of: "{player}", with: player).replacingOccurrences(of: "{name}", with: npc.name)
     }
@@ -411,6 +420,35 @@ enum Dialogue {
         case .orc, .wolf: s = "You strong. {name} want to come with you. Yes?"
         }
         return s.replacingOccurrences(of: "{player}", with: player).replacingOccurrences(of: "{name}", with: npc.name)
+    }
+
+    /// The Avatar offers gold to hire an adventurer.
+    static func hiring(_ n: Int) -> String {
+        "Here \(n == 1 ? "is a gold coin" : "are \(n) gold coins"). Will you come adventuring with me?"
+    }
+
+    enum Hire { case accept, refuse, again, tooLittle(Int) }
+
+    /// An adventurer's answer to gold offered to join.
+    static func hire(_ npc: NPC, _ h: Hire, player: String) -> String {
+        let s: String
+        switch (h, npc.race) {
+        case (.accept, .human): s = "Coin in hand and a road ahead. I'm your man, {player}!"
+        case (.accept, .elf): s = "Thy gold is welcome, {player}, and so shall my company be."
+        case (.accept, .dwarf): s = "Now ye're talking! Lead on, and I'll watch yer back."
+        case (.accept, _): s = "Gold good. {name} come with you."
+        case (.refuse, .human): s = "Tempting, {player}, but not tempting enough."
+        case (.refuse, .elf): s = "My company is not so cheaply bought, {player}."
+        case (.refuse, .dwarf): s = "Ha! Ye'll have to dig deeper in yer purse than that."
+        case (.refuse, _): s = "Not enough. {name} say no."
+        case (.again, .elf): s = "I have given thee my answer for today, {player}."
+        case (.again, _): s = "I've given you my answer, {player}. Ask me another day."
+        case let (.tooLittle(r), .elf): s = "I turned down \(r) gold before, {player}. I will not take less, nor the same."
+        case let (.tooLittle(r), _): s = "I've already turned down \(r) gold, {player}. It'll take more than that."
+        }
+        let female = npc.female && npc.race == .human
+        return s.replacingOccurrences(of: "your man", with: female ? "your woman" : "your man")
+            .replacingOccurrences(of: "{player}", with: player).replacingOccurrences(of: "{name}", with: npc.name)
     }
 
     static func welcomed(_ npc: NPC) -> String {
@@ -468,6 +506,7 @@ enum Dialogue {
         case "raider", "warrior", "brute", "scout", "mercenary":
             return npc.race == .orc ? "{name} fight. {name} take. Is good life." : "I sell my sword to whoever pays."
         case "child": return "I'm not working, I'm playing! Want to play?"
+        case "adventurer": return "I'm an adventurer. I go where the road and the coin lead, and I'd go further in good company."
         case "beggar": return "I beg, good soul. A coin would not go amiss."
         case "peasant": return "I work the land, as my father did, and his before him. Back-breaking, but it feeds us."
         case "townsperson", "townsfolk": return "I live here in {home}, and mind my own business. Mostly."

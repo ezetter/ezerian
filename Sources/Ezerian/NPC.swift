@@ -81,7 +81,7 @@ final class NPC: Codable {
     let homeY: Int
     /// Where the NPC may walk: x0, y0, x1, y1 (inclusive).
     var bounds: [Int]
-    private(set) var role: String
+    var role: String
     /// The building or town the NPC belongs to, if any (for small talk).
     let home: String?
     var facing: Int = Direction.south.rawValue
@@ -99,6 +99,10 @@ final class NPC: Codable {
     private var inParty: Bool?
     /// Friendliness when they last refused to join or left the party (see `Party.lockedOut`).
     var refusedAt: Int?
+    /// The most gold they have turned down to join the party (they want more next time).
+    var hireRefused: Int?
+    /// Adventurers are the only folk who will join the Avatar's party.
+    var isAdventurer: Bool { role == "adventurer" }
     /// Serves Lord Draconian, Wizard Lord and Emperor of Sespooland.
     var servesDraconian: Bool {
         get { draconianStore ?? false }
@@ -184,7 +188,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, known, memory, inParty, refusedAt, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack", xpStore = "xp"
+             compliments, known, memory, inParty, refusedAt, hireRefused, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack", xpStore = "xp"
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,
@@ -304,10 +308,11 @@ enum Populace {
 
     /// The everyday set someone is painted from, if any: every elf from the elf set,
     /// every orc from the orc set;
-    /// human children from the children;
+    /// human children from the children; adventurers of every race from the adventurers;
     /// every other human but the watch from the townsfolk if they live in a town, or the
     /// country folk if they live at a farmhouse or in the wilds.
     static func everydaySet(_ n: NPC) -> [PaintedFolk.Painted]? {
+        if n.role == "adventurer" { return PaintedFolk.adventurers }
         if n.race == .dwarf { return n.role == "warrior" ? PaintedFolk.dwarfWarriors : PaintedFolk.dwarfFolk }
         if n.race == .elf { return PaintedFolk.elfFolk }
         if n.race == .orc { return PaintedFolk.orcFolk }
@@ -331,7 +336,7 @@ enum Populace {
             return
         }
         guard let set = everydaySet(n) else { return }
-        let mine = set.indices.filter { set[$0].look.female == n.female }
+        let mine = set.indices.filter { set[$0].look.female == n.female && set[$0].race == n.race }
         let pick = mine[Int(Hash.of(0x9A1D7, n.id, 0) % UInt64(mine.count))]
         if n.servesDraconian {
             n.portrait = set[pick].painting
@@ -361,6 +366,16 @@ enum Populace {
 
     /// Wolves: 10-50 health, and friendliness from -100 to -50.
     static let wolfHealth = 10...50, wolfFriendliness = -100 ... -50
+
+    /// Adventurers: the only folk who will take up with the Avatar. They are never far from
+    /// liking or disliking anyone, and are between half as hardy as the Avatar and a quarter
+    /// again as hardy (when they are met).
+    static let adventurerFriendliness = -25...25
+    static func adventurerHealth(avatar: Int, _ u: Double) -> Int {
+        max(1, Int((Double(avatar) * (0.5 + 0.75 * u)).rounded()))
+    }
+    /// Their races, about as many of each as there are paintings.
+    private static let adventurerRaces: [(Race, Double)] = [(.human, 40), (.elf, 20), (.dwarf, 20), (.orc, 20)]
 
     static let firstNames: [Race: (male: [String], female: [String])] = [
         .wolf: (["Wolf"], ["Wolf"]),
@@ -412,8 +427,8 @@ enum Populace {
     }
 
     /// Chance that an orc outside a warband serves Lord Draconian. The warbands are all
-    /// his, so this is set so that, counting them, three orcs in four serve him.
-    static let orcAllegiance = 0.65
+    /// his and the orc adventurers all free, so this is set so that, counting both, three orcs in four serve him.
+    static let orcAllegiance = 0.7
 
     /// Mercenaries Draconian has hired: humans and elves (most orcs serve him anyway).
     /// (Never dwarves: they serve no lord, though plenty of them are hostile all the same.)
@@ -430,7 +445,7 @@ enum Populace {
 
     private static let townFolk: [(Race, Double)] = [(.human, 64), (.elf, 13), (.dwarf, 15), (.orc, 8)]
 
-    static func populate(_ region: Region, seed: UInt64) {
+    static func populate(_ region: Region, seed: UInt64, avatarHealth: Int = 100) {
         let key = region.key
         var rng = SplitMix64(seed: Hash.of(seed, key.x, key.y, 7000 + key.z))
         let n = Region.size, ox = region.originX, oy = region.originY
@@ -474,6 +489,14 @@ enum Populace {
             npc.gold = coins(forHealth: npc.maxHP, &rng)
             npc.weapon = guardRank.map { Weapon.forGuard(rank: $0) }
                 ?? Weapon.roll(health: npc.maxHP, servant: servant, child: job == "child", &rng)
+            if job == "adventurer" {
+                // Adventurers go unarmed, for now.
+                npc.maxHP = adventurerHealth(avatar: avatarHealth, u)
+                npc.hp = npc.maxHP
+                npc.friendliness = adventurerFriendliness.lowerBound + rng.int(adventurerFriendliness.count)
+                npc.gold = coins(forHealth: npc.maxHP, &rng)
+                npc.weapon = nil
+            }
             if race.isBeast {
                 // Wolves carry nothing, and are never anything but dangerous.
                 npc.look = 0
@@ -649,6 +672,32 @@ enum Populace {
                 if let p = near(c.0, c.1, 2, where: { wild($0, $1) }) {
                     add(.orc, p.0, p.1, role: k == 0 ? "warband captain" : rng.pick(["warband raider", "warband brute"]),
                         bounds: (1, 1, n - 2, n - 2), home: nil, draconian: true, warband: id)
+                }
+            }
+        }
+        // Adventurers: a few in the streets of every town and now and then at an inn,
+        // and the odd one or two out on the roads and in the wilds.
+        func adventurer(_ lx: Int, _ ly: Int, bounds: (Int, Int, Int, Int), home: String?) {
+            add(pickRace(adventurerRaces, &rng), lx, ly, role: "adventurer", bounds: bounds, home: home, draconian: false)
+        }
+        if let t = town {
+            let x0 = t.x - ox, y0 = t.y - oy, x1 = x0 + t.w - 1, y1 = y0 + t.h - 1
+            let outdoors: (Int, Int) -> Bool = { x, y in !region.roofed.contains { $0.contains(ox + x, oy + y) } }
+            for _ in 0..<(t.w > 40 ? 2 + rng.int(3) : 1 + rng.int(2)) {
+                if let p = spot(x0, y0, x1, y1, where: outdoors) { adventurer(p.0, p.1, bounds: (x0, y0, x1, y1), home: t.name) }
+            }
+        }
+        for b in region.places where b.kind == .building && Names.isInn(b.name) && rng.chance(0.5) {
+            let x0 = b.x - ox + 1, y0 = b.y - oy + 1, x1 = b.x - ox + b.w - 2, y1 = b.y - oy + b.h - 2
+            if let p = spot(x0, y0, x1, y1, where: { x, y in region.features[(y + 1) * n + x] != .door }) {
+                adventurer(p.0, p.1, bounds: (x0, y0, x1, y1), home: b.name)
+            }
+        }
+        if rng.chance(town == nil ? 0.25 : 0.1),
+           let c = spot(6, 6, n - 7, n - 7, where: { terrainIs([.dirt, .grass, .forest, .brush, .hills])($0, $1) && wild($0, $1) }) {
+            for _ in 0..<(rng.chance(0.3) ? 2 : 1) {
+                if let p = near(c.0, c.1, 2, where: { wild($0, $1) }) {
+                    adventurer(p.0, p.1, bounds: (c.0 - 10, c.1 - 10, c.0 + 10, c.1 + 10), home: nil)
                 }
             }
         }

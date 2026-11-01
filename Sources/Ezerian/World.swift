@@ -79,6 +79,8 @@ final class World {
     private(set) var regions: [RegionKey: Region] = [:]
     /// The Avatar's companions; they travel with the Avatar and belong to no region.
     var party: [NPC] = []
+    /// The Avatar's full health, which adventurers met in new lands are measured against.
+    var avatarHealth = 100
     private var lastRegion: Region?
 
     /// Called whenever a brand-new region is generated (used for logging/testing).

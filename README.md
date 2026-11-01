@@ -117,11 +117,23 @@ which decide how they answer you.
      from console.anthropic.com).
 
   **Game ▸ Voice Conversations with Claude** turns Claude off.
-* **Companions:** up to three NPCs can travel in your party. Ask someone to join in
-  your own words ("Will you travel with me?"), or a friendly NPC may ask you during a
-  conversation (press Y or N). The chance either way is 0 at friendliness 0 or below
-  and rises with friendliness — (friendliness ÷ 100)², so 25% at 50 and certain at 100.
-  Companions walk behind you in single file, step aside (swap places) when you walk
+* **Adventurers:** wanderers of every race who roam the land: two to four in the streets
+  of a big town, one or two in a small one, one at about half the inns, and now and then
+  one or two out on the roads and in the wilds. Their friendliness runs from -25 to 25,
+  and their health from half the Avatar's to a quarter more (the Avatar's health when
+  their land is first seen). They carry no weapon or armour, for now. Each wears one of
+  fifty paintings of their own (twenty humans, ten each of elves, dwarves and orcs), and
+  no orc adventurer serves Lord Draconian.
+* **Companions:** up to three adventurers can travel in your party; no one else will
+  join. Ask one to join in your own words ("Will you travel with me?"), or a friendly
+  adventurer may ask you during a conversation (press Y or N). The chance either way is
+  0 at friendliness 0 or below and rises with friendliness — (friendliness ÷ 100)², so
+  25% at 50 and certain at 100. Anyone else turns you down, however fond of you.
+* **Hiring:** talking to an adventurer, a gold field and a **Hire.** button sit beside
+  the line you type. Each gold coin you offer is a 1% chance they take it and join (so
+  100 gold always does). Turned down, you keep your gold; you may offer once a
+  conversation, and they won't take the same sum or less again.
+* Companions walk behind you in single file, step aside (swap places) when you walk
   into them, follow you underground, and are listed in the side panel. You can still
   talk to them (press T beside them); if a conversation makes a companion like you
   less, they may leave, and you can tell one to leave ("it's time we parted ways").
@@ -173,7 +185,8 @@ five women), each carrying the weapon painted: a sword, an axe, a spear, a war h
 or a mace. The watch keeps
 its own paintings, by rank. Human children have ten paintings of their own (five boys,
 five girls, in patched and muddy homespun), wherever they live, and on the map they
-stand a head shorter than grown folk.
+stand a head shorter than grown folk. Adventurers, of whatever race, are painted from
+fifty adventurer paintings (`adventurer-0` … `adventurer-49`).
 
 Every elf looks like one of ten elf paintings (five men, five women), whatever their
 trade or wherever they live, dressed to match on the map. Elves drinking in taverns
@@ -212,7 +225,8 @@ Draconian".
 * **Roving warbands:** some of his orcs range the wilderness in bands of three to five
   led by a captain, roaming together across their whole region and hunting you down
   when you come within ten paces. Because the warbands are all his, orcs elsewhere
-  serve him with a 65% chance, which keeps the total at three in four.
+  serve him with a 70% chance, which (with the orc adventurers, all free) keeps the total
+  at three in four.
 * **Orcs in the wilds:** between the warbands, the bands camped at campsites, and those
   roaming brush, sand and swamp, orcs turn up in the wilds of about half of all lands.
 * **Never friends:** nothing you say raises his people above 0, so they never join your

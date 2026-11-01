@@ -66,7 +66,7 @@ enum DevTools {
                 let rank = what.hasPrefix("guard") ? Int(what.dropFirst(5)) : nil
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
-                    if ["bard", "peasant", "farmhand", "healer", "innkeeper", "blacksmith", "armourer", "merchant", "pedlar", "apothecary", "alchemist"].contains(what) { return n.role == what }
+                    if ["bard", "peasant", "farmhand", "healer", "innkeeper", "blacksmith", "armourer", "merchant", "pedlar", "apothecary", "alchemist", "adventurer"].contains(what) { return n.role == what }
                     if what == "drinker" { return n.role == what && n.race == .human }
                     if what == "elvenDrinker" { return n.role == "drinker" && n.race == .elf }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
@@ -669,8 +669,16 @@ extension DevTools {
             for ch in text { partyTest.typeInConversation(ch) }
             partyTest.submitConversation()
         }
-        if townsfolk.count >= 5 {
+        if townsfolk.count >= 6 {
             let a = townsfolk[0], b = townsfolk[1], c = townsfolk[2], d = townsfolk[3], e = townsfolk[4]
+            // Only adventurers join.
+            let local = townsfolk.first { !$0.isAdventurer && $0.guardRank == nil }!
+            local.friendliness = 100; dice = 0
+            chat(local, "Will you join my party?")
+            check(!local.following && partyTest.party.isEmpty && partyTest.joinDecision(local) == .notAdventurer
+                  && partyTest.conversation?.lines.last?.fromAvatar == false,
+                  "only adventurers join: anyone else declines, even at friendliness 100")
+            for n in [a, b, c, d, e] { n.role = "adventurer" }
             a.friendliness = 100; dice = 0.999
             chat(a, "Will you join my party?")
             check(a.following && partyTest.party.count == 1, "at friendliness 100 an NPC always agrees to join")
@@ -741,6 +749,85 @@ extension DevTools {
                   "the party survives a save")
         } else {
             check(false, "enough townsfolk to test the party")
+        }
+
+        // Hiring adventurers for gold.
+        do {
+            check(Populace.adventurerHealth(avatar: 200, 0) == 100 && Populace.adventurerHealth(avatar: 200, 1) == 250
+                  && Populace.adventurerHealth(avatar: 100, 0.5) == 88,
+                  "an adventurer's health runs from half the Avatar's to a quarter more")
+            let grown = Game(seed: seed)
+            grown.maxHP = 140
+            check(grown.world.avatarHealth == 140, "adventurers in lands not yet seen are measured against the Avatar's health now")
+            check(Party.hireChance(1) == 0.01 && Party.hireChance(50) == 0.5 && Party.hireChance(100) == 1 && Party.hireChance(300) == 1,
+                  "each gold coin offered is a 1% chance an adventurer joins, certain at 100")
+            let g = Game(seed: seed)
+            g.confirmName(); g.confirmLook()
+            g.claude = mock
+            mock.availableOverride = false
+            let folk = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
+            for n in folk { n.servesDraconian = false; n.friendliness = max(n.friendliness, 10) }
+            var dice = 0.3
+            g.roll = { dice }
+            g.gold = 100
+            func meet(_ n: NPC) {
+                g.endConversation()
+                g.teleport(n.x, n.y + 1, n.z)
+                if g.world.npc(at: n.x, n.y + 1, n.z) != nil || !g.world.isPassable(n.x, n.y + 1, n.z) { g.teleport(n.x + 1, n.y, n.z) }
+                g.startConversation(with: n)
+            }
+            func offer(_ amount: Int) {
+                while !(g.conversation?.goldInput.isEmpty ?? true) { g.backspaceGold() }
+                g.focusGold(true)
+                for ch in "\(amount)" { g.typeGold(ch) }
+                g.offerGold()
+            }
+            if let local = folk.first(where: { !$0.isAdventurer && !Trade.trades($0) && !g.sellsRest($0) && $0.guardRank == nil }),
+               let hero = folk.first(where: \.isAdventurer) {
+                meet(local)
+                check(g.conversation.map(g.takesGold) == false, "there is no hiring anyone but an adventurer")
+                hero.friendliness = 0
+                meet(hero)
+                check(g.conversation.map(g.takesGold) == true, "talking to an adventurer, the Avatar can offer gold to hire them")
+                offer(20)
+                check(!hero.following && g.gold == 100 && hero.hireRefused == 20 && g.conversation?.lines.last?.fromAvatar == false,
+                      "turned down (20 gold against a roll of 0.3), the Avatar keeps the gold and the adventurer remembers the sum")
+                dice = 0
+                offer(25)
+                check(!hero.following && g.gold == 100, "one offer a talk: a second the same talk is turned away")
+                meet(hero)
+                offer(20)
+                check(!hero.following && g.conversation?.lines.last?.text.contains("20 gold") == true,
+                      "next time, the same sum or less is refused out of hand")
+                let purse = hero.gold
+                dice = 0.39
+                offer(40)
+                check(hero.following && g.party.count == 1 && g.gold == 60 && hero.gold == purse + 40,
+                      "40 gold against a roll of 0.39: the adventurer takes it and joins")
+                check(g.conversation.map(g.takesGold) == false, "a companion can't be hired again")
+                g.endConversation()
+                for n in folk.filter({ !$0.following && $0.guardRank == nil }).prefix(2) {
+                    n.role = "adventurer"
+                    g.addToParty(n)
+                }
+                if let spare = folk.first(where: { !$0.following && $0.guardRank == nil }) {
+                    spare.role = "adventurer"
+                    check(g.party.count == 3 && !g.canHire(spare), "with three companions there's no hiring a fourth")
+                }
+                // Fond townsfolk no longer offer to come along; adventurers still do.
+                g.endConversation()
+                g.party.forEach { g.removeFromParty($0, lockOut: false) }
+                if let fond = folk.first(where: { !$0.isAdventurer && !$0.following && !Trade.trades($0) && !g.sellsRest($0) && $0.guardRank == nil }) {
+                    fond.friendliness = 100
+                    dice = 0
+                    meet(fond)
+                    for ch in "Lovely weather today." { g.typeInConversation(ch) }
+                    g.submitConversation()
+                    check(g.conversation?.offer == false, "someone who isn't an adventurer never offers to join, however fond")
+                }
+            } else {
+                check(false, "an adventurer and someone else in the home town")
+            }
         }
 
         // Combat.
@@ -1262,7 +1349,7 @@ extension DevTools {
             // Dwarf bards look like their paintings.
             // Dwarves: all men, none in Draconian's pay (yet some hostile), painted from the
             // ordinary or the warrior set, the warriors armed as painted.
-            let dwarves = all.filter { $0.race == .dwarf }
+            let dwarves = all.filter { $0.race == .dwarf && !$0.isAdventurer }
             check(!dwarves.isEmpty && dwarves.allSatisfy { !$0.female && !$0.servesDraconian },
                   "dwarves are all men, and none serves Lord Draconian (\(dwarves.count) of them)")
             check(dwarves.contains { Disposition($0.friendliness) == .hostile }, "yet some dwarves are hostile")
@@ -1290,9 +1377,21 @@ extension DevTools {
             check(!oldDwarf.female && !oldDwarf.servesDraconian && oldDwarf.role == "warrior"
                   && PaintedFolk.dwarfWarriors.contains { $0.painting == oldDwarf.painting } && oldDwarf.name != "Thora",
                   "an older save's dwarf woman in Draconian's pay becomes a free dwarf warrior, with a man's name")
+            // Adventurers: in towns and in the wilds, of every race, unarmed, painted as adventurers.
+            let heroes = all.filter(\.isAdventurer)
+            check(heroes.contains { $0.home != nil } && heroes.contains { $0.home == nil }
+                  && Set(heroes.map(\.race)) == [.human, .elf, .dwarf, .orc],
+                  "adventurers of every race roam the towns (\(heroes.filter { $0.home != nil }.count)) and the wilds (\(heroes.filter { $0.home == nil }.count))")
+            check(heroes.allSatisfy { Populace.adventurerFriendliness.contains($0.friendliness) && (50...125).contains($0.maxHP)
+                                      && $0.weapon == nil && !$0.servesDraconian },
+                  "adventurers' friendliness runs -25 to 25, their health half to one and a quarter times the Avatar's, and none is armed or serves Draconian")
+            check(heroes.allSatisfy { n in PaintedFolk.adventurers.contains { $0.painting == n.painting && $0.race == n.race && $0.look.female == n.female } },
+                  "every adventurer wears an adventurer's painting of their own race and sex")
+            check(PaintedFolk.adventurers.count == 50 && PaintedFolk.adventurers.allSatisfy { Portraits.image($0.painting) != nil },
+                  "all 50 adventurer paintings load")
             // Every human but the watch is painted from the town or the country set, by where they live;
             // every elf and orc from their own set.
-            let everyday = all.filter { ($0.race == .human && $0.guardRank == nil && $0.role != "child") || $0.race == .elf || $0.race == .orc }
+            let everyday = all.filter { !$0.isAdventurer && (($0.race == .human && $0.guardRank == nil && $0.role != "child") || $0.race == .elf || $0.race == .orc) }
             let names: (String) -> Set<String> = { kind in
                 Set((kind == "town" ? PaintedFolk.townFolk : kind == "country" ? PaintedFolk.countryFolk : kind == "orc" ? PaintedFolk.orcFolk : PaintedFolk.elfFolk).map(\.painting))
             }

@@ -1,6 +1,7 @@
 import Foundation
 
-/// The Avatar's companions: up to three NPCs who travel with the Avatar.
+/// The Avatar's companions: up to three NPCs who travel with the Avatar. Only adventurers
+/// will join: asked, or of their own accord, as their friendliness allows, or hired for gold.
 enum Party {
     static let maxSize = 3
     /// After a refusal or a parting, friendliness must rise this much before they'll join again.
@@ -24,8 +25,11 @@ enum Party {
         return n.friendliness < min(100, r + rejoinMargin)
     }
 
+    /// The chance an adventurer takes the gold offered to join: 1% a coin, certain at 100.
+    static func hireChance(_ gold: Int) -> Double { min(1, Double(max(0, gold)) / 100) }
+
     /// What happens if the Avatar asks this NPC to join now.
-    enum Decision { case accept, refuse, lockedOut, full, already }
+    enum Decision { case accept, refuse, lockedOut, full, already, notAdventurer }
 }
 
 extension Game {
@@ -34,6 +38,7 @@ extension Game {
     /// Decides, with a roll of the dice, whether the NPC would join if asked now.
     func joinDecision(_ npc: NPC) -> Party.Decision {
         if npc.following { return .already }
+        if !npc.isAdventurer { return .notAdventurer }
         if world.party.count >= Party.maxSize { return .full }
         if Party.lockedOut(npc) { return .lockedOut }
         return roll() < Party.chance(npc.friendliness) ? .accept : .refuse
@@ -47,7 +52,52 @@ extension Game {
         case .lockedOut: return "You recently refused to travel with the Avatar (or parted ways). If they ask you to join their party, you refuse; you would need to think much better of them first."
         case .full: return "If the Avatar asks you to join their party, you point out that they already travel with three companions and there's no room for you."
         case .already: return "You are travelling with the Avatar as one of their companions. If they dismiss you from the party, accept it and say farewell."
+        case .notAdventurer: return "You are no adventurer: your life and work are here. If the Avatar asks you to join their party or travel with them, you decline, in keeping with your mood."
         }
+    }
+
+    /// Whether the Avatar can offer this NPC gold to join: an adventurer not yet in the party,
+    /// with room for them.
+    func canHire(_ npc: NPC) -> Bool { npc.isAdventurer && !npc.following && world.party.count < Party.maxSize }
+
+    /// Whether the conversation shows the gold field: a price has been named, or the
+    /// Avatar is talking to an adventurer who might be hired.
+    func takesGold(_ c: Conversation) -> Bool { !c.over && !c.offer && (c.price != nil || canHire(c.npc)) }
+
+    /// The Avatar offers an adventurer gold to join. Each coin is a 1% chance they take it
+    /// (and join); once a talk, and only for more than they have turned down before.
+    func hire(_ amount: Int) {
+        guard var c = conversation, !c.over, !c.pending, canHire(c.npc), amount > 0 else { return }
+        let npc = c.npc
+        guard amount <= gold else {
+            c.notice = gold == 0 ? "You have no gold." : "You have only \(gold) gold."
+            conversation = c
+            return
+        }
+        c.notice = nil
+        c.goldInput = ""
+        c.goldFocus = false
+        c.lines.append(Conversation.Line(text: Dialogue.hiring(amount), fromAvatar: true))
+        func say(_ h: Dialogue.Hire) { c.lines.append(Conversation.Line(text: Dialogue.hire(npc, h, player: playerName), fromAvatar: false)) }
+        if let r = npc.hireRefused, amount <= r {
+            say(.tooLittle(r))
+        } else if c.hireRolled {
+            say(.again)
+        } else {
+            c.hireRolled = true
+            if roll() < Party.hireChance(amount) {
+                gold -= amount
+                npc.gold += amount
+                say(.accept)
+                conversation = c
+                addToParty(npc)
+                log("You pay \(npc.name) \(amount) gold to join you. You have \(gold) gold left.")
+                return
+            }
+            npc.hireRefused = max(npc.hireRefused ?? 0, amount)
+            say(.refuse)
+        }
+        conversation = c
     }
 
     func addToParty(_ npc: NPC) {

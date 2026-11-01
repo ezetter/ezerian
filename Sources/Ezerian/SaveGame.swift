@@ -85,7 +85,7 @@ enum SaveGame {
             region.visited = rec.visited
             region.places = rec.places
             region.signs = rec.signs
-            if let npcs = rec.npcs { region.npcs = npcs } else { Populace.populate(region, seed: seed) }
+            if let npcs = rec.npcs { region.npcs = npcs } else { Populace.populate(region, seed: seed, avatarHealth: file.maxHP ?? 100) }
             for n in region.npcs { n.prevX = n.x; n.prevY = n.y; Populace.paint(n) }
             world.adopt(region)
         }

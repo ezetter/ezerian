@@ -39,7 +39,7 @@ final class Game {
     var combat: Combat?
     /// The Avatar's health; at 0 the adventure is over.
     var hp = 100
-    var maxHP = 100
+    var maxHP = 100 { didSet { world.avatarHealth = maxHP } }
     /// Experience from foes defeated (never shown; see `Experience`).
     var experience = 0
     /// Gold coins; the adventure begins with none.
@@ -559,7 +559,7 @@ final class Game {
             switch decision {
             case .accept: addToParty(npc)
             case .refuse: npc.refusedAt = npc.friendliness
-            case .lockedOut, .full, .already: break
+            case .lockedOut, .full, .already, .notAdventurer: break
             }
         } else if intent == "dismiss", npc.following {
             removeFromParty(npc, lockOut: false)
@@ -568,7 +568,7 @@ final class Game {
             say(Dialogue.leaving(npc))
             removeFromParty(npc, lockOut: true)
             c.over = true
-        } else if !c.over, !c.offerRolled, !npc.following, world.party.count < Party.maxSize, !Party.lockedOut(npc) {
+        } else if !c.over, !c.offerRolled, !npc.following, npc.isAdventurer, world.party.count < Party.maxSize, !Party.lockedOut(npc) {
             c.offerRolled = true
             if roll() < Party.chance(npc.friendliness) {
                 say(Dialogue.offer(npc, player: playerName))
@@ -647,7 +647,7 @@ final class Game {
     }
 
     func typeGold(_ ch: Character) {
-        guard var c = conversation, c.price != nil, ch.isASCII, ch.isNumber,
+        guard var c = conversation, takesGold(c), ch.isASCII, ch.isNumber,
               c.goldInput.count < Conversation.maxGoldDigits else { return }
         if c.goldInput == "0" { c.goldInput = "" }
         c.goldInput.append(ch)
@@ -663,7 +663,7 @@ final class Game {
     /// Whether typing goes to the gold offered (true) or the words said.
     func focusGold(_ on: Bool) {
         guard var c = conversation else { return }
-        c.goldFocus = on && c.price != nil
+        c.goldFocus = on && takesGold(c)
         conversation = c
     }
 
@@ -671,8 +671,8 @@ final class Game {
     /// `Trade`); if they do, the Avatar rests the night, and wakes whole at a healer's or 50
     /// points better at an inn.
     func offerGold() {
-        guard var c = conversation, !c.over, !c.pending, let price = c.price,
-              let amount = Int(c.goldInput), amount > 0 else { return }
+        guard var c = conversation, !c.over, !c.pending, let amount = Int(c.goldInput), amount > 0 else { return }
+        guard let price = c.price else { return hire(amount) }
         let npc = c.npc
         guard amount <= gold else {
             c.notice = gold == 0 ? "You have no gold." : "You have only \(gold) gold."

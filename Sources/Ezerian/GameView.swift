@@ -233,7 +233,7 @@ final class GameView: NSView, CALayerDelegate {
                 needsRender = true
                 return
             }
-            let trading = c.price != nil && !c.over
+            let trading = game.takesGold(c)
             if trading && event.keyCode == 48 {      // Tab: between the words and the gold
                 game.focusGold(!c.goldFocus)
                 needsRender = true
@@ -490,13 +490,14 @@ final class GameView: NSView, CALayerDelegate {
         if let c = game.conversation {
             // In a conversation: the gold field, the Give gold button, or the line being said.
             let (sx, sy) = screenPixel(for: event)
-            let f = Screen.talkFields(trading: c.price != nil && !c.over && !c.offer, wares: Screen.showsTrade(c))
+            let trading = game.takesGold(c)
+            let f = Screen.talkFields(trading: trading, wares: Screen.showsTrade(c))
             if f.trade.w > 0 && Screen.inside(f.trade, sx, sy) {
                 game.openShop()
-            } else if c.price != nil && Screen.inside(f.give, sx, sy) {
+            } else if trading && Screen.inside(f.give, sx, sy) {
                 game.offerGold()
                 onTurn?()
-            } else if c.price != nil && Screen.inside(f.gold, sx, sy) {
+            } else if trading && Screen.inside(f.gold, sx, sy) {
                 game.focusGold(true)
             } else if Screen.inside(f.say, sx, sy) {
                 game.focusGold(false)
