@@ -129,7 +129,7 @@ extension Game {
     }
 
     /// Takes one line of belongings away from someone.
-    private func take(row r: Int, from k: Int) {
+    func take(row r: Int, from k: Int) {
         if belongings(k)[r].inHand {
             setInHand(k, nil)
         } else {

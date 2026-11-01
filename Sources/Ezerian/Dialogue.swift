@@ -322,6 +322,29 @@ enum Dialogue {
         npc.role == "innkeeper" ? innkeeper(npc, h, player: player) : healer(npc, h, player: player)
     }
 
+    /// What a trader says on being asked to trade: their wares, or a refusal.
+    static func trader(_ npc: NPC, refuse: Bool, player: String) -> String {
+        let shop = Trade.keepsShop(npc)
+        let s: String
+        switch (npc.race, refuse) {
+        case (.elf, false): s = shop ? "Look upon my wares, {addr}, and choose as thou wilt." : "Behold what I carry, {addr}. Perhaps something shall please thee."
+        case (.elf, true): s = "I will not trade with thee, {addr}. Go."
+        case (.dwarf, false): s = shop ? "Good steel, every one. Have a look, {addr}." : "Have a look at what I've got, {addr}. Fair prices, mostly."
+        case (.dwarf, true): s = "I'll sell ye nothing. Off with ye."
+        case (.orc, false), (.wolf, false): s = shop ? "Weapons. Good for smashing. You buy?" : "Look. You buy, {name} sell."
+        case (.orc, true), (.wolf, true): s = "No trade for you. Go away."
+        case (.human, false): s = shop ? "Have a look, {addr}. Every blade here is sound." : "Have a look at my wares, {addr}. I'll buy too, if the price is right."
+        case (.human, true): s = "I'll not do business with the likes of you."
+        }
+        return fill(s, npc, player)
+    }
+
+    /// Whether the Avatar is asking to trade.
+    static func asksToTrade(_ text: String) -> Bool {
+        let s = text.lowercased()
+        return ["trade", "buy", "sell", "sale", "wares", "weapon", "shop", "goods", "purchase"].contains { s.contains($0) }
+    }
+
     /// The Avatar handing over coins.
     static func giving(_ n: Int) -> String { n == 1 ? "Here is a gold coin." : "Here are \(n) gold coins." }
 

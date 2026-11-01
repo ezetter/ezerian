@@ -50,6 +50,9 @@ final class Game {
     var sheet: Int?
     /// On the sheet, the line of belongings waiting for someone to give it to.
     var sheetGiving: Int?
+    /// The wares of the trader being talked to are open (see `Shop`), with what last happened.
+    var shopping = false
+    var shopNotice: String?
     var gameOver = false
     /// F was pressed: the next direction key attacks.
     var attackPending = false
@@ -477,6 +480,11 @@ final class Game {
             conversation = c
             return
         }
+        if Trade.trades(c.npc), Dialogue.asksToTrade(said) {
+            conversation = c
+            openShop()
+            return
+        }
         let npc = c.npc
         guard claude.isAvailable else {
             c.byClaude = false
@@ -726,6 +734,7 @@ final class Game {
     func endConversation() {
         guard let c = conversation else { return }
         conversation = nil
+        shopping = false
         if !c.over || c.lines.count > 1 { log("You take your leave of \(c.npc.shortName).") }
     }
 

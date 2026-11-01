@@ -293,6 +293,16 @@ Draconian".
   is 5 gold, paid the same way, and 2 more for each companion sharing it. You
   sleep until 8 the next morning, and you and each companion wake up to 50 health
   better.
+* **Buying and selling weapons:** blacksmiths and armourers keep every weapon; merchants
+  in the streets and pedlars on the roads carry 1–5 things at random (sometimes the same
+  thing twice). Talking to any of them, press **Trade** beside the line you type, or ask
+  to buy or sell, and their wares open: what they have for sale on the left, with a
+  **Buy** button for each, and your belongings on the right, each with **Sell**. A weapon
+  costs 10 gold for each point of damage it adds (a staff 20, a long sword 100), and they
+  buy at half that. Buying at the asking price raises their friendliness by 1, and the
+  asking price rises with their dislike like any merchant's; below -50 they won't trade.
+  A merchant's pack shrinks as you buy and fills with what you sell them (up to 10
+  things); a smith's stock never runs out. **Done** or Esc goes back to the conversation.
 * **Paying merchants:** these rules hold for every merchant's services, the healer's
   first, then the innkeeper's. Paying the asking price raises their friendliness by 1, and every coin more
   by 2 more. Every coin short lowers it by 2, whether or not they take it; they take
@@ -392,6 +402,7 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | `Combat.swift` | Health, fights, turns, blows and death |
 | `Trade.swift` | Merchants' prices, haggling and the healer's night of rest |
 | `Inventory.swift` | Items, belongings, looting and the character sheet's actions |
+| `Shop.swift` | Buying and selling weapons with smiths, armourers, merchants and pedlars |
 | `NPC.swift`, `Dialogue.swift` | Races, friendliness, Lord Draconian's people, where people live, scripted replies |
 | `ClaudeDialogue.swift` | Claude API client, NPC character sheets, structured replies, API key storage |
 | `World.swift`, `Tiles.swift` | Regions, lazy generation, terrain and objects |

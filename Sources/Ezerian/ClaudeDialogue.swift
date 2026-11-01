@@ -213,6 +213,12 @@ enum AIDialogue {
                 ? "As a healer you offer a night's rest in your care, which leaves the Avatar wholly healed, for \(Trade.healingPrice(npc)) gold, and \(Trade.healingPerCompanion) gold more for each wounded companion healed with them\(game.woundedCompanions.isEmpty ? "" : " (they have \(game.woundedCompanions.count) now, so \(Trade.healingPrice(npc, companions: game.woundedCompanions.count)) gold in all)"). Coins are handed over apart from your words; never pretend to take payment or to heal in your reply."
                 : "As a healer you could heal the Avatar, but you dislike them too much and refuse to serve them.")
         }
+        if Trade.trades(npc) {
+            facts.append(Trade.willTrade(npc)
+                ? (Trade.keepsShop(npc) ? "You keep every kind of weapon for sale" : "You carry a few things to sell (\(npc.pack.map(\.name).joined(separator: ", ")))")
+                    + ", at \(Trade.goldPerDamage) gold for each point of damage a weapon adds, and buy weapons at half that. The Avatar trades with the Trade button beside the line they type; never pretend to hand over goods or take payment in your reply."
+                : "You trade in weapons, but you dislike the Avatar too much to do business with them.")
+        }
         if npc.role == "innkeeper" {
             facts.append(Trade.willTrade(npc)
                 ? "As an innkeeper you let a room for the night for \(Trade.lodgingPrice(npc)) gold, and \(Trade.lodgingPerCompanion) gold more for each companion sharing it\(game.party.isEmpty ? "" : " (they have \(game.party.count) now, so \(Trade.lodgingPrice(npc, companions: game.party.count)) gold in all)"); a night's sleep mends up to \(Trade.lodgingHeal) points of hurt. Coins are handed over apart from your words; never pretend to take payment or give a room in your reply."

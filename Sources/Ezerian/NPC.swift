@@ -478,6 +478,8 @@ enum Populace {
             } else {
                 paint(npc)
             }
+            // Merchants and pedlars carry a few things to sell.
+            if Trade.isMerchant(npc) { npc.pack = Trade.merchantGoods(id: npc.id) }
             taken.insert(ly * n + lx)
             people.append(npc)
         }

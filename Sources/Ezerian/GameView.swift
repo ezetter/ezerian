@@ -204,6 +204,12 @@ final class GameView: NSView, CALayerDelegate {
             needsRender = true
             return
         }
+        if game.shopping {
+            // A trader's wares: Esc goes back to the conversation.
+            if event.keyCode == 53 { game.perform(.leave) }
+            needsRender = true
+            return
+        }
         if game.sheet != nil {
             // The character sheet: ← → through the companions, I or Esc to close.
             switch event.keyCode {
@@ -455,6 +461,12 @@ final class GameView: NSView, CALayerDelegate {
             }
             return
         }
+        if game.shopping {
+            let (sx, sy) = screenPixel(for: event)
+            if let a = Screen.shopAction(game, atX: sx, y: sy) { game.perform(a) }
+            needsRender = true
+            return
+        }
         if game.sheet != nil {
             let (sx, sy) = screenPixel(for: event)
             if let a = Screen.sheetAction(game, atX: sx, y: sy) { game.perform(a) }
@@ -478,8 +490,10 @@ final class GameView: NSView, CALayerDelegate {
         if let c = game.conversation {
             // In a conversation: the gold field, the Give gold button, or the line being said.
             let (sx, sy) = screenPixel(for: event)
-            let f = Screen.talkFields(trading: c.price != nil && !c.over && !c.offer)
-            if c.price != nil && Screen.inside(f.give, sx, sy) {
+            let f = Screen.talkFields(trading: c.price != nil && !c.over && !c.offer, wares: Screen.showsTrade(c))
+            if f.trade.w > 0 && Screen.inside(f.trade, sx, sy) {
+                game.openShop()
+            } else if c.price != nil && Screen.inside(f.give, sx, sy) {
                 game.offerGold()
                 onTurn?()
             } else if c.price != nil && Screen.inside(f.gold, sx, sy) {

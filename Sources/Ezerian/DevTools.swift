@@ -22,6 +22,9 @@ enum DevTools {
                 continue
             }
             if token == "send" { game.submitConversation(); continue }
+            if token == "trade" { game.openShop(); continue }
+            if token.hasPrefix("gold:") { game.gold = Int(token.dropFirst(5)) ?? game.gold; continue }
+            if token.hasPrefix("buy:") { game.perform(Game.ShopAction.buy(Int(token.dropFirst(4)) ?? 0)); continue }
             if token == "warband" || token == "mercenary" || token == "guard" {
                 // Stand a few paces from the nearest warband orc (or mercenary).
                 var best: NPC?
@@ -61,7 +64,7 @@ enum DevTools {
                 let rank = what.hasPrefix("guard") ? Int(what.dropFirst(5)) : nil
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
-                    if ["bard", "peasant", "farmhand", "healer", "innkeeper"].contains(what) { return n.role == what }
+                    if ["bard", "peasant", "farmhand", "healer", "innkeeper", "blacksmith", "armourer", "merchant", "pedlar"].contains(what) { return n.role == what }
                     if what == "drinker" { return n.role == what && n.race == .human }
                     if what == "elvenDrinker" { return n.role == "drinker" && n.race == .elf }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
@@ -1490,6 +1493,94 @@ extension DevTools {
                       "a wolf bites for 1-10")
                 g.combat = nil
             } else { check(false, "found a wolf pack to meet") }
+        }
+
+        do {
+            // Trading weapons: shops keep every weapon, merchants a few; 10 gold a point of damage, half back.
+            check(Trade.value(.weapon(.longSword)) == 100 && Trade.value(.weapon(.staff)) == 20 && Trade.value(.weapon(.axe)) == 60
+                  && Trade.value(.weapon(.hammer)) == 40, "a weapon is worth 10 gold for each point of damage it adds")
+            let g = Game(seed: seed)
+            g.confirmName(); g.confirmLook()
+            g.claude = mock
+            mock.availableOverride = false
+            var smiths: [NPC] = [], merchants: [NPC] = []
+            for ry in -3...3 { for rx in -3...3 {
+                let r = g.world.region(RegionKey(x: rx, y: ry, z: 0))
+                smiths += r.npcs.filter(Trade.keepsShop)
+                merchants += r.npcs.filter(Trade.isMerchant)
+            } }
+            check(!merchants.isEmpty && merchants.allSatisfy { Trade.merchantStock.contains($0.pack.count) },
+                  "merchants and pedlars carry 1-5 things to sell (\(merchants.count) of them)")
+            check(merchants.contains { Set($0.pack.compactMap(\.weapon)).count < $0.pack.count }, "sometimes the same thing twice")
+            if let smith = smiths.first {
+                smith.friendliness = 10
+                g.gold = 250
+                g.startConversation(with: smith)
+                check(Screen.showsTrade(g.conversation!) && Screen.talkFields(trading: false, wares: true).trade.w > 0,
+                      "talking to a smith, a Trade button shows")
+                let f = Screen.talkFields(trading: false, wares: true)
+                check(f.say.x + f.say.w < f.trade.x && f.trade.x + f.trade.w <= Screen.talkBox.x + Screen.talkBox.w, "beside the line you type")
+                for ch in "What do you have for sale?" { g.typeInConversation(ch) }
+                g.submitConversation()
+                check(g.shopping && g.shopkeeper === smith, "asking to buy opens the shop")
+                let goods = g.wares(smith)
+                check(goods.count == Weapon.allCases.count && goods.first == .weapon(.staff) && goods.last == .weapon(.longSword),
+                      "a smith sells every weapon, cheapest first")
+                let ls = goods.firstIndex(of: .weapon(.longSword)) ?? 0
+                if let buy = Screen.shopButtons(g).first(where: { $0.shop == .buy(ls) }),
+                   let a = Screen.shopAction(g, atX: buy.rect.x + 5, y: buy.rect.y + 5) {
+                    g.perform(a)
+                } else { check(false, "the Buy button can be clicked (\(Screen.shopButtons(g).map(\.label)))") }
+                check(g.gold == 150 && g.weapon == .longSword && smith.friendliness == 11 && g.wares(smith).count == goods.count,
+                      "a long sword costs 100, goes into empty hands, pleases the smith by 1, and the shop still has more")
+                g.perform(.sell(0))
+                check(g.gold == 200 && g.weapon == nil, "and sells back for half: 50")
+                g.pack = []
+                g.perform(.buy(0)); g.perform(.buy(0)); g.perform(.sell(1))
+                check(g.gold == 200 - 40 + 10 && g.carried(0) == 1, "a staff costs 20 and sells for 10")
+                g.gold = 30
+                g.perform(.buy(ls))
+                check(g.gold == 30 && g.shopNotice?.contains("can't afford") == true, "you can't buy what you can't pay for")
+                g.gold = 1000
+                g.pack = Array(repeating: .weapon(.dagger), count: 9)
+                g.perform(.buy(0))
+                check(g.gold == 1000 && g.shopNotice?.contains("carry no more") == true, "or more than you can carry")
+                g.pack = []; g.weapon = nil
+                g.perform(.leave)
+                check(!g.shopping && g.conversation != nil, "Done goes back to the conversation")
+                g.endConversation()
+                smith.friendliness = -20
+                g.startConversation(with: smith); g.openShop()
+                check(g.askingPrice(.weapon(.longSword), smith) == 104 && g.offerFor(.weapon(.longSword)) == 50,
+                      "a smith who dislikes you asks more (104 at -20), but pays the same")
+                g.endConversation()
+                check(!g.shopping, "leaving the conversation closes the shop")
+                smith.friendliness = -60
+                g.startConversation(with: smith); g.openShop()
+                check(!g.shopping && g.conversation?.lines.last?.text.isEmpty == false, "below -50 a trader won't deal")
+                g.endConversation()
+                smith.friendliness = 10
+                check(AIDialogue.prompt(smith, game: g, history: [], said: "hello").contains("every kind of weapon"), "Claude is told the smith sells weapons")
+            } else { check(false, "found a smith") }
+            if let m = merchants.first {
+                m.friendliness = 10
+                let stock = m.pack
+                g.gold = 500; g.weapon = nil; g.pack = []
+                g.startConversation(with: m); g.openShop()
+                check(g.wares(m) == stock, "a merchant sells what they carry")
+                g.perform(.buy(0))
+                check(m.pack.count == stock.count - 1 && g.carried(0) == 1, "what you buy from a merchant is gone from their pack")
+                g.perform(.sell(0))
+                check(m.pack.count == stock.count && m.pack.last == stock[0], "and what you sell them goes into it")
+                g.endConversation()
+            } else { check(false, "found a merchant") }
+            if let other = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs.first(where: { !Trade.trades($0) && !$0.race.isBeast }) {
+                g.startConversation(with: other)
+                check(g.conversation.map(Screen.showsTrade) == false, "people who don't trade show no Trade button")
+                g.openShop()
+                check(!g.shopping, "and have no shop to open")
+                g.endConversation()
+            }
         }
 
         // Keys reach the game the same way they do in the window.

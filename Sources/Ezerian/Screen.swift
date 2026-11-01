@@ -48,9 +48,10 @@ final class Screen {
         }
         frameCount = frame
         if !game.showMap, game.inCombat { drawCombat(game, pose: pose) }
-        if let c = game.conversation, !game.showMap { drawConversation(c, game) }
+        if let c = game.conversation, !game.showMap, !game.shopping { drawConversation(c, game) }
         if game.gameOver { drawGameOver(game) }
         if game.sheet != nil, !game.showMap { drawSheet(game) }
+        if game.shopping, !game.showMap { drawShop(game) }
         if game.showHelp { drawHelp() }
         if let entry = game.nameEntry { drawNamePrompt(entry, frame: frame) }
         if let chosen = game.lookEntry { drawLookPrompt(game.playerName, chosen: chosen) }
@@ -59,6 +60,7 @@ final class Screen {
             : game.gameOver ? "Press Return to begin a new adventure"
             : game.attackPending ? "Press a direction to attack  ·  Esc to cancel"
             : game.inCombat ? "Your turn: walk into a foe to strike  ·  F + direction attack  ·  Space wait  ·  walk away to flee"
+            : game.shopping ? "Buy and Sell with the buttons  ·  Esc or Done goes back to talking"
             : game.conversation.map { $0.price != nil && !$0.over } == true
                 ? "Type what you say  ·  Tab or click between words and gold  ·  Return or Give gold. to pay  ·  Esc to leave"
             : game.conversation != nil ? "Type what you say  ·  Return to say it  ·  Esc to leave"
@@ -373,6 +375,8 @@ final class Screen {
         var rect: Rect
         var action: Game.SheetAction
         var label: String
+        /// On the shop screen, what the button does there instead.
+        var shop: Game.ShopAction? = nil
     }
 
     /// Where the belongings are listed, one line each.
@@ -548,14 +552,92 @@ final class Screen {
     static let talkBox: Rect = (mapX + 12, mapY + MapRenderer.pixelH - 200 - 12, MapRenderer.pixelW - 24, 200)
 
     /// Along the bottom of the conversation window: the line being said and, while a
-    /// merchant has named a price, the gold to offer and the button that hands it over.
-    static func talkFields(trading: Bool) -> (say: Rect, gold: Rect, give: Rect) {
-        let b = talkBox
+    /// merchant has named a price, the gold to offer and the button that hands it over;
+    /// or, talking to a trader, the button that opens their wares.
+    static func talkFields(trading: Bool, wares: Bool = false) -> (say: Rect, gold: Rect, give: Rect, trade: Rect) {
+        let b = talkBox, none: Rect = (0, 0, 0, 0)
         let x = b.x + 116, y = b.y + b.h - 34, w = b.w - 132, h = 22
-        guard trading else { return ((x, y, w, h), (0, 0, 0, 0), (0, 0, 0, 0)) }
+        guard trading else {
+            guard wares else { return ((x, y, w, h), none, none, none) }
+            let trade: Rect = (x + w - 84, y - 2, 84, h + 4)
+            return ((x, y, trade.x - 12 - x, h), none, none, trade)
+        }
         let give: Rect = (x + w - 104, y - 2, 104, h + 4)
         let gold: Rect = (give.x - 12 - 84, y, 84, h)
-        return ((x, y, gold.x - 12 - x, h), gold, give)
+        return ((x, y, gold.x - 12 - x, h), gold, give, none)
+    }
+
+    /// Whether the conversation shows the Trade button.
+    static func showsTrade(_ c: Conversation) -> Bool { Trade.trades(c.npc) && c.price == nil && !c.over && !c.offer && !c.pending }
+
+    // MARK: Shop
+
+    static let shopBox: Rect = sheetBox
+
+    /// A line of the trader's wares (left) or of the Avatar's belongings (right).
+    static func shopRow(_ r: Int, selling: Bool) -> Rect {
+        let b = shopBox, colW = (b.w - 48) / 2
+        return (b.x + 16 + (selling ? colW + 16 : 0), b.y + 92 + r * 29, colW, 27)
+    }
+
+    static func shopButtons(_ game: Game) -> [SheetButton] {
+        guard let npc = game.shopkeeper else { return [] }
+        let b = shopBox
+        var out = [SheetButton(rect: (b.x + b.w - 104, b.y + b.h - 38, 90, 26), action: .close, label: "Done", shop: .leave)]
+        for r in game.wares(npc).indices.prefix(Game.carryLimit) {
+            let row = shopRow(r, selling: false)
+            out.append(SheetButton(rect: (row.x + row.w - 54, row.y + 2, 50, row.h - 4), action: .close, label: "Buy", shop: .buy(r)))
+        }
+        for r in game.belongings(0).indices {
+            let row = shopRow(r, selling: true)
+            out.append(SheetButton(rect: (row.x + row.w - 54, row.y + 2, 50, row.h - 4), action: .close, label: "Sell", shop: .sell(r)))
+        }
+        return out
+    }
+
+    static func shopAction(_ game: Game, atX px: Int, y py: Int) -> Game.ShopAction? {
+        shopButtons(game).first { inside($0.rect, px, py) }?.shop
+    }
+
+    private func drawShop(_ game: Game) {
+        guard let npc = game.shopkeeper else { return }
+        let (x, y, w, h) = Screen.shopBox
+        fb.wash(Screen.mapX, Screen.mapY, MapRenderer.pixelW, MapRenderer.pixelH, hex(0x000000), 0.55)
+        parchmentBox(x, y, w, h)
+        let cx = Double(x + w / 2)
+        let who = npc.known ? npc.name : npc.shortName.capitalizedFirst
+        texts.append(TextItem(text: Trade.keepsShop(npc) ? (npc.home ?? "\(who)'s wares") : "\(who)'s wares", x: cx, y: Double(y + 10),
+                              size: 22, font: .title, color: Screen.brown, align: .center, shadow: false))
+        let sub = "\(npc.kind.capitalizedFirst)  ·  you have \(game.gold) gold  ·  carrying \(game.carried(0)) of \(Game.carryLimit)"
+        texts.append(TextItem(text: sub, x: cx, y: Double(y + 40), size: 12.5, font: .italic, color: 0x5A4024, align: .center, shadow: false))
+        let goods = game.wares(npc), mine = game.belongings(0)
+        for (selling, title) in [(false, "For sale"), (true, "Yours to sell")] {
+            let head = Screen.shopRow(0, selling: selling)
+            texts.append(TextItem(text: title, x: Double(head.x), y: Double(head.y - 26), size: 14, font: .bold, color: Screen.brown, shadow: false))
+            for r in 0..<Game.carryLimit {
+                let row = Screen.shopRow(r, selling: selling)
+                fb.wash(row.x, row.y, row.w, row.h, hex(r % 2 == 0 ? 0x6A4A24 : 0x8A6A3A), 0.12)
+                let item: Item? = selling ? (r < mine.count ? mine[r].item : nil) : (r < goods.count ? goods[r] : nil)
+                guard let item else { continue }
+                let label = item.name.capitalizedFirst + (item.weapon.map { "  +\($0.bonus)" } ?? "")
+                let inHand = selling && mine[r].inHand
+                texts.append(TextItem(text: label, x: Double(row.x + 8), y: Double(row.y + 5), size: 13, font: inHand ? .bold : .body,
+                                      color: 0x2A1406, shadow: false))
+                let price = selling ? game.offerFor(item) : game.askingPrice(item, npc)
+                let dear = !selling && price > game.gold
+                texts.append(TextItem(text: "\(price) gold", x: Double(row.x + row.w - 64), y: Double(row.y + 5), size: 12.5, font: .bold,
+                                      color: dear ? 0x9A2A10 : 0x7A5A10, align: .right, shadow: false))
+            }
+            if (selling ? mine.isEmpty : goods.isEmpty) {
+                texts.append(TextItem(text: selling ? "You carry nothing to sell." : "\(npc.he.capitalizedFirst) has nothing left to sell.",
+                                      x: Double(head.x + 8), y: Double(head.y + 5), size: 13, font: .italic, color: 0x7A6A50, shadow: false))
+            }
+        }
+        if let note = game.shopNotice {
+            texts.append(TextItem(text: note, x: Double(x + 20), y: Double(y + h - 34), size: 12.5, font: .italic,
+                                  color: note.hasPrefix("You buy") || note.hasPrefix("You sell") ? 0x2A5A14 : 0x9A2A10, shadow: false))
+        }
+        for b in Screen.shopButtons(game) { button(b) }
     }
 
     static func inside(_ r: Rect, _ px: Int, _ py: Int) -> Bool { px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h }
@@ -626,7 +708,13 @@ final class Screen {
                               color: c.notice == nil ? 0x7A6A50 : 0x9A2A10, align: .right, shadow: false))
         // The line being typed.
         let trading = c.price != nil && !c.over && !c.offer
-        let fields = Screen.talkFields(trading: trading)
+        let fields = Screen.talkFields(trading: trading, wares: Screen.showsTrade(c))
+        if fields.trade.w > 0 {
+            let b = fields.trade
+            box(b.x, b.y, b.w, b.h)
+            texts.append(TextItem(text: "Trade", x: Double(b.x + b.w / 2), y: Double(b.y + 5), size: 13, font: .bold,
+                                  color: 0xE8C878, align: .center))
+        }
         let fieldX = fields.say.x, fieldY = fields.say.y, fieldW = fields.say.w
         if trading {
             // The gold offered, and the button that hands it over.
