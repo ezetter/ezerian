@@ -42,6 +42,10 @@ final class Combat {
     /// each round, with the same chance as an ambush.
     static let joinDistance = 3
 
+    /// Wolves close in on the Avatar from this far off, and a wolf's packmates within this
+    /// distance of it join any fight it is in.
+    static let wolfScent = 8
+
     /// Chance that an NPC whose friendliness a conversation has just lowered below 0 attacks.
     static func provokedChance(_ friendliness: Int) -> Double {
         friendliness >= 0 ? 0 : Double(min(100, -friendliness)) / 100
@@ -106,6 +110,7 @@ extension Game {
             log("\(enemy.shortName.capitalizedFirst) cries: \"\(Combat.draconianBattleCry)\"")
         }
         combat = c
+        if enemy.race == .wolf { joinPack(of: enemy, to: c) }
         // Draconian's people stand together: his servants close by join in.
         if enemy.servesDraconian {
             for ally in world.npcs(near: enemy.x, enemy.y, z, radius: 6)
@@ -137,6 +142,19 @@ extension Game {
         c.enemies.append(enemy)
         c.order.append(enemy)
         log("\(enemy.shortName.capitalizedFirst) joins the fight!")
+        if enemy.race == .wolf { joinPack(of: enemy, to: c) }
+    }
+
+    /// Wolves hunt as a pack: when one fights, the rest of its pack nearby joins in.
+    private func joinPack(of wolf: NPC, to c: Combat) {
+        let mates = world.npcs(near: wolf.x, wolf.y, z, radius: Combat.wolfScent)
+            .filter { w in w.race == .wolf && w.hp > 0 && !c.enemies.contains { $0 === w } }
+        guard !mates.isEmpty else { return }
+        for m in mates {
+            c.enemies.append(m)
+            c.order.append(m)
+        }
+        log(mates.count == 1 ? "Another wolf joins the fight!" : "\(mates.count) more wolves join the fight!")
     }
 
     /// During a fight, each unfriendly onlooker within `Combat.joinDistance` of the Avatar
@@ -276,8 +294,9 @@ extension Game {
         } else {
             world.region(containing: n.x, n.y, n.z).npcs.removeAll { $0 === n }
             log("\(n.shortName.capitalizedFirst) dies.")
-            // The victors take the fallen foe's purse.
-            if n.gold > 0 {
+            // The victors take the fallen foe's purse (beasts have none).
+            if n.race.isBeast {
+            } else if n.gold > 0 {
                 gold += n.gold
                 log("You take \(n.gold) gold \(n.gold == 1 ? "coin" : "coins") from \(n.his) body. You now have \(gold).")
                 n.gold = 0

@@ -190,7 +190,7 @@ enum AIDialogue {
         case .human: return "Plain, homely speech of a medieval townsfolk."
         case .elf: return "Courtly and archaic: 'thee', 'thou', 'thy'; calls outsiders 'mortal'; loves the woods and stars."
         case .dwarf: return "Gruff and blunt: 'aye', 'ye', 'lad'; proud of stone, forge, ale and clan; distrusts surface-dwellers."
-        case .orc: return "Broken, blunt speech in short words; often speaks of self by name; calls others 'pinkskin'; respects strength."
+        case .orc, .wolf: return "Broken, blunt speech in short words; often speaks of self by name; calls others 'pinkskin'; respects strength."
         }
     }
 

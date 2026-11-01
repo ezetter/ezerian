@@ -77,7 +77,7 @@ enum Dialogue {
         case (.dwarf, .neutral): return "stranger"
         case (.dwarf, _): return "surface-dweller"
         case (.orc, .friendly): return "strong one"
-        case (.orc, _): return "pinkskin"
+        case (.orc, _), (.wolf, _): return "pinkskin"
         }
     }
 
@@ -162,7 +162,7 @@ enum Dialogue {
                 case .human: intro = "My name is {name}, and I'm the {role} here."
                 case .elf: intro = "I am called {name}, {role} of the old blood."
                 case .dwarf: intro = "{name}, {role}, at yer service."
-                case .orc: intro = "Me {name}. Me {role}. Good one."
+                case .orc, .wolf: intro = "Me {name}. Me {role}. Good one."
                 }
                 text = intro
                 npc.known = true
@@ -197,7 +197,7 @@ enum Dialogue {
             case .elf: delta = 8 + Int(Hash.of(1, npc.id, npc.talks) % 7)
             case .human: delta = 6 + Int(Hash.of(2, npc.id, npc.talks) % 7)
             case .dwarf: delta = 4 + Int(Hash.of(3, npc.id, npc.talks) % 6)
-            case .orc: delta = 2 + Int(Hash.of(4, npc.id, npc.talks) % 6)
+            case .orc, .wolf: delta = 2 + Int(Hash.of(4, npc.id, npc.talks) % 6)
             }
             delta /= 1 + npc.compliments
             npc.compliments += 1
@@ -284,7 +284,7 @@ enum Dialogue {
             case .human: return human
             case .elf: return elf
             case .dwarf: return dwarf
-            case .orc: return orc
+            case .orc, .wolf: return orc
             }
         }
         let s: String
@@ -360,7 +360,7 @@ enum Dialogue {
             case .human: s = "Travel with you? Aye, {player}, I'd like that. Lead on!"
             case .elf: s = "Thy road and mine shall be one, {player}. I will come."
             case .dwarf: s = "Ha! Someone has to keep ye alive. I'm with ye."
-            case .orc: s = "{name} come. {name} smash things for you."
+            case .orc, .wolf: s = "{name} come. {name} smash things for you."
             }
         case .refuse:
             s = npc.disposition >= .friendly ? "I'm flattered, but my place is here." : "Travel with you? I think not."
@@ -380,7 +380,7 @@ enum Dialogue {
         case .human: s = "You know, {player}, I've a mind to see the world. Would you let me travel with you?"
         case .elf: s = "Thy path calls to me, {player}. Wouldst thou have my company on the road?"
         case .dwarf: s = "Bah, this place bores me. Fancy an axe at yer side, {player}?"
-        case .orc: s = "You strong. {name} want to come with you. Yes?"
+        case .orc, .wolf: s = "You strong. {name} want to come with you. Yes?"
         }
         return s.replacingOccurrences(of: "{player}", with: player).replacingOccurrences(of: "{name}", with: npc.name)
     }
@@ -390,7 +390,7 @@ enum Dialogue {
         case .human: return "Wonderful! I'll fetch my pack."
         case .elf: return "Then let us walk together beneath the stars."
         case .dwarf: return "Ha! Ye won't regret it."
-        case .orc: return "Good. Good! {name} ready.".replacingOccurrences(of: "{name}", with: npc.name)
+        case .orc, .wolf: return "Good. Good! {name} ready.".replacingOccurrences(of: "{name}", with: npc.name)
         }
     }
 
@@ -399,7 +399,7 @@ enum Dialogue {
         case .human: return "That's enough. I'll be going my own way from here."
         case .elf: return "I see now our roads must part. Farewell."
         case .dwarf: return "I've had my fill of ye. Find yerself another axe."
-        case .orc: return "{name} done with you. Go away.".replacingOccurrences(of: "{name}", with: npc.name)
+        case .orc, .wolf: return "{name} done with you. Go away.".replacingOccurrences(of: "{name}", with: npc.name)
         }
     }
 

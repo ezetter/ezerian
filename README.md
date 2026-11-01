@@ -246,6 +246,12 @@ Draconian".
   may join in against you, with the same chance as an ambush (none at 0 friendliness,
   (friendliness / 100)² below it, so 9% at -30 and certain at -100). Those who join
   come at you or your companions on their turns like any other foe.
+* **Wolves:** packs of three to six grey wolves roam the wilds of about three lands in
+  ten, and never lands with a town. Each has 10–50 health and friendliness from -100 to
+  -50, which nothing raises. They scent you from 8 tiles and close in, may ambush you
+  like anyone unfriendly, and fight as a pack: when one is in a fight, the rest of its
+  pack within 8 tiles joins it. They bite for 1–10 and carry no weapon or gold, so a slain
+  wolf leaves nothing. Talk to one and it only growls.
 * **Weapons:** a staff adds 2 damage to every blow, a dagger 4, a mace 6, a short sword
   8 and a long sword 10. Lord Draconian's orcs and elves also carry war hammers (4), axes
   (6) and spears (6), as their paintings show. You start with none. The watch are armed by rank (watchmen
@@ -392,7 +398,7 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | `WorldGen.swift`, `Settlements.swift`, `Buildings.swift`, `Sites.swift`, `Roads.swift`, `Caves.swift`, `Names.swift`, `Noise.swift` | World generation |
 | `Screen.swift`, `TextRenderer.swift` | Screen layout, side panel, overlays, text |
 | `MapRenderer.swift`, `Ground.swift`, `Lighting.swift`, `Framebuffer.swift` | Rendering |
-| `Textures.swift`, `Modeler.swift`, `SpriteBank.swift`, `Art*.swift` | Procedural art (`ArtPeople.swift`: the four races) |
+| `Textures.swift`, `Modeler.swift`, `SpriteBank.swift`, `Art*.swift` | Procedural art (`ArtPeople.swift`: the four races; `ArtBeasts.swift`: wolves) |
 | `SaveGame.swift` | Saving and loading |
 | `DevTools.swift` | Command-line developer tools |
 

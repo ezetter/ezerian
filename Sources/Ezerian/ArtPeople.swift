@@ -58,7 +58,7 @@ enum PeopleArt {
                         tunic: rng.pick([0x7A3A22, 0x3A4A7A, 0x5A4A2A, 0x6A2A2A]),
                         legs: rng.pick([0x3A2A1A, 0x4A3A2A]), cape: nil,
                         longHair: female, bald: false, beard: !female, dress: false, helmet: rng.chance(0.4))
-        case .orc:
+        case .orc, .wolf:
             return Look(race: race, female: female, skin: rng.pick([0x6A8A3A, 0x5A7A44, 0x7A8A4A, 0x4E6A36]),
                         hair: 0x1A1A14, tunic: rng.pick([0x5A3A22, 0x4A3A2A, 0x6A4A2A, 0x3A2E26]),
                         legs: rng.pick([0x3A2A1E, 0x2A2420]), cape: nil,
@@ -73,6 +73,7 @@ enum PeopleArt {
         case .elf: return V3(0.96, 0.96, 1.14)
         case .dwarf: return V3(1.28, 1.2, 0.8)
         case .orc: return V3(1.28, 1.2, 1.14)
+        case .wolf: return V3(1, 1, 1)
         }
     }
 
@@ -139,6 +140,7 @@ enum PeopleArt {
     }
 
     static func model(_ race: Race, variant: Int, facing: Direction, step: Int) -> Model {
+        if race == .wolf { return BeastArt.wolfModel(facing: facing, step: step) }
         if let (rank, female) = Populace.guardRank(look: variant) { return GuardArt.model(rank, female: female, facing: facing, step: step) }
         if let p = Populace.painted(look: variant) { return PaintedFolk.model(p, facing: facing, step: step) }
         return Posing.stand(figure(look(race, variant), step: step), facing: facing, scale: build(race))

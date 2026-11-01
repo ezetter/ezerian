@@ -3,6 +3,9 @@ import Foundation
 /// The four peoples of Ezerian. Each has a typical disposition towards strangers.
 enum Race: String, Codable, CaseIterable {
     case human, elf, dwarf, orc
+    /// Not a people but beasts of the wilds, in packs: they never talk, carry nothing,
+    /// and bite for 1-10.
+    case wolf
 
     /// Average friendliness of the race towards the Avatar (-100...100).
     var meanFriendliness: Int {
@@ -11,10 +14,12 @@ enum Race: String, Codable, CaseIterable {
         case .elf: return 0
         case .dwarf: return -25
         case .orc: return -50
+        case .wolf: return -75
         }
     }
 
     var name: String { rawValue }
+    var isBeast: Bool { self == .wolf }
     var index: Int { Race.allCases.firstIndex(of: self)! }
     var article: String { self == .elf || self == .orc ? "an" : "a" }
 }
@@ -121,6 +126,7 @@ final class NPC: Codable {
     var gold: Int {
         get {
             if let g = goldStore { return g }
+            if race.isBeast { return 0 }
             var rng = SplitMix64(seed: Hash.of(0x601D, id, 0))
             return Populace.coins(forHealth: maxHP, &rng)
         }
@@ -131,6 +137,7 @@ final class NPC: Codable {
     private var weaponStore: Int?
     var weapon: Weapon? {
         get {
+            if race.isBeast { return nil }
             if let w = weaponStore { return Weapon(rawValue: w) }
             if let r = guardRank { return .forGuard(rank: r) }
             var rng = SplitMix64(seed: Hash.of(0x3EA90, id, 0))
@@ -161,7 +168,7 @@ final class NPC: Codable {
     }
 
     /// "his short sword", or "his bare hands".
-    var armedWith: String { "\(his) \(weapon?.name ?? "bare hands")" }
+    var armedWith: String { race == .wolf ? "its fangs" : "\(his) \(weapon?.name ?? "bare hands")" }
 
     // Not saved: where the NPC stood before this turn (for gliding) and chatter timing.
     var prevX = 0
@@ -211,6 +218,7 @@ final class NPC: Codable {
     var build: String {
         let look: String
         switch maxHP {
+        case _ where race.isBeast: look = maxHP < 24 ? "young and lean" : maxHP < 38 ? "rangy and grey" : "big and grizzled"
         case ..<40: look = "slight and frail"
         case ..<80: look = "of ordinary build"
         case ..<120: look = "sturdy"
@@ -220,9 +228,9 @@ final class NPC: Codable {
         let f = Double(hp) / Double(max(1, maxHP))
         return look + (f < 0.35 ? ", and badly hurt" : f < 0.75 ? ", and wounded" : "")
     }
-    var he: String { female ? "she" : "he" }
-    var his: String { female ? "her" : "his" }
-    var him: String { female ? "her" : "him" }
+    var he: String { race.isBeast ? "it" : female ? "she" : "he" }
+    var his: String { race.isBeast ? "its" : female ? "her" : "his" }
+    var him: String { race.isBeast ? "it" : female ? "her" : "him" }
 
     /// "Thora" once she has told you her name, otherwise "the dwarf".
     /// What they do, as others would name them: a townsman or townswoman for the plain
@@ -234,7 +242,7 @@ final class NPC: Codable {
     /// Elves drinking in a tavern are "elven drinkers", not "elf drinkers".
     private var elvenDrinker: Bool { race == .elf && role == "drinker" }
     /// Race and trade together: "human farmhand", "elven drinker".
-    var kind: String { elvenDrinker ? "elven \(title)" : "\(race.name) \(title)" }
+    var kind: String { race.isBeast ? race.name : elvenDrinker ? "elven \(title)" : "\(race.name) \(title)" }
     var shortName: String { known ? name : "the \(knownBy)" }
     /// "A dwarf", or "An innkeeper", for someone not yet introduced.
     var stranger: String {
@@ -242,7 +250,8 @@ final class NPC: Codable {
         return (vowel ? "An " : "A ") + knownBy
     }
     var description: String {
-        "\(race.article) \(kind)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
+        if race.isBeast { return "\(race.article) \(kind)" }
+        return "\(race.article) \(kind)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
             + (weapon.map { ", armed with a \($0.name)" } ?? ", unarmed")
     }
 
@@ -250,9 +259,10 @@ final class NPC: Codable {
         px >= bounds[0] && py >= bounds[1] && px <= bounds[2] && py <= bounds[3]
     }
 
-    /// Draconian's people never warm to the Avatar above 0, whatever is said.
+    /// Draconian's people never warm to the Avatar above 0, whatever is said; wolves never
+    /// above -50.
     func changeFriendliness(by d: Int) {
-        friendliness = max(-100, min(servesDraconian ? 0 : 100, friendliness + d))
+        friendliness = max(-100, min(race == .wolf ? Populace.wolfFriendliness.upperBound : servesDraconian ? 0 : 100, friendliness + d))
     }
 }
 
@@ -342,7 +352,11 @@ enum Populace {
         return min(r.upperBound, r.lowerBound + Int(u * Double(r.count)))
     }
 
+    /// Wolves: 10-50 health, and friendliness from -100 to -50.
+    static let wolfHealth = 10...50, wolfFriendliness = -100 ... -50
+
     static let firstNames: [Race: (male: [String], female: [String])] = [
+        .wolf: (["Wolf"], ["Wolf"]),
         .human: (["Aldric", "Cedric", "Gareth", "Ivor", "Lucan", "Nolan", "Piers", "Tobin", "Vance", "Bram", "Corwin", "Osric",
                   "Haldor", "Edmund", "Rolf", "Simeon"],
                  ["Brenna", "Dara", "Fiona", "Hilda", "Kara", "Mira", "Orla", "Seren", "Una", "Wren", "Edda", "Greta",
@@ -453,7 +467,17 @@ enum Populace {
             npc.gold = coins(forHealth: npc.maxHP, &rng)
             npc.weapon = guardRank.map { Weapon.forGuard(rank: $0) }
                 ?? Weapon.roll(health: npc.maxHP, servant: servant, child: job == "child", &rng)
-            paint(npc)
+            if race.isBeast {
+                // Wolves carry nothing, and are never anything but dangerous.
+                npc.look = 0
+                npc.maxHP = wolfHealth.lowerBound + rng.int(wolfHealth.count)
+                npc.hp = npc.maxHP
+                npc.friendliness = wolfFriendliness.lowerBound + rng.int(wolfFriendliness.count)
+                npc.gold = 0
+                npc.weapon = nil
+            } else {
+                paint(npc)
+            }
             taken.insert(ly * n + lx)
             people.append(npc)
         }
@@ -591,6 +615,10 @@ enum Populace {
                  at: (camp.x - ox + camp.w / 2, camp.y - oy + camp.h / 2))
         } else if counts[.brush, default: 0] + counts[.sand, default: 0] + counts[.swamp, default: 0] > total / 8 && rng.chance(0.45) {
             band(.orc, 2 + rng.int(2), roles: ["raider", "scout", "warrior"], where: terrainIs([.brush, .sand, .swamp, .grass]))
+        }
+        // A pack of wolves, out in the wilds only.
+        if town == nil, rng.chance(0.3) {
+            band(.wolf, 3 + rng.int(4), roles: ["wolf"], where: terrainIs([.forest, .grass, .hills, .brush]))
         }
         if counts[.dirt, default: 0] > 30 && rng.chance(0.4) {
             band(.human, 1 + rng.int(2), roles: ["traveller", "pilgrim", "pedlar", "woodcutter", "peasant"], where: terrainIs([.dirt]))

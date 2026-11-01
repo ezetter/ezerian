@@ -527,7 +527,7 @@ extension DevTools {
         check(home.npcs.count >= 8, "the home town is peopled (\(home.npcs.count) NPCs)")
         check(home.npcs.allSatisfy { (-100...100).contains($0.friendliness) }, "every friendliness is within -100...100")
         var rng = SplitMix64(seed: 77)
-        for race in Race.allCases {
+        for race in Race.allCases where !race.isBeast {
             let samples = (0..<4000).map { _ in Populace.friendliness(race, &rng) }
             let mean = Double(samples.reduce(0, +)) / Double(samples.count)
             check(abs(mean - Double(race.meanFriendliness)) < 3,
@@ -535,7 +535,7 @@ extension DevTools {
         }
         var seen = Set<Race>()
         for ry in -2...2 { for rx in -2...2 { for n in game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs { seen.insert(n.race) } } }
-        check(seen.count == 4, "all four races live in the lands around home (\(seen.map(\.name).sorted().joined(separator: ", ")))")
+        check(seen.isSuperset(of: [.human, .elf, .dwarf, .orc]), "all four races live in the lands around home (\(seen.map(\.name).sorted().joined(separator: ", ")))")
 
         // Talking: walking into someone starts a conversation guided by their mood.
         if let n = home.npcs.first(where: { npc in [(0, 1), (1, 0), (-1, 0), (0, -1)].contains { game.world.isPassable(npc.x + $0.0, npc.y + $0.1, 0) && game.world.npc(at: npc.x + $0.0, npc.y + $0.1, 0) == nil } }) {
@@ -1432,6 +1432,64 @@ extension DevTools {
                     check(Combat.ambushChance(-30) > 0 && Combat.ambushChance(0) == 0, "the chance is the ambush chance")
                 } else { check(false, "found room for onlookers") }
             }
+        }
+
+        do {
+            // Wolves: packs in the wilds, 10-50 health, -100 to -50, nothing carried, no talk.
+            let w = World(seed: seed)
+            var wolves: [NPC] = [], townLands = 0, wolfTownLands = 0
+            for ry in -6...6 { for rx in -6...6 {
+                let r = w.region(RegionKey(x: rx, y: ry, z: 0))
+                let mine = r.npcs.filter { $0.race == .wolf }
+                wolves += mine
+                if r.places.contains(where: { $0.kind == .town }) { townLands += 1; if !mine.isEmpty { wolfTownLands += 1 } }
+            } }
+            check(wolves.count >= 30, "wolves roam the wilds (\(wolves.count) of them in 169 lands)")
+            check(wolfTownLands == 0 && wolves.allSatisfy { $0.home == nil }, "but never in lands with a town (\(townLands) such lands)")
+            check(wolves.allSatisfy { Populace.wolfHealth.contains($0.maxHP) && Populace.wolfFriendliness.contains($0.friendliness) },
+                  "every wolf has 10-50 health and friendliness from -100 to -50")
+            check(wolves.allSatisfy { $0.weapon == nil && $0.gold == 0 && $0.pack.isEmpty }, "wolves carry no weapon and no gold")
+            check(wolves.allSatisfy { a in wolves.contains { $0 !== a && max(abs($0.x - a.x), abs($0.y - a.y)) <= Combat.wolfScent } },
+                  "wolves come in packs: every wolf has a packmate close by")
+            check(Set(wolves.map(\.maxHP)).count > 10, "their health varies")
+            if let wolf = wolves.first {
+                wolf.changeFriendliness(by: 80)
+                check(wolf.friendliness == -50, "nothing makes a wolf friendlier than -50")
+                check(wolf.description == "a wolf" && wolf.armedWith == "its fangs" && wolf.shortName == "the wolf",
+                      "a wolf is \"the wolf\", and bites with its fangs")
+            }
+            // Talking to a wolf is no good; fighting one brings in its pack.
+            let g = Game(seed: seed)
+            g.confirmName(); g.confirmLook()
+            var pack: [NPC] = []
+            for ry in -6...6 { for rx in -6...6 where pack.isEmpty {
+                let r = g.world.region(RegionKey(x: rx, y: ry, z: 0))
+                if let a = r.npcs.first(where: { $0.race == .wolf }) {
+                    pack = r.npcs.filter { $0.race == .wolf && max(abs($0.x - a.x), abs($0.y - a.y)) <= Combat.wolfScent }
+                }
+            } }
+            if pack.count >= 2, let lead = pack.first, let (dx, dy) = standBeside(g, lead) {
+                g.talk()
+                _ = (dx, dy)
+                check(g.conversation == nil && g.messages.last == "The wolf only growls at you.", "a wolf can't be talked to")
+                g.roll = { 0.999 }
+                let gold = g.gold
+                lead.hp = 1
+                g.startCombat(against: lead, startedByEnemy: false)
+                let c = g.combat
+                check(pack.dropFirst().allSatisfy { m in c?.enemies.contains { $0 === m } == true || m.hp == 0 },
+                      "attack one wolf and its pack joins the fight (\(pack.count) wolves)")
+                g.roll = { 0.0 }
+                if lead.hp > 0 { g.strike(nil, lead) }
+                check(lead.hp == 0 && g.gold == gold && !g.messages.contains { $0.contains("gold") && $0.contains("wolf") || $0.hasPrefix("It carried") },
+                      "a slain wolf leaves no gold")
+                let biter = pack.dropFirst().first!
+                g.hp = 100
+                g.strike(biter, nil)
+                check(g.hp >= 90 && g.hp < 100 && g.messages.last?.hasPrefix("The wolf hits you with its fangs") == true,
+                      "a wolf bites for 1-10")
+                g.combat = nil
+            } else { check(false, "found a wolf pack to meet") }
         }
 
         // Keys reach the game the same way they do in the window.

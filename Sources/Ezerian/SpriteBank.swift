@@ -46,7 +46,8 @@ final class SpriteBank {
             }
         }
         for race in Race.allCases {
-            for look in 0..<Populace.looks {
+            // (Wolves have the one look, and no face: they never talk.)
+            for look in 0..<(race.isBeast ? 1 : Populace.looks) {
                 // The watch and the bards are each of one race, and their faces are paintings.
                 let painted = Populace.lookRace(look)
                 if let r = painted, r != race { continue }
@@ -56,7 +57,7 @@ final class SpriteBank {
                                         recipe: Recipe { _, _, _ in PeopleArt.model(race, variant: look, facing: d, step: [0, -1, 1][step]) }))
                     }
                 }
-                if painted != nil { continue }
+                if painted != nil || race.isBeast { continue }
                 jobs.append(Job(key: 50000 + race.index * 100 + look, variant: 0, frame: 0,
                                 recipe: Recipe { _, _, _ in PeopleArt.portrait(race, variant: look) }))
             }

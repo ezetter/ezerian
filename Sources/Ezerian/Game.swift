@@ -336,6 +336,9 @@ final class Game {
             case _ where n.servesDraconian && n.friendliness < 0 && dist <= (n.warband == nil ? 6 : 10) && dist > 1 && roll < 0.6:
                 // Draconian's people hunt the Avatar; a warband from further off.
                 want = toward(dx, dy)
+            case _ where n.race == .wolf && dist <= Combat.wolfScent && dist > 1 && roll < 0.6:
+                // Wolves pick up the Avatar's scent and close in.
+                want = toward(dx, dy)
             case .hostile where dist <= 7 && dist > 1 && roll < 0.55: want = toward(dx, dy)
             case .adoring where dist <= 4 && dist > 1 && roll < 0.35: want = toward(dx, dy)
             default:
@@ -368,6 +371,7 @@ final class Game {
                 let taunt: String
                 switch n.race {
                 case .orc: taunt = "snarls: \"Pinkskin smell like dinner!\""
+                case .wolf: taunt = "bares its fangs and growls."
                 case .dwarf: taunt = "growls: \"Off with ye, before I lose my temper!\""
                 case .elf: taunt = "hisses: \"Leave this place, mortal.\""
                 case .human: taunt = "shouts: \"Get away from me!\""
@@ -410,6 +414,12 @@ final class Game {
     }
 
     func startConversation(with npc: NPC) {
+        // Beasts can't be talked to.
+        if npc.race.isBeast {
+            npc.facing = Direction.from(dx: x - npc.x, dy: y - npc.y).rawValue
+            log("\(npc.shortName.capitalizedFirst) only growls at you.")
+            return
+        }
         npc.facing = Direction.from(dx: x - npc.x, dy: y - npc.y).rawValue
         npc.prevX = npc.x
         npc.prevY = npc.y
