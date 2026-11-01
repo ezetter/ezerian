@@ -273,7 +273,7 @@ extension Game {
         if let target {
             target.hp = max(0, target.hp - damage)
             log("\(a) \(attacker == nil ? "hit" : "hits") \(t)" + (scores ? " for \(damage): \(target.hp) of \(target.maxHP) left." : "."))
-            if target.hp == 0 { kill(target, byAvatar: attacker == nil) }
+            if target.hp == 0 { kill(target, byAvatar: attacker == nil, byParty: attacker == nil || attacker?.following == true) }
         } else {
             log("\(a) hits \(t)" + (scores ? " for \(damage): you have \(max(0, hp - damage)) of \(maxHP) left." : "."))
             hp = max(0, hp - damage)
@@ -286,7 +286,7 @@ extension Game {
         }
     }
 
-    private func kill(_ n: NPC, byAvatar: Bool) {
+    private func kill(_ n: NPC, byAvatar: Bool, byParty: Bool) {
         if n.following {
             world.party.removeAll { $0 === n }
             n.following = false
@@ -305,6 +305,8 @@ extension Game {
             }
             // Whoever the Avatar slays, the Avatar takes all they carried (room permitting).
             if byAvatar { loot(n) }
+            // A foe the party defeats is experience for all of them.
+            if byParty { shareExperience(forDefeating: n) }
         }
         if let c = combat {
             c.enemies.removeAll { $0 === n }

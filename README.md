@@ -313,6 +313,11 @@ Draconian".
   one coin short 90% of the time, two short 80%, and so on. A merchant whose
   friendliness is below 0 asks a coin more for every 5 points below it (so 12 at -10),
   and offers are weighed against that price. Below -50 they won't deal with you at all.
+* **Experience (hidden):** the game never shows it, but every foe the party slays earns
+  you and each companion a tenth of the foe's health in experience, rounded up (8
+  health gives 1). At 100 experience you gain a point of health (both maximum and
+  current), at 210 another, and each point after needs 10% more experience than the
+  last (121 more, then 133, …). It is kept in the save file.
 * **Death:** anyone at 0 health dies. A companion who dies is gone from your party.
   If the Avatar dies the game is over, and Return begins a new adventure in a new world.
 
@@ -409,6 +414,7 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | `Combat.swift` | Health, fights, turns, blows and death |
 | `Trade.swift` | Merchants' prices, haggling and the healer's night of rest |
 | `Inventory.swift` | Items, belongings, looting and the character sheet's actions |
+| `Experience.swift` | Hidden experience from slain foes, and the health it brings |
 | `Shop.swift` | Buying and selling with smiths, armourers, apothecaries, alchemists, merchants and pedlars |
 | `NPC.swift`, `Dialogue.swift` | Races, friendliness, Lord Draconian's people, where people live, scripted replies |
 | `ClaudeDialogue.swift` | Claude API client, NPC character sheets, structured replies, API key storage |

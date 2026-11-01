@@ -40,6 +40,8 @@ final class Game {
     /// The Avatar's health; at 0 the adventure is over.
     var hp = 100
     var maxHP = 100
+    /// Experience from foes defeated (never shown; see `Experience`).
+    var experience = 0
     /// Gold coins; the adventure begins with none.
     var gold = 0
     /// The weapon in the Avatar's hand, and everything else they carry (see `Inventory`);

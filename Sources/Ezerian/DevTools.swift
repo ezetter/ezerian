@@ -1666,6 +1666,37 @@ extension DevTools {
             }
         }
 
+        do {
+            // Experience: a tenth of a slain foe's health, rounded up, for everyone in the party.
+            check(Experience.award(forHealth: 8) == 1 && Experience.award(forHealth: 10) == 1 && Experience.award(forHealth: 11) == 2
+                  && Experience.award(forHealth: 200) == 20, "a foe is worth a tenth of their health in experience, rounded up")
+            check(Experience.healthGained(99) == 0 && Experience.healthGained(100) == 1 && Experience.healthGained(209) == 1
+                  && Experience.healthGained(210) == 2 && Experience.healthGained(330) == 2 && Experience.healthGained(331) == 3,
+                  "the first point of health takes 100 experience, the second 210 in all, the third 331")
+            check((1..<12).allSatisfy { abs(Double(Experience.step($0)) / Double(Experience.step($0 - 1)) - 1.1) < 0.01 },
+                  "each point needs 10% more experience than the last")
+            let g = Game(seed: seed)
+            g.confirmName(); g.confirmLook()
+            let folk = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs.filter { !$0.servesDraconian && $0.guardRank == nil }
+            if folk.count >= 3, let (dx, dy) = standBeside(g, folk[0]) {
+                let foe = folk[0], mate = folk[2]
+                g.addToParty(mate)
+                mate.experience = 95
+                let mateMax = mate.maxHP, mateHP = mate.hp
+                g.experience = 90
+                foe.maxHP = 95; foe.hp = 1; foe.friendliness = 50
+                g.roll = { 0.0 }
+                g.attack(dx: dx, dy: dy)
+                check(foe.hp == 0 && g.experience == 100 && g.maxHP == 101 && g.hp == 101,
+                      "slaying a 95-health foe earns 10 experience; at 100 the Avatar gains a point of health")
+                check(mate.experience == 105 && mate.maxHP == mateMax + 1 && mate.hp == mateHP + 1, "companions earn it too")
+                g.combat = nil
+                g.removeFromParty(mate, lockOut: false)
+                let saved = try? PropertyListDecoder().decode(NPC.self, from: PropertyListEncoder().encode(mate))
+                check(saved?.experience == 105, "a companion's experience survives a save")
+            } else { check(false, "found a foe and a companion") }
+        }
+
         // Keys reach the game the same way they do in the window.
         let keyGame = Game(seed: seed)
         let view = GameView(game: keyGame)
@@ -1706,7 +1737,8 @@ extension DevTools {
 
         // Save, reload and compare.
         game.weapon = .dagger
-        game.pack = [.weapon(.staff), .weapon(.axe)]
+        game.pack = [.weapon(.staff), .weapon(.axe), .salve]
+        game.experience = 345
         let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-selftest-\(ProcessInfo.processInfo.processIdentifier).plist")
         do {
             try SaveGame.save(game, to: url)
@@ -1727,6 +1759,7 @@ extension DevTools {
                 check(loaded.female == game.female && loaded.avatarLook == game.avatarLook && loaded.avatarLook == 3,
                       "how the Avatar looks survives a save")
                 check(loaded.weapon == game.weapon && loaded.pack == game.pack, "the Avatar's weapon and belongings survive a save")
+                check(loaded.experience == 345, "the Avatar's experience survives a save")
                 check(zip(saved, back).allSatisfy { $0.weapon == $1.weapon }, "what people carry survives a save")
             }
         } catch {

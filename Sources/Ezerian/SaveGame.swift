@@ -25,6 +25,7 @@ enum SaveGame {
         var weapons: [Weapon]?
         var weapon: Weapon?
         var pack: [Item]?
+        var experience: Int?
     }
 
     private struct RegionRecord: Codable {
@@ -57,7 +58,8 @@ enum SaveGame {
                         facing: game.facing.rawValue, name: game.creatingCharacter ? nil : game.playerName,
                         female: game.female, look: game.avatarLook, turn: game.turn, regions: regions,
                         party: game.world.party, hp: game.hp, maxHP: game.maxHP,
-                        gold: game.gold, weapons: nil, weapon: game.weapon, pack: game.pack)
+                        gold: game.gold, weapons: nil, weapon: game.weapon, pack: game.pack,
+                        experience: game.experience)
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .binary
         let data = try encoder.encode(file)
@@ -94,6 +96,7 @@ enum SaveGame {
         game.hp = file.hp ?? 100
         game.maxHP = file.maxHP ?? 100
         game.gold = file.gold ?? 0
+        game.experience = file.experience ?? 0
         if let old = file.weapons, file.pack == nil {
             game.weapon = old.max()
             game.pack = Array(old.sorted(by: >).dropFirst().prefix(Game.carryLimit - 1)).map { .weapon($0) }
