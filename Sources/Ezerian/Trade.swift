@@ -14,6 +14,18 @@ enum Trade {
         base + max(0, -friendliness) / 5
     }
 
+    /// What a trader pays for something, in percent of half its usual price: 10% less
+    /// for every full 10 points of friendliness below 0, and 10% more for every full
+    /// 10 points above 40.
+    static func buybackRate(friendliness f: Int) -> Int {
+        f < 0 ? 100 - 10 * (-f / 10) : f > 40 ? 100 + 10 * ((f - 40) / 10) : 100
+    }
+
+    /// What a trader pays for something worth `base`: half of it, at their buyback rate.
+    static func buyback(base: Int, friendliness: Int) -> Int {
+        base * buybackRate(friendliness: friendliness) / 200
+    }
+
     /// The healer's price for a night's rest that heals the Avatar completely, and 5 more
     /// for each wounded companion healed with them.
     static let healingBase = 10, healingPerCompanion = 5
