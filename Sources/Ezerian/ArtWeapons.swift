@@ -67,6 +67,13 @@ enum WeaponArt {
             m.rod(V3(x, y + 0.2, z + 2.2), V3(x, y + 0.3, z - 0.4), 0.5, grip)
             m.box(x - 1.8, y - 0.1, z - 1, x + 1.8, y + 0.8, z - 0.4, gold)
             m.rod(V3(x, y + 0.6, z - 0.8), V3(x - 1, y + 6.4, max(1.6, z - 11.8)), 0.8, steel)
+        case .sharpSword:
+            // Slender, bright and long, with a blue stone in the pommel.
+            let bright = Paint(0xEEF2FA, .metal, jitter: 0.01, shine: 0.95)
+            m.ball(x, y + 0.1, z + 2.6, 0.8, Paint(0x3050C8, .metal, shine: 0.9))
+            m.rod(V3(x, y + 0.2, z + 2.2), V3(x, y + 0.3, z - 0.4), 0.45, grip)
+            m.box(x - 2, y - 0.1, z - 1, x + 2, y + 0.7, z - 0.4, gold)
+            m.rod(V3(x, y + 0.6, z - 0.8), V3(x - 1.1, y + 6.8, max(1.4, z - 12.4)), 0.6, bright)
         // Hammers and axes are carried upright, head at the shoulder, as in the paintings.
         case .hammer:
             m.rod(V3(x, y + 0.2, z - 4), V3(x, y + 0.6, z + 9), 0.6, wood)

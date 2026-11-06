@@ -1099,8 +1099,10 @@ extension DevTools {
         }
         do {
             // Weapons: bonuses, who carries what, naming them in blows, taking them from the slain.
-            check(Weapon.allCases.map(\.bonus) == [2, 4, 6, 8, 10, 4, 6, 6],
-                  "staff, dagger, mace, short sword and long sword add 2, 4, 6, 8 and 10 damage; war hammer 4, axe and spear 6")
+            check(Weapon.allCases.map(\.bonus) == [3, 3, 5, 5, 6, 4, 5, 5, 8],
+                  "staff and dagger add 3 damage, war hammer 4, mace, short sword, axe and spear 5, long sword 6, sharp sword 8")
+            check(Weapon.allCases.allSatisfy { $0.sharpened(0.99) == $0 } && Weapon.allCases.filter { $0.sharpened(0.1) == .sharpSword }
+                    == [.shortSword, .longSword, .sharpSword], "only a sword can turn out sharp")
             check([Weapon.hammer, .longSword, .axe, .dagger].max() == .longSword && [Weapon.hammer, .mace].max() == .mace
                   && [Weapon.dagger, .hammer].max() == .hammer && Weapon.axe.article == "an",
                   "the Avatar fights with the weapon that does the most damage, and an axe is an axe")
@@ -1114,15 +1116,19 @@ extension DevTools {
                   "on the map, people hold the weapon they really carry")
             check((0..<GuardArt.ranks).map { Weapon.forGuard(rank: $0) } == Array(Weapon.allCases.prefix(5)), "the watch are armed by rank, staff to long sword")
             var wrng = SplitMix64(seed: 77)
+            var swords = 0, sharp = 0
             func sample(_ hp: Int) -> (armed: Double, tier: Double) {
                 let ws = (0..<4000).map { _ in Weapon.roll(health: hp, servant: false, child: false, &wrng) }
                 let armed = ws.compactMap { $0 }
+                swords += armed.filter(\.isSword).count; sharp += armed.filter { $0 == .sharpSword }.count
                 return (Double(armed.count) / 4000, Double(armed.map(\.rawValue).reduce(0, +)) / Double(max(1, armed.count)))
             }
             let weak = sample(20), middling = sample(75), strong = sample(180)
             check(weak.armed < middling.armed && middling.armed < strong.armed && weak.tier < middling.tier && middling.tier < strong.tier,
                   String(format: "tougher people are likelier armed, with better weapons (armed %.0f%%, %.0f%%, %.0f%%; tier %.1f, %.1f, %.1f)",
                          weak.armed * 100, middling.armed * 100, strong.armed * 100, weak.tier, middling.tier, strong.tier))
+            let sharpShare = Double(sharp) / Double(max(1, swords))
+            check(abs(sharpShare - 1.0 / 6) < 0.03, String(format: "about one sword in six is a sharp sword (%.1f%% of %d)", sharpShare * 100, swords))
             let (g, folk) = arena()
             let foe = folk[0]
             foe.maxHP = 200; foe.hp = 200; foe.weapon = .mace
@@ -1136,8 +1142,8 @@ extension DevTools {
                 if foe.race == .human {
                     check(g.messages.contains { $0.hasPrefix("The \(foe.title) hits you with") }, "a human foe is named by their trade in a fight")
                 }
-                check(g.messages.contains { $0.hasSuffix("hits you with \(foe.his) mace.") } && g.hp == 100 - 16,
-                      "a foe's blow names their weapon, and a mace adds 6 (took \(100 - g.hp))")
+                check(g.messages.contains { $0.hasSuffix("hits you with \(foe.his) mace.") } && g.hp == 100 - 15,
+                      "a foe's blow names their weapon, and a mace adds 5 (took \(100 - g.hp))")
                 g.roll = { 0.9 }
                 g.waitTurn()
                 check(g.messages.contains { $0.hasSuffix("misses you with \(foe.his) mace.") }, "a miss names the weapon too")
@@ -1151,7 +1157,7 @@ extension DevTools {
                 if let (ex, ey) = standBeside(g, other) {
                     k = 0
                     g.attack(dx: ex, dy: ey)
-                    check(other.hp == 30 - 16, "the Avatar's mace adds 6 to each blow")
+                    check(other.hp == 30 - 15, "the Avatar's mace adds 5 to each blow")
                     g.combat = nil
                 }
                 check(g.weapon == .mace, "the Avatar fights with the weapon in hand")
@@ -1786,8 +1792,9 @@ extension DevTools {
 
         do {
             // Trading weapons: shops keep every weapon, merchants a few; 10 gold a point of damage, half back.
-            check(Trade.value(.weapon(.longSword)) == 100 && Trade.value(.weapon(.staff)) == 20 && Trade.value(.weapon(.axe)) == 60
-                  && Trade.value(.weapon(.hammer)) == 40, "a weapon is worth 10 gold for each point of damage it adds")
+            check(Trade.value(.weapon(.longSword)) == 60 && Trade.value(.weapon(.staff)) == 30 && Trade.value(.weapon(.axe)) == 50
+                  && Trade.value(.weapon(.hammer)) == 40 && Trade.value(.weapon(.sharpSword)) == 100,
+                  "a weapon is worth 10 gold for each point of damage it adds, but a sharp sword 100")
             let g = Game(seed: seed)
             g.confirmName(); g.confirmLook()
             g.claude = mock
@@ -1813,20 +1820,29 @@ extension DevTools {
                 g.submitConversation()
                 check(g.shopping && g.shopkeeper === smith, "asking to buy opens the shop")
                 let goods = g.wares(smith)
-                check(goods.count == Weapon.allCases.count && goods.first == .weapon(.staff) && goods.last == .weapon(.longSword),
-                      "a smith sells every weapon, cheapest first")
+                check(goods.compactMap(\.weapon) == (Trade.sellsSharpSwords(smith) ? Weapon.allCases : Weapon.common).sorted()
+                      && goods.first == .weapon(.staff), "a smith sells every weapon, weakest first")
+                let sharpShops = smiths.filter(Trade.sellsSharpSwords).count
+                check(sharpShops > 0 && sharpShops < smiths.count && smiths.allSatisfy { s in
+                    g.wares(s).contains(.weapon(.sharpSword)) == Trade.sellsSharpSwords(s) },
+                      "some weapon shops carry sharp swords and some don't (\(sharpShops) of \(smiths.count))")
+                var mrng = 0, mswords = 0
+                for id in 0..<3000 { for w in Trade.merchantGoods(id: id).compactMap(\.weapon) where w.isSword {
+                    mswords += 1; if w == .sharpSword { mrng += 1 } } }
+                check(abs(Double(mrng) / Double(max(1, mswords)) - 1.0 / 6) < 0.03,
+                      "one in six of the swords merchants carry is sharp (\(mrng) of \(mswords))")
                 let ls = goods.firstIndex(of: .weapon(.longSword)) ?? 0
                 if let buy = Screen.shopButtons(g).first(where: { $0.shop == .buy(ls) }),
                    let a = Screen.shopAction(g, atX: buy.rect.x + 5, y: buy.rect.y + 5) {
                     g.perform(a)
                 } else { check(false, "the Buy button can be clicked (\(Screen.shopButtons(g).map(\.label)))") }
-                check(g.gold == 150 && g.weapon == .longSword && smith.friendliness == 11 && g.wares(smith).count == goods.count,
-                      "a long sword costs 100, goes into empty hands, pleases the smith by 1, and the shop still has more")
+                check(g.gold == 190 && g.weapon == .longSword && smith.friendliness == 11 && g.wares(smith).count == goods.count,
+                      "a long sword costs 60, goes into empty hands, pleases the smith by 1, and the shop still has more")
                 g.perform(.sell(0))
-                check(g.gold == 200 && g.weapon == nil, "and sells back for half: 50")
+                check(g.gold == 220 && g.weapon == nil, "and sells back for half: 30")
                 g.pack = []
                 g.perform(.buy(0)); g.perform(.buy(0)); g.perform(.sell(1))
-                check(g.gold == 200 - 40 + 10 && g.carried(0) == 1, "a staff costs 20 and sells for 10")
+                check(g.gold == 220 - 60 + 15 && g.carried(0) == 1, "a staff costs 30 and sells for 15")
                 g.gold = 30
                 g.perform(.buy(ls))
                 check(g.gold == 30 && g.shopNotice?.contains("can't afford") == true, "you can't buy what you can't pay for")
@@ -1840,8 +1856,8 @@ extension DevTools {
                 g.endConversation()
                 smith.friendliness = -20
                 g.startConversation(with: smith); g.openShop()
-                check(g.askingPrice(.weapon(.longSword), smith) == 104 && g.offerFor(.weapon(.longSword)) == 50,
-                      "a smith who dislikes you asks more (104 at -20), but pays the same")
+                check(g.askingPrice(.weapon(.longSword), smith) == 64 && g.offerFor(.weapon(.longSword)) == 30,
+                      "a smith who dislikes you asks more (64 at -20), but pays the same")
                 g.endConversation()
                 check(!g.shopping, "leaving the conversation closes the shop")
                 smith.friendliness = -60

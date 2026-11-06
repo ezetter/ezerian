@@ -2,10 +2,10 @@ import Foundation
 
 /// Buying and selling things. Blacksmiths and armourers keep every kind of weapon and
 /// will buy any; apothecaries and alchemists keep health salves and ointments, and buy
-/// those. Merchants and pedlars carry a few things of their own (their pack), weapons
+/// those (only half of weapon shops have sharp swords). Merchants and pedlars carry a few things of their own (their pack), weapons
 /// and remedies alike, and take whatever they buy into it. A weapon is worth 10 gold
 /// for each point of damage it adds, a salve 10 and an ointment 5; a trader sells at
-/// that (more if they dislike the Avatar: see `Trade.price`) and buys at half.
+/// that, except the sharp sword, 100 (more if they dislike the Avatar: see `Trade.price`) and buys at half.
 extension Trade {
     static let goldPerDamage = 10
     /// Merchants and pedlars carry this many things for sale, chosen at random.
@@ -14,6 +14,7 @@ extension Trade {
     /// What something is worth.
     static func value(_ item: Item) -> Int {
         switch item {
+        case .weapon(.sharpSword): return 100
         case let .weapon(w): return goldPerDamage * w.bonus
         case .salve: return 10
         case .ointment: return 5
@@ -24,6 +25,9 @@ extension Trade {
     static func sellsWeapons(_ npc: NPC) -> Bool { npc.role == "blacksmith" || npc.role == "armourer" }
 
     /// Apothecaries and alchemists: every remedy, always in stock.
+    /// Half of weapon shops keep sharp swords (fixed by who keeps them).
+    static func sellsSharpSwords(_ npc: NPC) -> Bool { sellsWeapons(npc) && Hash.of(0x5AA4, npc.id, 0) & 1 == 0 }
+
     static func sellsRemedies(_ npc: NPC) -> Bool { npc.role == "apothecary" || npc.role == "alchemist" }
 
     /// Keepers of a shop, whose stock never runs out.
@@ -39,7 +43,11 @@ extension Trade {
     static func merchantGoods(id: Int) -> [Item] {
         var rng = SplitMix64(seed: Hash.of(0x5A1E5, id, 0))
         let n = merchantStock.lowerBound + rng.int(merchantStock.count)
-        return (0..<n).map { _ in rng.chance(0.5) ? rng.pick(Item.remedies) : .weapon(rng.pick(Weapon.allCases)) }
+        return (0..<n).map { k in
+            if rng.chance(0.5) { return rng.pick(Item.remedies) }
+            let u = Double(Hash.of(0x5AA5, id, k) % 1_000_000) / 1_000_000
+            return .weapon(rng.pick(Weapon.common).sharpened(u))
+        }
     }
 }
 
@@ -51,7 +59,7 @@ extension Game {
 
     /// What the trader has for sale.
     func wares(_ npc: NPC) -> [Item] {
-        Trade.sellsWeapons(npc) ? Weapon.allCases.sorted { $0.bonus < $1.bonus }.map { .weapon($0) }
+        Trade.sellsWeapons(npc) ? (Trade.sellsSharpSwords(npc) ? Weapon.allCases : Weapon.common).sorted().map { .weapon($0) }
             : Trade.sellsRemedies(npc) ? Item.remedies : npc.pack
     }
 

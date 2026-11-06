@@ -286,9 +286,10 @@ Draconian".
   like anyone unfriendly, and fight as a pack: when one is in a fight, the rest of its
   pack within 8 tiles joins it. They bite for 1–10 and carry no weapon or gold, so a slain
   wolf leaves nothing. Talk to one and it only growls.
-* **Weapons:** a staff adds 2 damage to every blow, a dagger 4, a mace 6, a short sword
-  8 and a long sword 10. Lord Draconian's orcs and elves also carry war hammers (4), axes
-  (6) and spears (6), as their paintings show. You start with none. The watch are armed by rank (watchmen
+* **Weapons:** a staff or a dagger adds 3 damage to every blow, a mace or a short sword
+  5 and a long sword 6. Lord Draconian's orcs and elves also carry war hammers (4), axes
+  (5) and spears (5), as their paintings show. Rarest is the sharp sword (8): one sword
+  in six, wherever swords are found, is sharp. You start with none. The watch are armed by rank (watchmen
   staves, serjeants daggers, men-at-arms maces, captains short swords, knights long
   swords). Other people may carry one: the tougher they are, the likelier they're armed
   (about a third of the frail, three quarters of the toughest) and the better the
@@ -336,7 +337,8 @@ Draconian".
   remedies alike (sometimes the same thing twice), and buy anything. Talking to any of them, press **Trade** beside the line you type, or ask
   to buy or sell, and their wares open: what they have for sale on the left, with a
   **Buy** button for each, and your belongings on the right, each with **Sell**. A weapon
-  costs 10 gold for each point of damage it adds (a staff 20, a long sword 100), and they
+  costs 10 gold for each point of damage it adds (a staff 30, a long sword 60), except the
+  sharp sword, 100, which only half of the smiths and armourers keep; and they
   buy at half that. Buying at the asking price raises their friendliness by 1, and the
   asking price rises with their dislike like any merchant's; below -50 they won't trade.
   A merchant's pack shrinks as you buy and fills with what you sell them (up to 10

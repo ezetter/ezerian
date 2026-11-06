@@ -5,14 +5,29 @@ enum Weapon: Int, Codable, CaseIterable, Comparable {
     case staff = 1, dagger, mace, shortSword, longSword
     /// The arms of Lord Draconian's orcs (numbered after the first five, for saves).
     case hammer, axe, spear
+    /// A rare blade, keener than any long sword: one sword in six.
+    case sharpSword
 
     var bonus: Int {
         switch self {
+        case .staff, .dagger: return 3
         case .hammer: return 4
-        case .axe, .spear: return 6
-        default: return rawValue * 2
+        case .mace, .shortSword, .axe, .spear: return 5
+        case .longSword: return 6
+        case .sharpSword: return 8
         }
     }
+
+    var isSword: Bool { self == .shortSword || self == .longSword || self == .sharpSword }
+
+    /// One sword in six is a sharp sword.
+    static let sharpChance = 1.0 / 6
+
+    /// `u` (uniform 0-1) turns one sword in six sharp; other weapons stay as they are.
+    func sharpened(_ u: Double) -> Weapon { isSword && u < Weapon.sharpChance ? .sharpSword : self }
+
+    /// Every weapon but the sharp sword, which turns up only by `sharpened`.
+    static let common = allCases.filter { $0 != .sharpSword }
 
     var name: String {
         switch self {
@@ -24,6 +39,7 @@ enum Weapon: Int, Codable, CaseIterable, Comparable {
         case .hammer: return "war hammer"
         case .axe: return "axe"
         case .spear: return "spear"
+        case .sharpSword: return "sharp sword"
         }
     }
 
@@ -47,6 +63,7 @@ enum Weapon: Int, Codable, CaseIterable, Comparable {
         guard a < armed else { return nil }
         // Tier 0-4 about u·4, give or take one (a triangular spread).
         let tier = Int((u * 4 + (b + c - 1) * 1.5).rounded())
-        return Weapon(rawValue: max(0, min(4, tier)) + 1)
+        // Given they're armed, a / armed is uniform: it decides whether a sword is sharp.
+        return Weapon(rawValue: max(0, min(4, tier)) + 1)!.sharpened(a / armed)
     }
 }
