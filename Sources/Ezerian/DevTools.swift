@@ -1863,6 +1863,11 @@ extension DevTools {
                       "buyback falls 10% for every 10 points below 0 and rises 10% for every 10 above 40")
                 check(Trade.buyback(base: 60, friendliness: 0) == 30 && Trade.buyback(base: 60, friendliness: 60) == 36
                       && Trade.buyback(base: 100, friendliness: -50) == 25, "a long sword fetches 30 from a neutral smith, 36 from a fond one")
+                check([0, 40, 49, 50, 60, 75, 100].map { Trade.price(base: 60, friendliness: $0) } == [60, 60, 60, 57, 54, 51, 42]
+                      && Trade.price(base: 5, friendliness: 100) == 4,
+                      "friendly traders give 5% off for every 10 points above 40")
+                check(Trade.buyback(base: 60, friendliness: 90) == 45 && Trade.buyback(base: 60, friendliness: 100) == 42,
+                      "but never pay more for something than they'd sell it for")
                 g.endConversation()
                 check(!g.shopping, "leaving the conversation closes the shop")
                 smith.friendliness = -60

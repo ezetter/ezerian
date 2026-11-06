@@ -9,9 +9,10 @@ enum Trade {
     static func willTrade(_ npc: NPC) -> Bool { npc.friendliness >= refuseBelow }
 
     /// The asking price: the usual price, plus a coin for every 5 points of
-    /// friendliness below 0.
+    /// friendliness below 0, or 5% off for every full 10 points above 40 (rounded).
     static func price(base: Int, friendliness: Int) -> Int {
-        base + max(0, -friendliness) / 5
+        let off = friendliness > 40 ? 5 * ((friendliness - 40) / 10) : 0
+        return (base * (100 - off) + 50) / 100 + max(0, -friendliness) / 5
     }
 
     /// What a trader pays for something, in percent of half its usual price: 10% less
@@ -21,9 +22,10 @@ enum Trade {
         f < 0 ? 100 - 10 * (-f / 10) : f > 40 ? 100 + 10 * ((f - 40) / 10) : 100
     }
 
-    /// What a trader pays for something worth `base`: half of it, at their buyback rate.
+    /// What a trader pays for something worth `base`: half of it, at their buyback rate,
+    /// but never more than they'd sell it for (so buying and selling back can't make money).
     static func buyback(base: Int, friendliness: Int) -> Int {
-        base * buybackRate(friendliness: friendliness) / 200
+        min(base * buybackRate(friendliness: friendliness) / 200, price(base: base, friendliness: friendliness))
     }
 
     /// The healer's price for a night's rest that heals the Avatar completely, and 5 more
