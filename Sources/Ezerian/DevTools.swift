@@ -1859,15 +1859,17 @@ extension DevTools {
                 check(g.askingPrice(.weapon(.longSword), smith) == 64 && g.offerFor(.weapon(.longSword), smith) == 24,
                       "a smith who dislikes you asks more (64 at -20) and pays less (24)")
                 check([-100, -50, -29, -20, -10, -9, 0, 40, 49, 50, 70, 100].map { Trade.buybackRate(friendliness: $0) }
-                        == [0, 50, 80, 80, 90, 100, 100, 100, 100, 110, 130, 160],
+                        == [0, 50, 80, 80, 90, 100, 100, 100, 100, 110, 130, 140],
                       "buyback falls 10% for every 10 points below 0 and rises 10% for every 10 above 40")
                 check(Trade.buyback(base: 60, friendliness: 0) == 30 && Trade.buyback(base: 60, friendliness: 60) == 36
                       && Trade.buyback(base: 100, friendliness: -50) == 25, "a long sword fetches 30 from a neutral smith, 36 from a fond one")
                 check([0, 40, 49, 50, 60, 75, 100].map { Trade.price(base: 60, friendliness: $0) } == [60, 60, 60, 57, 54, 51, 42]
                       && Trade.price(base: 5, friendliness: 100) == 4,
                       "friendly traders give 5% off for every 10 points above 40")
-                check(Trade.buyback(base: 60, friendliness: 90) == 45 && Trade.buyback(base: 60, friendliness: 100) == 42,
-                      "but never pay more for something than they'd sell it for")
+                check([80, 90, 100].allSatisfy { Trade.buyback(base: 60, friendliness: $0) == 42 }
+                      && Item.remedies.map(Trade.value).allSatisfy { b in (-50...100).allSatisfy { Trade.buyback(base: b, friendliness: $0) <= Trade.price(base: b, friendliness: $0) } }
+                      && (-50...100).allSatisfy { f in (1...10).allSatisfy { Trade.buyback(base: $0 * 10, friendliness: f) <= Trade.price(base: $0 * 10, friendliness: f) } },
+                      "buyback stops rising at 80 (42 for a long sword), so it never tops the asking price")
                 g.endConversation()
                 check(!g.shopping, "leaving the conversation closes the shop")
                 smith.friendliness = -60

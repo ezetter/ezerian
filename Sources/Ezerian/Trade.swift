@@ -17,15 +17,15 @@ enum Trade {
 
     /// What a trader pays for something, in percent of half its usual price: 10% less
     /// for every full 10 points of friendliness below 0, and 10% more for every full
-    /// 10 points above 40.
+    /// 10 points above 40, up to 140% at 80 and above.
     static func buybackRate(friendliness f: Int) -> Int {
-        f < 0 ? 100 - 10 * (-f / 10) : f > 40 ? 100 + 10 * ((f - 40) / 10) : 100
+        f < 0 ? 100 - 10 * (-f / 10) : f > 40 ? 100 + 10 * ((min(f, 80) - 40) / 10) : 100
     }
 
-    /// What a trader pays for something worth `base`: half of it, at their buyback rate,
-    /// but never more than they'd sell it for (so buying and selling back can't make money).
+    /// What a trader pays for something worth `base`: half of it, at their buyback rate.
+    /// (Capped at 140%, this never comes to more than they'd sell it for.)
     static func buyback(base: Int, friendliness: Int) -> Int {
-        min(base * buybackRate(friendliness: friendliness) / 200, price(base: base, friendliness: friendliness))
+        base * buybackRate(friendliness: friendliness) / 200
     }
 
     /// The healer's price for a night's rest that heals the Avatar completely, and 5 more

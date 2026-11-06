@@ -341,7 +341,7 @@ Draconian".
   sharp sword, 100, which only half of the smiths and armourers keep; and they
   buy at half the usual price: 10% less for every 10 points of friendliness below 0
   (a long sword fetches 30 from a neutral smith, 24 from one at -20), 10% more for
-  every 10 points above 40 (36 at 60), though never more than they'd sell it for. Buying at the asking price raises their friendliness by 1, and the
+  every 10 points above 40 (36 at 60), up to 40% more at 80 and above (42). Buying at the asking price raises their friendliness by 1, and the
   asking price rises with their dislike like any merchant's; below -50 they won't trade.
   A merchant's pack shrinks as you buy and fills with what you sell them (up to 10
   things); a smith's stock never runs out. **Done** or Esc goes back to the conversation.
