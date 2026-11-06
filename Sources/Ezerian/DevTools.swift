@@ -1856,8 +1856,8 @@ extension DevTools {
                 g.endConversation()
                 smith.friendliness = -20
                 g.startConversation(with: smith); g.openShop()
-                check(g.askingPrice(.weapon(.longSword), smith) == 64 && g.offerFor(.weapon(.longSword)) == 30,
-                      "a smith who dislikes you asks more (64 at -20), but pays the same")
+                check(g.askingPrice(.weapon(.longSword), smith) == 64 && g.offerFor(.weapon(.longSword), smith) == 32,
+                      "a smith who dislikes you asks more (64 at -20), and buys back at half that (32)")
                 g.endConversation()
                 check(!g.shopping, "leaving the conversation closes the shop")
                 smith.friendliness = -60

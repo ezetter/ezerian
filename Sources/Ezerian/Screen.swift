@@ -630,7 +630,7 @@ final class Screen {
                 let inHand = selling && mine[r].inHand
                 texts.append(TextItem(text: label, x: Double(row.x + 8), y: Double(row.y + 5), size: 13, font: inHand ? .bold : .body,
                                       color: 0x2A1406, shadow: false))
-                let price = selling ? game.offerFor(item) : game.askingPrice(item, npc)
+                let price = selling ? game.offerFor(item, npc) : game.askingPrice(item, npc)
                 let dear = !selling && price > game.gold
                 guard !selling || game.buys(item, npc) else {
                     texts.append(TextItem(text: "not wanted", x: Double(row.x + row.w - 8), y: Double(row.y + 6), size: 11.5, font: .italic,

@@ -330,7 +330,7 @@ Draconian".
   better.
 * **Apothecaries and alchemists:** many towns have one (large towns may have both),
   with a sign of a mortar and pestle or a green flask. They sell health salves (10
-  gold; heal 50) and ointments (5 gold; heal 25), and buy them back at half that, but
+  gold; heal 50) and ointments (5 gold; heal 25), and buy them back at half their asking price, but
   have no use for weapons. Use a remedy from your character sheet (see below).
 * **Buying and selling weapons:** blacksmiths and armourers keep every weapon; merchants
   in the streets and pedlars on the roads carry 1–5 things at random, weapons and
@@ -339,7 +339,7 @@ Draconian".
   **Buy** button for each, and your belongings on the right, each with **Sell**. A weapon
   costs 10 gold for each point of damage it adds (a staff 30, a long sword 60), except the
   sharp sword, 100, which only half of the smiths and armourers keep; and they
-  buy at half that. Buying at the asking price raises their friendliness by 1, and the
+  buy at half what they'd ask for it. Buying at the asking price raises their friendliness by 1, and the
   asking price rises with their dislike like any merchant's; below -50 they won't trade.
   A merchant's pack shrinks as you buy and fills with what you sell them (up to 10
   things); a smith's stock never runs out. **Done** or Esc goes back to the conversation.

@@ -5,7 +5,7 @@ import Foundation
 /// those (only half of weapon shops have sharp swords). Merchants and pedlars carry a few things of their own (their pack), weapons
 /// and remedies alike, and take whatever they buy into it. A weapon is worth 10 gold
 /// for each point of damage it adds, a salve 10 and an ointment 5; a trader sells at
-/// that, except the sharp sword, 100 (more if they dislike the Avatar: see `Trade.price`) and buys at half.
+/// that, except the sharp sword, 100 (more if they dislike the Avatar: see `Trade.price`) and buys at half its own asking price.
 extension Trade {
     static let goldPerDamage = 10
     /// Merchants and pedlars carry this many things for sale, chosen at random.
@@ -71,8 +71,8 @@ extension Game {
     /// What the trader asks for something.
     func askingPrice(_ item: Item, _ npc: NPC) -> Int { Trade.price(base: Trade.value(item), friendliness: npc.friendliness) }
 
-    /// What the trader pays for something.
-    func offerFor(_ item: Item) -> Int { Trade.value(item) / 2 }
+    /// What the trader pays for something: half what they would sell it for.
+    func offerFor(_ item: Item, _ npc: NPC) -> Int { askingPrice(item, npc) / 2 }
 
     /// Opens the trader's wares from a conversation (the Trade button, or asking to trade).
     func openShop() {
@@ -119,7 +119,7 @@ extension Game {
         case let .sell(r):
             let rows = belongings(0)
             guard rows.indices.contains(r) else { return }
-            let item = rows[r].item, price = offerFor(item)
+            let item = rows[r].item, price = offerFor(item, npc)
             guard buys(item, npc) else { return }
             guard !Trade.isMerchant(npc) || npc.pack.count < Game.carryLimit else {
                 shopNotice = "\(npc.shortName.capitalizedFirst) has no room for more."
