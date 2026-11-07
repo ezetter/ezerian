@@ -87,6 +87,11 @@ final class NPC: Codable {
     var facing: Int = Direction.south.rawValue
     var talks = 0
     var compliments = 0
+    /// For a newcomer, the id of the person on the region's first roll whose place they
+    /// took (see `Game.fillEmptyPlaces`).
+    var slot: Int?
+    /// The place on the region's first roll that this person fills.
+    var place: Int { slot ?? id }
     /// The day flattery last warmed them, and how many compliments did that day.
     private var flatteredDay: Int?
     private var flatteredCount: Int?
@@ -212,7 +217,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, flatteredDay, flatteredCount, known, memory, inParty, refusedAt, hireRefused, struckStore = "struck", hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack", xpStore = "xp"
+             compliments, flatteredDay, flatteredCount, known, memory, inParty, refusedAt, hireRefused, struckStore = "struck", slot, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack", xpStore = "xp"
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,
@@ -471,6 +476,64 @@ enum Populace {
     private static let townFolk: [(Race, Double)] = [(.human, 64), (.elf, 13), (.dwarf, 15), (.orc, 8)]
 
     static func populate(_ region: Region, seed: UInt64, avatarHealth: Int = 100) {
+        region.npcs = roster(region, seed: seed, avatarHealth: avatarHealth)
+    }
+
+    /// Makes one person: their sex, name, looks, mood, health, purse and weapon, drawn
+    /// from `rng`. `draconian` nil: orcs serve Lord Draconian on the toss of a coin, others
+    /// don't. (Positions and bounds are in world coordinates.)
+    static func person(id: Int, race: Race, x: Int, y: Int, z: Int, role: String, bounds: [Int], home: String?,
+                       draconian: Bool? = nil, warband: Int? = nil, guardRank: Int? = nil, avatarHealth: Int,
+                       _ rng: inout SplitMix64) -> NPC {
+        let female = rng.chance(0.5) && race != .dwarf
+        let names = firstNames[race]!
+        let servant = guardRank == nil && race != .dwarf && (draconian ?? (race == .orc && rng.chance(orcAllegiance)))
+        var look = servant ? (female ? 7 : 6) : (female ? 3 : 0) + rng.int(3)
+        var job = servant && draconian == nil && home != nil ? "mercenary" : role
+        if let r = guardRank {
+            look = guardLook(rank: r, female: female)
+            job = GuardArt.title(r, female: female)
+        }
+        // (Everyone but the watch is then painted from their race's everyday set: see `paint`.)
+        let npc = NPC(id: id, name: rng.pick(female ? names.female : names.male), race: race, female: female, look: look,
+                      friendliness: servant ? servantFriendliness(race, &rng) : friendliness(race, &rng),
+                      x: x, y: y, z: z, bounds: bounds, role: job, home: home)
+        npc.servesDraconian = servant
+        npc.warband = warband
+        npc.facing = rng.int(4)
+        let u = rng.double()
+        npc.maxHP = guardRank.map { guardHealth(rank: $0, u) } ?? health(u)
+        npc.hp = npc.maxHP
+        npc.gold = coins(forHealth: npc.maxHP, &rng)
+        npc.weapon = guardRank.map { Weapon.forGuard(rank: $0) }
+            ?? Weapon.roll(health: npc.maxHP, servant: servant, child: job == "child", &rng)
+        if job == "adventurer" {
+            // Adventurers go unarmed, for now.
+            npc.maxHP = adventurerHealth(avatar: avatarHealth, u)
+            npc.hp = npc.maxHP
+            npc.friendliness = adventurerFriendliness.lowerBound + rng.int(adventurerFriendliness.count)
+            npc.gold = coins(forHealth: npc.maxHP, &rng)
+            npc.weapon = nil
+        }
+        if race.isBeast {
+            // Wolves carry nothing, and are never anything but dangerous.
+            npc.look = 0
+            npc.maxHP = wolfHealth.lowerBound + rng.int(wolfHealth.count)
+            npc.hp = npc.maxHP
+            npc.friendliness = wolfFriendliness.lowerBound + rng.int(wolfFriendliness.count)
+            npc.gold = 0
+            npc.weapon = nil
+        } else {
+            paint(npc)
+        }
+        // Merchants and pedlars carry a few things to sell.
+        if Trade.isMerchant(npc) { npc.pack = Trade.merchantGoods(id: npc.id) }
+        return npc
+    }
+
+    /// The people a region is first given, the same every time for the same world: who
+    /// lives and roams there at the start (and whose places newcomers later fill).
+    static func roster(_ region: Region, seed: UInt64, avatarHealth: Int = 100) -> [NPC] {
         let key = region.key
         var rng = SplitMix64(seed: Hash.of(seed, key.x, key.y, 7000 + key.z))
         let n = Region.size, ox = region.originX, oy = region.originY
@@ -486,55 +549,13 @@ enum Populace {
             return true
         }
 
-        /// `draconian` nil: orcs serve Lord Draconian on the toss of a coin, others don't.
         func add(_ race: Race, _ lx: Int, _ ly: Int, role: String, bounds: (Int, Int, Int, Int), home: String?,
                  draconian: Bool? = nil, warband: Int? = nil, guardRank: Int? = nil) {
-            let female = rng.chance(0.5) && race != .dwarf
-            let names = firstNames[race]!
-            let servant = guardRank == nil && race != .dwarf && (draconian ?? (race == .orc && rng.chance(orcAllegiance)))
-            var look = servant ? (female ? 7 : 6) : (female ? 3 : 0) + rng.int(3)
-            var job = servant && draconian == nil && home != nil ? "mercenary" : role
-            if let r = guardRank {
-                look = guardLook(rank: r, female: female)
-                job = GuardArt.title(r, female: female)
-            }
-            // (Everyone but the watch is then painted from their race's everyday set: see `paint`.)
-            let npc = NPC(id: Int(truncatingIfNeeded: Hash.of(seed, ox + lx, oy + ly, 9000 + key.z + people.count)),
-                          name: rng.pick(female ? names.female : names.male), race: race, female: female, look: look,
-                          friendliness: servant ? servantFriendliness(race, &rng) : friendliness(race, &rng),
-                          x: ox + lx, y: oy + ly, z: key.z,
-                          bounds: [ox + max(1, bounds.0), oy + max(1, bounds.1), ox + min(n - 2, bounds.2), oy + min(n - 2, bounds.3)],
-                          role: job, home: home)
-            npc.servesDraconian = servant
-            npc.warband = warband
-            npc.facing = rng.int(4)
-            let u = rng.double()
-            npc.maxHP = guardRank.map { guardHealth(rank: $0, u) } ?? health(u)
-            npc.hp = npc.maxHP
-            npc.gold = coins(forHealth: npc.maxHP, &rng)
-            npc.weapon = guardRank.map { Weapon.forGuard(rank: $0) }
-                ?? Weapon.roll(health: npc.maxHP, servant: servant, child: job == "child", &rng)
-            if job == "adventurer" {
-                // Adventurers go unarmed, for now.
-                npc.maxHP = adventurerHealth(avatar: avatarHealth, u)
-                npc.hp = npc.maxHP
-                npc.friendliness = adventurerFriendliness.lowerBound + rng.int(adventurerFriendliness.count)
-                npc.gold = coins(forHealth: npc.maxHP, &rng)
-                npc.weapon = nil
-            }
-            if race.isBeast {
-                // Wolves carry nothing, and are never anything but dangerous.
-                npc.look = 0
-                npc.maxHP = wolfHealth.lowerBound + rng.int(wolfHealth.count)
-                npc.hp = npc.maxHP
-                npc.friendliness = wolfFriendliness.lowerBound + rng.int(wolfFriendliness.count)
-                npc.gold = 0
-                npc.weapon = nil
-            } else {
-                paint(npc)
-            }
-            // Merchants and pedlars carry a few things to sell.
-            if Trade.isMerchant(npc) { npc.pack = Trade.merchantGoods(id: npc.id) }
+            let npc = person(id: Int(truncatingIfNeeded: Hash.of(seed, ox + lx, oy + ly, 9000 + key.z + people.count)),
+                             race: race, x: ox + lx, y: oy + ly, z: key.z, role: role,
+                             bounds: [ox + max(1, bounds.0), oy + max(1, bounds.1), ox + min(n - 2, bounds.2), oy + min(n - 2, bounds.3)],
+                             home: home, draconian: draconian, warband: warband, guardRank: guardRank,
+                             avatarHealth: avatarHealth, &rng)
             taken.insert(ly * n + lx)
             people.append(npc)
         }
@@ -574,8 +595,7 @@ enum Populace {
                     }
                 }
             }
-            region.npcs = people
-            return
+            return people
         }
 
         let town = region.places.first { $0.kind == .town }
@@ -726,7 +746,7 @@ enum Populace {
                 }
             }
         }
-        region.npcs = people
+        return people
     }
 
     /// Who works in a building, judged by its name: role, likely races, the chance

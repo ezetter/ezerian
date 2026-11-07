@@ -1723,6 +1723,71 @@ extension DevTools {
         }
 
         do {
+            // Newcomers: the dead are replaced, a place at a time, never past the first roll.
+            let g = Game(seed: seed)
+            g.confirmName(); g.confirmLook()
+            let home = g.world.region(RegionKey(x: 0, y: 0, z: 0))
+            check(Populace.roster(home, seed: g.world.seed, avatarHealth: g.maxHP).map(\.id) == home.npcs.map(\.id),
+                  "a region's first roll of people is the same each time it is drawn up (\(home.npcs.count) people)")
+            for ry in -3...3 { for rx in -3...3 { _ = g.world.region(RegionKey(x: rx, y: ry, z: 0)) } }
+            g.teleport(g.x + 6 * Region.size, g.y, 0)
+            let everyone = { g.world.regions.values.flatMap(\.npcs) }
+            let total = everyone().count
+            check(g.fillEmptyPlaces(day: 2).isEmpty, "no one comes while no one is missing")
+            let all = everyone()
+            var gone: [NPC] = []
+            gone += all.filter { $0.role == "mercenary" }.prefix(3)
+            gone += all.filter { $0.guardRank != nil }.prefix(3)
+            gone += all.filter { $0.race == .orc && $0.servesDraconian && $0.role != "mercenary" }.prefix(2)
+            gone += all.filter { $0.race == .wolf }.prefix(2)
+            gone += all.filter { $0.isAdventurer }.prefix(1)
+            gone += all.filter { $0.role == "blacksmith" || $0.role == "barkeep" }.prefix(2)
+            let kinds = Set(gone.map { $0.race == .wolf ? "wolf" : $0.guardRank != nil ? "guard" : $0.role })
+            check(gone.count >= 8 && kinds.contains("mercenary") && kinds.contains("guard") && kinds.contains("wolf"),
+                  "some of everyone to lose (\(gone.count): \(kinds.sorted().joined(separator: ", ")))")
+            let goneIDs = Set(gone.map(\.id))
+            for r in g.world.regions.values { r.npcs.removeAll { goneIDs.contains($0.id) } }
+            var came: [NPC] = [], days: [Int] = []
+            for d in 3...90 {
+                let c = g.fillEmptyPlaces(day: d)
+                came += c; days += c.map { _ in d }
+            }
+            check(came.count == gone.count && Set(came.compactMap(\.slot)) == goneIDs,
+                  "in time every empty place is filled, each just once (\(came.count) of \(gone.count))")
+            check(everyone().count == total, "so the land holds as many people as it began with, and no more")
+            check(Set(days).count > 2, "they come by ones and twos, a chance each day (days \(days))")
+            let was = Dictionary(uniqueKeysWithValues: gone.map { ($0.id, $0) })
+            check(came.allSatisfy { n in
+                guard let o = was[n.slot ?? -1] else { return false }
+                return n.id != o.id && n.race == o.race && n.home == o.home && n.guardRank == o.guardRank
+                    && n.servesDraconian == o.servesDraconian && n.warband == o.warband && n.bounds == o.bounds
+                    && (o.guardRank != nil || n.role == o.role)
+            }, "each newcomer is a stranger of the same kind, living where the one they replace lived")
+            check(came.allSatisfy { n in g.world.region(containing: n.x, n.y, n.z).npcs.contains { $0 === n }
+                && max(abs(n.x - g.x), abs(n.y - g.y)) >= Game.newcomerClearance },
+                  "and arrives in their own region, out of the Avatar's sight")
+            if let newcomer = came.first(where: { $0.race != .wolf }) {
+                let region = g.world.region(containing: newcomer.x, newcomer.y, 0)
+                region.npcs.removeAll { $0 === newcomer }
+                g.teleport(newcomer.x, newcomer.y + 1, 0)
+                check((100...160).allSatisfy { g.fillEmptyPlaces(day: $0).isEmpty }, "no one arrives where the Avatar would see it")
+                g.teleport(g.x + 6 * Region.size, g.y, 0)
+                check((161...260).contains { !g.fillEmptyPlaces(day: $0).isEmpty }, "a newcomer's place, emptied, is filled again")
+                let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-newcomers-\(ProcessInfo.processInfo.processIdentifier).plist")
+                try? SaveGame.save(g, to: url)
+                let back = SaveGame.load(from: url)
+                let slots = { (h: Game?) in Set((h?.world.regions.values.flatMap(\.npcs) ?? []).compactMap(\.slot)) }
+                check(!slots(g).isEmpty && slots(back) == slots(g), "newcomers keep their places through a save")
+                try? FileManager.default.removeItem(at: url)
+            } else { check(false, "a newcomer to follow") }
+            let watch = Game(seed: seed)
+            watch.confirmName(); watch.confirmLook()
+            watch.newcomersDay = nil
+            watch.welcomeNewcomers()
+            check(watch.newcomersDay == watch.day, "the count of days starts on the first turn played")
+        }
+
+        do {
             // Storekeepers never start a fight: no ambush, no joining in, no coming to blows
             // over words, however much they hate the Avatar, until the Avatar strikes them.
             let (g, _) = arena()

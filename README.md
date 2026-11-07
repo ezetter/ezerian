@@ -157,6 +157,15 @@ which decide how they answer you.
 * Each race speaks its own way, from courtly elves ("thou", "mortal") and gruff dwarves
   ("aye", "surface-dweller") to blunt orcs ("pinkskin").
 * People, where they stand and how they feel about you are kept in the save file.
+* **Newcomers:** the land fills up again. Each region remembers the people it was first
+  given, and when one of them is gone (slain, mostly), every new day brings a 1-in-5
+  chance that a newcomer of the same kind takes their place: a new mercenary for a dead
+  mercenary, a new watchman of the same rank for a fallen one, an orc of the same band, a
+  wolf of the same pack, a new smith for the smithy, a new adventurer. Newcomers are
+  strangers (a new name, face, health, purse and weapon) who live where the one they
+  replace lived, and they never appear within 14 paces of you. Each place is filled only
+  once, so no region ever holds more people than it began with. A companion keeps their
+  place while in your party. After a long rest, up to a week of arrivals is made up.
 
 ## The town watch
 
@@ -468,6 +477,7 @@ fonts (Luminari and Iowan Old Style) at the display's full resolution on top.
 | `Experience.swift` | Hidden experience from slain foes, and the health it brings |
 | `Shop.swift` | Buying and selling with smiths, armourers, apothecaries, alchemists, merchants and pedlars |
 | `NPC.swift`, `Dialogue.swift` | Races, friendliness, Lord Draconian's people, where people live, scripted replies |
+| `Newcomers.swift` | The dead replaced, a place at a time, from each region's first roll |
 | `ClaudeDialogue.swift` | Claude API client, NPC character sheets, structured replies, API key storage |
 | `World.swift`, `Tiles.swift` | Regions, lazy generation, terrain and objects |
 | `WorldGen.swift`, `Settlements.swift`, `Buildings.swift`, `Sites.swift`, `Roads.swift`, `Caves.swift`, `Names.swift`, `Noise.swift` | World generation |

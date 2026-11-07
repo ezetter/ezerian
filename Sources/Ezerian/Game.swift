@@ -66,6 +66,8 @@ final class Game {
     var roll: () -> Double = { Double.random(in: 0..<1) }
     /// Where the Avatar has just been, for companions to follow in single file.
     var trail: [Point] = []
+    /// The last day newcomers were welcomed (not saved: counting starts afresh each session).
+    var newcomersDay: Int?
 
     var showMap = false
     var showGrid = false
@@ -335,6 +337,7 @@ final class Game {
     /// Each turn the people nearby go about their business: most wander a little,
     /// the hostile close in on the Avatar, the adoring come over to say hello.
     private func updateNPCs() {
+        welcomeNewcomers()
         let near = world.npcs(near: x, y, z, radius: 18).filter { !$0.following }
         var occupied = Set(near.map { Point(x: $0.x, y: $0.y) })
         occupied.insert(Point(x: x, y: y))
