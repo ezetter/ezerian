@@ -44,7 +44,7 @@ enum PaintedFolk {
 
     // New lists go on the end: a person's look is their index here, kept in saves.
     static let all: [Painted] = bards + peasants + townsfolk + farmhands + elvenDrinkers + drinkers + townFolk + countryFolk + elfFolk + orcFolk
-        + dwarfFolk + dwarfWarriors + humanChildren + adventurers
+        + dwarfFolk + dwarfWarriors + humanChildren + adventurers + barkeepers
     private static let linen: UInt32 = 0xDCD0B4, leather: UInt32 = 0x5A3A22
 
     static let bards: [Painted] = [
@@ -522,6 +522,22 @@ enum PaintedFolk {
         Painted(role: "adventurer", painting: "adventurer-49", look: look(.dwarf, female: false, skin: 0x5A3A26, hair: 0xA8A4A0, tunic: 0x5A2A40,
                                                                     legs: 0x4A3A2E, cape: 0x6A6A3A, longHair: false, beard: true),
                 prop: .none),
+    ]
+
+    /// The human barkeeps of the taverns, three men then three women, with their mugs and jugs.
+    static let barkeepers: [Painted] = [
+        Painted(role: "barkeep", painting: "barkeep-0", look: look(.human, female: false, skin: 0xE8B08A, hair: 0x3A2A1E, tunic: 0x7A2A2A,
+                                                                   legs: 0x5A4A3A, longHair: false, bald: true), prop: .mug, apron: linen),
+        Painted(role: "barkeep", painting: "barkeep-1", look: look(.human, female: false, skin: 0x5A3A26, hair: 0x14100C, tunic: 0x4A5432,
+                                                                   legs: 0x4A3A2A, longHair: false, beard: true), prop: .jug),
+        Painted(role: "barkeep", painting: "barkeep-2", look: look(.human, female: false, skin: 0xD8A27A, hair: 0xA8A4A0, tunic: 0x3A4262,
+                                                                   legs: 0x4A3A2E, longHair: false), prop: .mug, hat: .cap(0x6A3A22), apron: 0x6A4028),
+        Painted(role: "barkeep", painting: "barkeep-3", look: look(.human, female: true, skin: 0x5A3A26, hair: 0x14100C, tunic: 0xB08A3A,
+                                                                   legs: 0xB08A3A, longHair: false, dress: true), prop: .mug, hat: .scarf(0xD8CCB0), apron: linen),
+        Painted(role: "barkeep", painting: "barkeep-4", look: look(.human, female: true, skin: 0xF0C8A8, hair: 0xB8501E, tunic: 0x6A2A3A,
+                                                                   legs: 0x6A2A3A, longHair: false, dress: true), prop: .mug, apron: 0x6A5A44),
+        Painted(role: "barkeep", painting: "barkeep-5", look: look(.human, female: true, skin: 0xE0B090, hair: 0x3A3430, tunic: 0x3A4262,
+                                                                   legs: 0x3A4262, longHair: false, dress: true), prop: .jug, apron: 0x5A6A44),
     ]
 
     /// One of Lord Draconian's people, in his black and red, with the weapon they hold (nil:

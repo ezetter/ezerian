@@ -1483,7 +1483,11 @@ extension DevTools {
                   "all 50 adventurer paintings load")
             // Every human but the watch is painted from the town or the country set, by where they live;
             // every elf and orc from their own set.
-            let everyday = all.filter { !$0.isAdventurer && (($0.race == .human && $0.guardRank == nil && $0.role != "child") || $0.race == .elf || $0.race == .orc) }
+            let barkeeps = all.filter { $0.race == .human && $0.role == "barkeep" }
+            check(!barkeeps.isEmpty && barkeeps.allSatisfy { n in PaintedFolk.barkeepers.contains { $0.painting == n.painting && $0.look.female == n.female } }
+                  && PaintedFolk.barkeepers.allSatisfy { Portraits.image($0.painting) != nil },
+                  "every human barkeep wears one of the six barkeep paintings, of their own sex (\(barkeeps.count) of them)")
+            let everyday = all.filter { !$0.isAdventurer && (($0.race == .human && $0.guardRank == nil && $0.role != "child" && $0.role != "barkeep") || $0.race == .elf || $0.race == .orc) }
             let names: (String) -> Set<String> = { kind in
                 Set((kind == "town" ? PaintedFolk.townFolk : kind == "country" ? PaintedFolk.countryFolk : kind == "orc" ? PaintedFolk.orcFolk : PaintedFolk.elfFolk).map(\.painting))
             }
@@ -1491,7 +1495,7 @@ extension DevTools {
             let setOf: (NPC) -> String = { $0.servesDraconian ? "draconian" : $0.race == .elf ? "elf" : $0.race == .orc ? "orc" : isCountry($0) ? "country" : "town" }
             let servantPainting = Dictionary(uniqueKeysWithValues: (PaintedFolk.draconianOrcs + PaintedFolk.draconianElves + PaintedFolk.draconianHumans).map { ($0.painting, $0) })
             check(everyday.filter { setOf($0) != "draconian" }.allSatisfy { n in n.painting.map { names(setOf(n)).contains($0) } ?? false },
-                  "every human but the watch and the children has a town or country painting by where they live, every free elf an elf painting and every free orc an orc painting (\(everyday.count) of them)")
+                  "every human but the watch, the children and the barkeeps has a town or country painting by where they live, every free elf an elf painting and every free orc an orc painting (\(everyday.count) of them)")
             let hisOrcs = everyday.filter { setOf($0) == "draconian" && $0.race == .orc }
             let hisElves = everyday.filter { setOf($0) == "draconian" && $0.race == .elf }
             let hisHumans = everyday.filter { setOf($0) == "draconian" && $0.race == .human }

@@ -195,7 +195,9 @@ or a mace. The watch keeps
 its own paintings, by rank. Human children have ten paintings of their own (five boys,
 five girls, in patched and muddy homespun), wherever they live, and on the map they
 stand a head shorter than grown folk. Adventurers, of whatever race, are painted from
-fifty adventurer paintings (`adventurer-0` … `adventurer-49`).
+fifty adventurer paintings (`adventurer-0` … `adventurer-49`). Human barkeeps have six
+paintings of their own (`barkeep-0` … `barkeep-5`: three men, three women, with mugs and
+jugs); barkeeps of other races keep their race's paintings.
 
 Every elf looks like one of ten elf paintings (five men, five women), whatever their
 trade or wherever they live, dressed to match on the map. Elves drinking in taverns
