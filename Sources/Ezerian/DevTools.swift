@@ -1304,6 +1304,22 @@ extension DevTools {
             g.perform(.talk)
             check(g.sheet == nil && g.conversation?.npc === mate, "Talk on a companion's sheet puts it away and talks with them")
             g.endConversation()
+            do {
+                // A companion greets the Avatar as someone they travel with, never as a stranger met on the road.
+                let talks = mate.talks, liking = mate.friendliness
+                var asCompanion = Set<String>(), asStranger = Set<String>()
+                for f in [-60, -20, 10, 45, 90] {
+                    mate.friendliness = f
+                    for t in 0..<12 {
+                        mate.talks = t
+                        mate.following = true; asCompanion.insert(Dialogue.greeting(mate, player: g.playerName).text)
+                        mate.following = false; asStranger.insert(Dialogue.greeting(mate, player: g.playerName).text)
+                    }
+                }
+                mate.following = true; mate.talks = talks; mate.friendliness = liking
+                check(asCompanion.isDisjoint(with: asStranger) && !asCompanion.contains { $0.contains("well met") || $0.contains("Welcome") },
+                      "a companion's greeting is one for a fellow traveller, not a stranger")
+            }
             g.talkToCompanion(mate2)
             check(g.conversation?.npc === mate2, "a companion can be talked to wherever they walk (a click on them)")
             g.endConversation()

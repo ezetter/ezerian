@@ -129,8 +129,36 @@ enum Dialogue {
                 : "\(npc.shortName.capitalizedFirst) turns \(npc.his) back on you and will not speak."
             return (snub, true)
         }
-        let options = greetings[npc.race]![npc.disposition]!
+        let options = npc.following ? companionGreetings(npc) : greetings[npc.race]![npc.disposition]!
         return (fill(pick(options, npc, 1), npc, player), false)
+    }
+
+    /// A companion's first words when the Avatar turns to talk on the road: they know each other,
+    /// so no stranger's welcome, only the warmth (or the grumbling) of someone who travels with them.
+    private static func companionGreetings(_ npc: NPC) -> [String] {
+        let warm = npc.disposition >= .friendly, sour = npc.disposition <= .unfriendly
+        switch npc.race {
+        case .human:
+            return warm ? ["{player}! What's on your mind?", "I'm right behind you, {player}. What is it?",
+                           "Aye, {player}? Say the word.", "Good to walk with you, {player}. What do you need?"]
+                : sour ? ["What now, {player}?", "More walking, more talking. What is it?", "If it's another errand, out with it."]
+                : ["Yes, {player}?", "You wanted a word?", "I'm here. What is it?"]
+        case .elf:
+            return warm ? ["I walk beside thee, {player}. Speak.", "Thy road is mine, {player}. What wouldst thou?",
+                           "Yes, {player}? The way is fair today."]
+                : sour ? ["What wouldst thou now, {player}?", "Must we stop again? Speak, then.", "Hmph. Say it, {player}."]
+                : ["Thou wouldst speak with me, {player}?", "I am listening.", "Yes?"]
+        case .dwarf:
+            return warm ? ["Aye, {player}? What's the plan?", "Still at yer back, {player}. What d'ye need?",
+                           "Ha! Done walkin' for a bit? What is it, {player}?"]
+                : sour ? ["What now, {player}? Me feet ache.", "Aye, aye. What is it this time?", "Out with it, {player}."]
+                : ["Aye, {player}?", "What is it?", "Speak up, {player}."]
+        case .orc, .wolf:
+            return warm ? ["{player}! {name} ready. Who we fight?", "{name} here, {player}. What you want?",
+                           "Hah! {player} want talk? {name} listen."]
+                : sour ? ["Grr. What now, {player}?", "Always talk, talk. What?", "{name} tired. Speak quick."]
+                : ["{name} here. What?", "You want something, {player}?", "Hrrm. Talk."]
+        }
     }
 
     /// The Avatar's words for a topic.

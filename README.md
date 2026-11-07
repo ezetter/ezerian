@@ -148,7 +148,8 @@ which decide how they answer you.
 * Companions walk behind you in single file, step aside (swap places) when you walk
   into them, follow you underground, and are listed in the side panel. Talk with one
   wherever they walk by clicking them on the map, or with **Talk** on their character
-  sheet (or press T beside them); not in a fight, though. If a conversation makes a companion like you
+  sheet (or press T beside them); not in a fight, though. They greet you as a fellow
+  traveller, not a stranger: warmly, plainly or with a grumble, by how they feel. If a conversation makes a companion like you
   less, they may leave, and you can tell one to leave ("it's time we parted ways").
   Someone who refused to join, or left, won't join until their friendliness is at
   least 35 points above what it was then. The party is kept in the save file.
