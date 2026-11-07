@@ -549,8 +549,8 @@ extension DevTools {
                 check(agents.isEmpty, "no free orc is a hidden agent of Draconian")
             } else {
                 let share = Double(agents.count) / Double(folk.count)
-                check(abs(share - 0.2) < 0.025 && agents.allSatisfy { Populace.agentFriendliness.contains($0.friendliness) },
-                      "one \(race.name) in five secretly serves Draconian (\(String(format: "%.1f", share * 100))%), from -100 to -51")
+                check(abs(share - Populace.agentShare) < 0.02 && agents.allSatisfy { Populace.agentFriendliness.contains($0.friendliness) },
+                      "one \(race.name) in ten secretly serves Draconian (\(String(format: "%.1f", share * 100))%), from -100 to -51")
             }
         }
         var everyone: [NPC] = []
@@ -569,8 +569,8 @@ extension DevTools {
             Populace.temper(n)
             return n.agent
         }.count
-        check(!watchmen.isEmpty && abs(Double(traitors) / 4000 - 0.2) < 0.025,
-              "even the watch has its traitors: one guard in five is a hidden agent (\(traitors) of 4000)")
+        check(!watchmen.isEmpty && abs(Double(traitors) / 4000 - Populace.agentShare) < 0.02,
+              "even the watch has its traitors: one guard in ten is a hidden agent (\(traitors) of 4000)")
         var seen = Set<Race>()
         for ry in -2...2 { for rx in -2...2 { for n in game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs { seen.insert(n.race) } } }
         check(seen.isSuperset(of: [.human, .elf, .dwarf, .orc]), "all four races live in the lands around home (\(seen.map(\.name).sorted().joined(separator: ", ")))")
@@ -2049,15 +2049,16 @@ extension DevTools {
             try? SaveGame.save(g, to: url)
             let back = SaveGame.load(from: url)?.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs.first { $0.id == spy.id }
             check(back?.agent == true && back?.unmasked == true, "a hidden agent, and whether they have been unmasked, survive a save")
-            // A save from before (version 3): the folk not yet met are drawn anew, those met keep their feelings.
+            // A save from before (version 4, when one in five was an agent): the folk not yet met are
+            // drawn anew, those met keep their feelings.
             let unmet = folk.first { $0 !== spy && $0 !== other && $0.talks == 0 && !$0.known && !$0.struckByAvatar && !$0.servesDraconian }!
             let met = spy
-            unmet.friendliness = 99; unmet.agent = false
+            unmet.friendliness = -80; unmet.agent = true
             let metMood = met.friendliness
             try? SaveGame.save(g, to: url)
             if let data = try? Data(contentsOf: url),
                var plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] {
-                plist["version"] = 3
+                plist["version"] = 4
                 try? PropertyListSerialization.data(fromPropertyList: plist, format: .binary, options: 0).write(to: url)
             }
             let old = SaveGame.load(from: url)?.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs

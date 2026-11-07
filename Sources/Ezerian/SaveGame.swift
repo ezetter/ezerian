@@ -5,7 +5,7 @@ import Foundation
 enum SaveGame {
     private struct File: Codable {
         /// 4: ordinary folk's new moods, and Draconian's hidden agents.
-        var version = 4
+        var version = 5
         var seed: String
         var x: Int
         var y: Int
@@ -108,11 +108,11 @@ enum SaveGame {
             for n in region.npcs { n.prevX = n.x; n.prevY = n.y; Populace.paint(n) }
             world.adopt(region)
         }
-        // Saves from before version 4: the folk not yet met take the new moods (some become his hidden
-        // agents); people the Avatar has spoken to or fought keep their feelings.
-        if file.version < 4 {
+        // Saves from before version 5: the folk not yet met take the current moods and the current
+        // share of hidden agents (one in ten); people the Avatar has spoken to or fought keep their feelings.
+        if file.version < 5 {
             for r in world.regions.values {
-                for n in r.npcs where n.talks == 0 && !n.known && !n.struckByAvatar && (n.memory ?? []).isEmpty {
+                for n in r.npcs where n.talks == 0 && !n.known && !n.struckByAvatar && !n.unmasked && (n.memory ?? []).isEmpty {
                     Populace.temper(n)
                 }
             }

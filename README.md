@@ -266,7 +266,7 @@ words and their deeds.
   when one of them fights, his fellow servants close by join in. Claude voices them as
   loyal to Draconian: they may boast of his coming conquest or let slip his plans,
   and ordinary folk speak of him as a rumour and a threat.
-* **Hidden agents:** one in five of the ordinary humans, elves and dwarves, even the
+* **Hidden agents:** one in ten of the ordinary humans, elves and dwarves, even the
   town watch (never children or adventurers; orcs keep the rules above), secretly
   serves him. A traitor in the watch never comes to your aid. They
   look and live like anyone else, with friendliness from -100 to -51, and the
@@ -531,7 +531,7 @@ swift run -c release Ezerian --selftest
 
 Checks that regions are kept when you walk away and back, that every building in the
 starting town can be walked into through a door in its south wall, that roofs lift
-indoors, that each race's friendliness spreads over its range and one in five folk are hidden agents, that conversations follow
+indoors, that each race's friendliness spreads over its range and one in ten folk are hidden agents, that conversations follow
 the NPC's mood, that the party's joining, leaving, following and rejoining rules hold, that
 health, combat triggers, round-robin turns, damage and death follow the rules, that
 Draconian's people keep to their friendliness rules and three orcs in four serve him,

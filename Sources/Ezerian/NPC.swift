@@ -132,7 +132,7 @@ final class NPC: Codable {
         set { draconianStore = newValue }
     }
     private var draconianStore: Bool?
-    /// Secretly in Draconian's pay: one in five of the ordinary humans, elves and dwarves, the watch
+    /// Secretly in Draconian's pay: one in ten of the ordinary humans, elves and dwarves, the watch
     /// among them (a traitor in the watch never comes to the Avatar's aid). They look
     /// and live like anyone else, until a fight unmasks them.
     var agent: Bool {
@@ -547,10 +547,10 @@ enum Populace {
 
     /// How ordinary folk feel about the Avatar when first met, and whether they secretly serve
     /// Draconian. Humans, elves and dwarves range evenly from -50 to 50, the watch, shopkeepers and
-    /// adventurers among them; free orcs from -100 to -1 (though they can be won round). One in five
+    /// adventurers among them; free orcs from -100 to -1 (though they can be won round). One in ten
     /// of the humans, elves and dwarves (the watch too, but not children or adventurers) is his hidden agent,
     /// from -100 to -51. Fixed by who they are, so it is the same every time.
-    static let agentShare = 0.2
+    static let agentShare = 0.1
     static let folkFriendliness = -50...50, orcFriendliness = -100 ... -1, agentFriendliness = -100 ... -51
 
     static func temper(_ n: NPC) {
