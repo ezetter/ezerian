@@ -132,7 +132,8 @@ final class NPC: Codable {
         set { draconianStore = newValue }
     }
     private var draconianStore: Bool?
-    /// Secretly in Draconian's pay: one in five of the ordinary humans, elves and dwarves. They look
+    /// Secretly in Draconian's pay: one in five of the ordinary humans, elves and dwarves, the watch
+    /// among them (a traitor in the watch never comes to the Avatar's aid). They look
     /// and live like anyone else, until a fight unmasks them.
     var agent: Bool {
         get { agentStore ?? false }
@@ -545,7 +546,7 @@ enum Populace {
     /// How ordinary folk feel about the Avatar when first met, and whether they secretly serve
     /// Draconian. Humans, elves and dwarves range evenly from -50 to 50, the watch, shopkeepers and
     /// adventurers among them; free orcs from -100 to -1 (though they can be won round). One in five
-    /// of the humans, elves and dwarves (not the watch, children or adventurers) is his hidden agent,
+    /// of the humans, elves and dwarves (the watch too, but not children or adventurers) is his hidden agent,
     /// from -100 to -51. Fixed by who they are, so it is the same every time.
     static let agentShare = 0.2
     static let folkFriendliness = -50...50, orcFriendliness = -100 ... -1, agentFriendliness = -100 ... -51
@@ -555,7 +556,7 @@ enum Populace {
         func pick(_ r: ClosedRange<Int>) -> Int {
             r.lowerBound + min(r.count - 1, Int(Hash.unit(0x7E3B, n.id, 0) * Double(r.count)))
         }
-        n.agent = n.race != .orc && n.guardRank == nil && n.role != "child" && !n.isAdventurer
+        n.agent = n.race != .orc && n.role != "child" && !n.isAdventurer
             && Hash.unit(0xA6E7, n.id, 0) < agentShare
         n.friendliness = pick(n.agent ? agentFriendliness : n.race == .orc ? orcFriendliness : folkFriendliness)
     }

@@ -556,9 +556,18 @@ extension DevTools {
         var everyone: [NPC] = []
         for ry in -2...2 { for rx in -2...2 { everyone += game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs } }
         check(everyone.contains(where: \.agent) && everyone.allSatisfy { n in
-            !n.agent || (n.race != .orc && n.guardRank == nil && n.role != "child" && !n.isAdventurer && !n.servesDraconian
+            !n.agent || (n.race != .orc && n.role != "child" && !n.isAdventurer && !n.servesDraconian
                          && n.description.contains("livery") == false) },
-              "Draconian's hidden agents live among the folk, never the watch, children, adventurers, orcs or his open servants, and look like anyone else")
+              "Draconian's hidden agents live among the folk, never children, adventurers, orcs or his open servants, and look like anyone else")
+        let watchmen = everyone.filter { $0.guardRank != nil }
+        let traitors = (0..<4000).filter { i in
+            let n = NPC(id: i * 104729 + 11, name: "X", race: .human, female: false, look: Populace.guardLook(rank: 0, female: false),
+                        friendliness: 0, x: 0, y: 0, z: 0, bounds: [0, 0, 0, 0], role: "watchman", home: nil)
+            Populace.temper(n)
+            return n.agent
+        }.count
+        check(!watchmen.isEmpty && abs(Double(traitors) / 4000 - 0.2) < 0.025,
+              "even the watch has its traitors: one guard in five is a hidden agent (\(traitors) of 4000)")
         var seen = Set<Race>()
         for ry in -2...2 { for rx in -2...2 { for n in game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs { seen.insert(n.race) } } }
         check(seen.isSuperset(of: [.human, .elf, .dwarf, .orc]), "all four races live in the lands around home (\(seen.map(\.name).sorted().joined(separator: ", ")))")

@@ -264,8 +264,9 @@ Draconian".
   when one of them fights, his fellow servants close by join in. Claude voices them as
   loyal to Draconian: they may boast of his coming conquest or let slip his plans,
   and ordinary folk speak of him as a rumour and a threat.
-* **Hidden agents:** one in five of the ordinary humans, elves and dwarves (never the
-  watch, children or adventurers; orcs keep the rules above) secretly serves him. They
+* **Hidden agents:** one in five of the ordinary humans, elves and dwarves, even the
+  town watch (never children or adventurers; orcs keep the rules above), secretly
+  serves him. A traitor in the watch never comes to your aid. They
   look and live like anyone else, with friendliness from -100 to -51, and the
   conversation window doesn't mark them. If one attacks you or your party, or is
   attacked, they reveal their true allegiance ("… reveals his true allegiance: he
