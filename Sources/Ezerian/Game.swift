@@ -488,6 +488,8 @@ final class Game {
         if !c.over, sellsRest(npc), Trade.willTrade(npc) {
             c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, .ask, player: playerName), fromAvatar: false))
             c.healingAsked = true
+            // A barkeep's offer names the price, and the gold for it is ready to hand over.
+            if npc.role == "barkeep" { c.price = Trade.beerPrice(npc); c.goldInput = "\(c.price!)" }
         }
         conversation = c
         log(g.refuses ? g.text : "You speak with \(npc.shortName).")
@@ -661,8 +663,9 @@ final class Game {
 
     // MARK: Healing
 
-    /// Healers sell a night's rest that heals completely; innkeepers a room for the night.
-    func sellsRest(_ npc: NPC) -> Bool { npc.role == "healer" || npc.role == "innkeeper" }
+    /// Healers sell a night's rest that heals completely; innkeepers a room for the night;
+    /// barkeeps a beer.
+    func sellsRest(_ npc: NPC) -> Bool { npc.role == "healer" || npc.role == "innkeeper" || npc.role == "barkeep" }
 
     /// Answers talk of healing in a house of healing, or of a room at an inn: yes or no to
     /// the question asked, or asking for the service or its price. Returns false when the
@@ -672,12 +675,15 @@ final class Game {
         guard sellsRest(npc) else { return false }
         // Asking someone to join (or leave) the party is about that, "please" or not.
         if let t = Dialogue.topic(for: said), t == .join || t == .dismiss { return false }
-        let asks = npc.role == "innkeeper" ? Dialogue.asksForLodging(said) : Dialogue.asksForHealing(said)
+        let asks = npc.role == "innkeeper" ? Dialogue.asksForLodging(said)
+            : npc.role == "barkeep" ? Dialogue.asksForBeer(said) : Dialogue.asksForHealing(said)
         let no = c.healingAsked && Dialogue.isNo(said)
         guard no || (c.healingAsked && Dialogue.isYes(said)) || asks else { return false }
         c.healingAsked = false
         if no {
             c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, .declined, player: playerName), fromAvatar: false))
+            // Turned down, a barkeep's gold field takes tips.
+            if npc.role == "barkeep" { c.price = nil; c.goldInput = ""; c.goldFocus = false }
         } else {
             quoteHealing(&c)
         }
@@ -693,9 +699,9 @@ final class Game {
             c.goldFocus = false
             return
         }
-        let inn = npc.role == "innkeeper"
-        let k = inn ? party.count : woundedCompanions.count
-        let p = inn ? Trade.lodgingPrice(npc, companions: k) : Trade.healingPrice(npc, companions: k)
+        let inn = npc.role == "innkeeper", bar = npc.role == "barkeep"
+        let k = inn ? party.count : bar ? 0 : woundedCompanions.count
+        let p = bar ? Trade.beerPrice(npc) : inn ? Trade.lodgingPrice(npc, companions: k) : Trade.healingPrice(npc, companions: k)
         let line: Dialogue.Healing = offered.map { .tooLittle(offered: $0, price: p) } ?? .quote(p, companions: k)
         c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, line, player: playerName), fromAvatar: false))
         c.price = p
@@ -729,8 +735,9 @@ final class Game {
     /// points better at an inn.
     func offerGold() {
         guard var c = conversation, !c.over, !c.pending, let amount = Int(c.goldInput), amount > 0 else { return }
-        guard let price = c.price else { return hire(amount) }
         let npc = c.npc
+        if npc.role == "barkeep" { return pourBeer(amount) }
+        guard let price = c.price else { return hire(amount) }
         guard amount <= gold else {
             c.notice = gold == 0 ? "You have no gold." : "You have only \(gold) gold."
             conversation = c
@@ -765,6 +772,55 @@ final class Game {
         conversation = c
         let who = healed.isEmpty ? "You wake" : healed.count == 1 ? "You and \(healed[0].shortName) wake" : "You and your companions wake"
         log("You pay \(amount) gold and rest the night at \(npc.home ?? "the healer's"). \(who) whole again. You have \(gold) gold left.")
+    }
+
+    /// The Avatar hands a barkeep gold: for a beer, if one is on offer (drunk at once, for
+    /// 5 health), with anything over the price a tip; otherwise all of it a tip. Any tip
+    /// pleases them by 5. Short of the price, they haggle like any merchant (`Trade.settle`).
+    private func pourBeer(_ amount: Int) {
+        guard var c = conversation, Trade.willTrade(c.npc) else { return }
+        let npc = c.npc
+        guard amount <= gold else {
+            c.notice = gold == 0 ? "You have no gold." : "You have only \(gold) gold."
+            conversation = c
+            return
+        }
+        c.notice = nil
+        c.lines.append(Conversation.Line(text: Dialogue.giving(amount), fromAvatar: true))
+        guard let price = c.price else {
+            gold -= amount
+            npc.gold += amount
+            npc.changeFriendliness(by: Trade.tipFriendliness)
+            c.goldInput = ""
+            c.lines.append(Conversation.Line(text: Dialogue.barkeepThanks(npc, player: playerName), fromAvatar: false))
+            conversation = c
+            log("You tip \(npc.shortName) \(amount) gold. You have \(gold) gold left.")
+            return
+        }
+        let tip = amount - price
+        if tip > 0 {
+            npc.changeFriendliness(by: Trade.tipFriendliness)
+        } else {
+            let deal = Trade.settle(offered: amount, price: price)
+            npc.changeFriendliness(by: deal.friendliness)
+            guard roll() < deal.acceptChance else {
+                quoteHealing(&c, after: amount)
+                conversation = c
+                return
+            }
+        }
+        gold -= amount
+        npc.gold += amount
+        let before = hp
+        hp = min(maxHP, hp + Trade.beerHeal)
+        c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, .accepted, player: playerName), fromAvatar: false))
+        if tip > 0 { c.lines.append(Conversation.Line(text: Dialogue.barkeepThanks(npc, player: playerName), fromAvatar: false)) }
+        // Another round is on offer, at what they'd ask now.
+        c.price = Trade.beerPrice(npc)
+        c.goldInput = "\(c.price!)"
+        conversation = c
+        let feel = hp > before ? " (+\(hp - before) health)" : ""
+        log("You pay \(amount) gold\(tip > 0 ? ", tip included," : "") and drink a beer at \(npc.home ?? "the tavern")\(feel). You have \(gold) gold left.")
     }
 
     /// How many nights the Avatar has slept (the view fades out and in for each).

@@ -328,6 +328,13 @@ Draconian".
   is 5 gold, paid the same way, and 2 more for each companion sharing it. You
   sleep until 8 the next morning, and you and each companion wake up to 50 health
   better.
+* **Taverns:** a barkeep offers you a beer as you start talking, with its price already
+  in the gold field: 2 gold, or 1 from a barkeep whose friendliness is above 50. Press
+  **Give gold.** and you drink it at once, for 5 health (no further than whole), and another
+  is on offer. Anything over the price is a tip; say no to the beer and whatever gold you
+  give (the button reads **Tip.**) is all tip. A tip of any size raises the barkeep's
+  friendliness by 5. Ask for a beer, a drink or another to have one offered again. Below
+  -50 a barkeep won't serve you or take your tips.
 * **Apothecaries and alchemists:** many towns have one (large towns may have both),
   with a sign of a mortar and pestle or a green flask. They sell health salves (10
   gold; heal 50) and ointments (5 gold; heal 25), and buy them back at half that (adjusted by friendliness, as for weapons), but

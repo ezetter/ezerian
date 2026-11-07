@@ -328,9 +328,57 @@ enum Dialogue {
         return fill(s, npc, player)
     }
 
-    /// What a healer or innkeeper says while selling a night's rest.
+    /// What a healer or innkeeper says while selling a night's rest, or a barkeep a beer.
     static func restSeller(_ npc: NPC, _ h: Healing, player: String) -> String {
-        npc.role == "innkeeper" ? innkeeper(npc, h, player: player) : healer(npc, h, player: player)
+        npc.role == "innkeeper" ? innkeeper(npc, h, player: player)
+            : npc.role == "barkeep" ? barkeep(npc, h, player: player) : healer(npc, h, player: player)
+    }
+
+    private static func byRace(_ npc: NPC, _ human: String, elf: String, dwarf: String, orc: String) -> String {
+        switch npc.race {
+        case .human: return human
+        case .elf: return elf
+        case .dwarf: return dwarf
+        case .orc, .wolf: return orc
+        }
+    }
+
+    /// What a barkeep says while selling a beer, in their race's manner.
+    static func barkeep(_ npc: NPC, _ h: Healing, player: String) -> String {
+        let n = Trade.beerPrice(npc)
+        let coins = n == 1 ? "a gold coin" : "\(n) gold"
+        let s: String
+        switch h {
+        case .ask, .quote:
+            s = byRace(npc, "A beer, {addr}? \(coins.capitalizedFirst), and it'll put the colour back in your cheeks.",
+                       elf: "Wilt thou have a beer, {addr}? \(coins.capitalizedFirst), and it shall cheer thee.",
+                       dwarf: "A beer, {addr}? \(coins.capitalizedFirst) a mug, best in town.",
+                       orc: "Beer? \(coins.capitalizedFirst). Good beer.")
+        case .declined:
+            s = byRace(npc, "Suit yourself. I'll be here when you're thirsty.", elf: "As thou wilt. Call when thou art thirsty.",
+                       dwarf: "Not thirsty? Odd sort.", orc: "No beer? Hmph.")
+        case .refuse:
+            s = byRace(npc, "I'll not pour for the likes of you.", elf: "I shall pour nothing for thee, {addr}.",
+                       dwarf: "No beer for ye. Get out.", orc: "No beer for you. Go.")
+        case .accepted, .morning:
+            s = byRace(npc, "Here you are. Drink up!", elf: "Here, drink deep, {addr}.", dwarf: "There ye go. Down in one!", orc: "Beer. Drink.")
+        case let .tooLittle(offered, price):
+            s = byRace(npc, "\(offered) gold? A beer's \(price).", elf: "\(offered) gold? A beer is \(price), {addr}.",
+                       dwarf: "\(offered)? Ha! It's \(price) a mug.", orc: "\(offered)? No. Beer is \(price).")
+        }
+        return fill(s, npc, player)
+    }
+
+    /// A barkeep's thanks for a tip.
+    static func barkeepThanks(_ npc: NPC, player: String) -> String {
+        fill(byRace(npc, "That's kind of you, {addr}. Thank you!", elf: "Thou art generous, {addr}. My thanks.",
+                    dwarf: "Ha! A generous one. Much obliged, {addr}.", orc: "Gold for me? Good. You good."), npc, player)
+    }
+
+    /// Whether the Avatar is asking a barkeep for a beer, or what one costs.
+    static func asksForBeer(_ text: String) -> Bool {
+        let s = text.lowercased()
+        return ["beer", "ale", "drink", "mug", "pint", "price", "cost", "how much", "another"].contains { s.contains($0) }
     }
 
     /// What a trader says on being asked to trade: their wares, or a refusal.

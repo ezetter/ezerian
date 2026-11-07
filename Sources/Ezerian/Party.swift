@@ -62,7 +62,9 @@ extension Game {
 
     /// Whether the conversation shows the gold field: a price has been named, or the
     /// Avatar is talking to an adventurer who might be hired.
-    func takesGold(_ c: Conversation) -> Bool { !c.over && !c.offer && (c.price != nil || canHire(c.npc)) }
+    func takesGold(_ c: Conversation) -> Bool {
+        !c.over && !c.offer && (c.price != nil || canHire(c.npc) || (c.npc.role == "barkeep" && Trade.willTrade(c.npc)))
+    }
 
     /// The Avatar offers an adventurer gold to join. Each coin is a 1% chance they take it
     /// (and join); once a talk, and only for more than they have turned down before.

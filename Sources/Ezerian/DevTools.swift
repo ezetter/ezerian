@@ -66,7 +66,7 @@ enum DevTools {
                 let rank = what.hasPrefix("guard") ? Int(what.dropFirst(5)) : nil
                 func wanted(_ n: NPC) -> Bool {
                     if let race { return n.race == race }
-                    if ["bard", "peasant", "farmhand", "healer", "innkeeper", "blacksmith", "armourer", "merchant", "pedlar", "apothecary", "alchemist", "adventurer"].contains(what) { return n.role == what }
+                    if ["bard", "peasant", "farmhand", "healer", "innkeeper", "blacksmith", "armourer", "merchant", "pedlar", "apothecary", "alchemist", "adventurer", "barkeep"].contains(what) { return n.role == what }
                     if what == "drinker" { return n.role == what && n.race == .human }
                     if what == "elvenDrinker" { return n.role == "drinker" && n.race == .elf }
                     if what == "townsfolk" { return n.role == "townsperson" && n.race == .human }
@@ -1091,6 +1091,51 @@ extension DevTools {
                     g.endConversation()
                     g.removeFromParty(mate, lockOut: false)
                 }
+                // A beer from a barkeep: 2 gold (1 if they like you well), drunk at once for 5 health; tips please them by 5.
+                var barkeeps: [NPC] = []
+                for ry in -2...2 { for rx in -2...2 { barkeeps += g.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs.filter { $0.role == "barkeep" } } }
+                if let bar = barkeeps.first {
+                    bar.friendliness = 10
+                    g.hp = 50; g.gold = 20
+                    g.startConversation(with: bar)
+                    let barDay = g.day
+                    check(g.conversation?.price == 2 && g.conversation?.goldInput == "2" && g.takesGold(g.conversation!)
+                          && g.conversation?.lines.last?.text.contains("2 gold") == true,
+                          "a barkeep offers a beer for 2 gold, the gold ready to hand over (\(bar.race.name))")
+                    offer(2)
+                    check(g.hp == 55 && g.gold == 18 && bar.friendliness == 11 && g.conversation?.price == 2 && g.day == barDay,
+                          "2 gold buys a beer, drunk at once for 5 health, and another is on offer")
+                    offer(3)
+                    check(g.hp == 60 && g.gold == 15 && bar.friendliness == 16, "a 1-coin tip on top pleases the barkeep by 5")
+                    g.hp = g.maxHP - 2
+                    offer(2)
+                    check(g.hp == g.maxHP, "a beer heals no further than whole")
+                    say("no thanks")
+                    check(g.conversation?.price == nil && g.takesGold(g.conversation!), "turned down, the beer is off, but the gold field stays")
+                    let f0 = bar.friendliness, g0 = g.gold
+                    offer(1)
+                    check(bar.friendliness == f0 + 5 && g.gold == g0 - 1, "gold with no beer ordered is a tip: +5 friendliness")
+                    offer(10)
+                    check(bar.friendliness == f0 + 10, "a big tip pleases no more than a small one")
+                    say("Another beer, please")
+                    check(g.conversation?.price == 2, "asking for a beer puts one on offer again")
+                    g.endConversation()
+                    bar.friendliness = 51
+                    g.startConversation(with: bar)
+                    check(g.conversation?.price == 1 && g.conversation?.lines.last?.text.contains("gold coin") == true,
+                          "a barkeep fond of you (above 50) asks only 1 gold")
+                    g.endConversation()
+                    bar.friendliness = 50
+                    g.startConversation(with: bar)
+                    check(g.conversation?.price == 2, "at 50 still 2")
+                    g.endConversation()
+                    bar.friendliness = -60
+                    g.startConversation(with: bar); say("A beer")
+                    check(g.conversation?.price == nil && !g.takesGold(g.conversation!), "below -50 the barkeep won't serve you, nor take tips")
+                    g.endConversation()
+                    bar.friendliness = 10
+                    check(AIDialogue.prompt(bar, game: g, history: [], said: "hello").contains("beer at 2 gold"), "Claude is told the price of a beer")
+                } else { check(false, "found a barkeep to visit") }
             } else { check(false, "found an innkeeper to visit") }
             let f = Screen.talkFields(trading: true), box = Screen.talkBox
             check(f.say.x + f.say.w < f.gold.x && f.gold.x + f.gold.w < f.give.x && f.give.x + f.give.w <= box.x + box.w

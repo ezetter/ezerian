@@ -42,6 +42,11 @@ enum Trade {
         price(base: lodgingBase + lodgingPerCompanion * companions, friendliness: npc.friendliness)
     }
 
+    /// A barkeep's beer: 2 gold (1 from a barkeep whose friendliness is above 50), drunk
+    /// at once, for 5 health. Any tip at all, however small, pleases them by 5.
+    static let beerHeal = 5, tipFriendliness = 5
+    static func beerPrice(_ npc: NPC) -> Int { npc.friendliness > 50 ? 1 : 2 }
+
     /// What an offer does. Paying the asking price pleases the merchant a little (+1),
     /// and every coin over it pleases them more (+2 each); every coin short costs 2
     /// points whether or not they take it. They always take the asking price or more;

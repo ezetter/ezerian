@@ -741,7 +741,7 @@ final class Screen {
             if c.goldFocus && (frameCount / 4) % 2 == 0 { fb.fill(Int(amountRight) + 1, g.y + 4, 2, 14, gold) }
             let b = fields.give
             box(b.x, b.y, b.w, b.h)
-            texts.append(TextItem(text: c.price == nil ? "Hire." : "Give gold.", x: Double(b.x + b.w / 2), y: Double(b.y + 5), size: 13, font: .bold,
+            texts.append(TextItem(text: c.price != nil ? "Give gold." : npc.role == "barkeep" ? "Tip." : "Hire.", x: Double(b.x + b.w / 2), y: Double(b.y + 5), size: 13, font: .bold,
                                   color: 0xE8C878, align: .center))
         }
         if c.offer {
