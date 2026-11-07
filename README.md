@@ -109,10 +109,12 @@ which decide how they answer you.
   off, and whether they gave their name. The game applies the change at once, so
   kindness and rudeness carry over to later meetings, and each NPC remembers the last
   few exchanges.
-* **Flattery has its limits:** only two compliments a day raise any one person's
-  friendliness, adventurers included; after that they're unmoved until the next day.
-  Insults lower it as often as you care to give them. This holds for Claude's replies
-  and the scripted ones alike.
+* **Flattery has its limits:** talk raises any one person's friendliness only twice a
+  day, adventurers included: two compliments, or any two lines Claude finds warming
+  (friendly words and pleasant small talk count the same). After that they're unmoved
+  until the next day. Insults lower it as often as you care to give them. This holds for
+  Claude's replies and the scripted ones alike. Gold is another matter: paying, tipping
+  and haggling still move friendliness as before.
 * **Setting it up:** the game looks for a key in this order:
   1. the `ANTHROPIC_API_KEY` environment variable;
   2. a credentials file, `.claude-creds` in the project folder (found by looking

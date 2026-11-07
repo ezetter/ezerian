@@ -555,8 +555,9 @@ final class Game {
             guard let self else { return }
             switch result {
             case let .success(r):
-                // Only so many compliments a day win anyone over; insults always tell.
-                let flattery = r.intent == "compliment" && r.friendliness_change > 0
+                // Only two kind words a day win anyone over, whatever Claude calls them (a
+                // compliment, a friendly word, pleasant small talk); insults always tell.
+                let flattery = r.friendliness_change > 0
                 if flattery && !npc.flatterable(on: self.day) {
                     // Unmoved: flattered enough today.
                 } else {

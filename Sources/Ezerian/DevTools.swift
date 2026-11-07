@@ -647,11 +647,11 @@ extension DevTools {
             let fresh = NPC(id: 777001, name: "Wynn", race: .human, female: false, look: 0, friendliness: 0, x: n.x, y: n.y, z: 0,
                             bounds: n.bounds, role: "adventurer", home: nil)
             game.turn = 0
-            func flatter() -> Int {
+            func flatter(_ intent: String = "compliment", by gain: Int = 8) -> Int {
                 let was = fresh.friendliness
                 game.startConversation(with: fresh)
                 for ch in "You are wonderful and brave!" { game.typeInConversation(ch) }
-                answer = { _ in .success(apiResponse(["reply": "Thank you!", "intent": "compliment", "friendliness_change": 8,
+                answer = { _ in .success(apiResponse(["reply": "Thank you!", "intent": intent, "friendliness_change": gain,
                                                        "ends_conversation": false, "reveals_name": false])) }
                 game.submitConversation()
                 game.endConversation()
@@ -659,7 +659,9 @@ extension DevTools {
             }
             let gains = [flatter(), flatter(), flatter()]
             check(gains == [8, 8, 0], "Claude's judgement: two compliments a day raise friendliness, the third doesn't (\(gains))")
-            check(AIDialogue.prompt(fresh, game: game, history: [], said: "hi").contains("flattered you twice today"),
+            let otherGains = ["friendly", "small_talk", "greeting", "question"].map { flatter($0, by: 3) }
+            check(otherGains == [0, 0, 0, 0], "nor does any other kind word that day, friendly, small talk or otherwise (\(otherGains))")
+            check(AIDialogue.prompt(fresh, game: game, history: [], said: "hi").contains("won you over twice today"),
                   "Claude is told the NPC has been flattered enough today")
             game.startConversation(with: fresh)
             for ch in "You smell like a pig." { game.typeInConversation(ch) }
@@ -671,6 +673,8 @@ extension DevTools {
             check(fresh.friendliness == before - 10, "insults still lower friendliness after the day's compliments are spent")
             game.turn += 12 * 60
             check(flatter() == 8 && game.day == 2, "the next day, compliments work again")
+            check([flatter("friendly", by: 3), flatter("small_talk", by: 2)] == [3, 0],
+                  "and a friendly word counts towards the two, the same as a compliment")
             mock.availableOverride = false
             let plain = NPC(id: 777002, name: "Bran", race: .human, female: false, look: 0, friendliness: 0, x: n.x, y: n.y, z: 0,
                             bounds: n.bounds, role: "townsperson", home: nil)
