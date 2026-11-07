@@ -16,6 +16,9 @@ final class Combat {
     var fleeing: [NPC] = []
     /// Foes already badly hurt enough to have weighed running (each does so once).
     var shaken: [NPC] = []
+    /// Fleeing foes who stepped on their last turn: hurt as they are, they run at half speed,
+    /// stepping only every other turn, so the party can catch them.
+    var winded: [NPC] = []
 
     init(enemies: [NPC], order: [NPC?]) {
         self.enemies = enemies
@@ -317,7 +320,10 @@ extension Game {
     /// than `Combat.escapeDistance` off, they are out of the fight, and keep clear for a while.
     private func fleeTurn(_ n: NPC, _ c: Combat) {
         func far(_ px: Int, _ py: Int) -> Int { max(abs(px - x), abs(py - y)) }
-        if let p = fleeStep(for: n) {
+        if let i = c.winded.firstIndex(where: { $0 === n }) {
+            c.winded.remove(at: i)   // catching their breath this turn
+        } else if let p = fleeStep(for: n) {
+            c.winded.append(n)
             n.prevX = n.x
             n.prevY = n.y
             n.facing = Direction.from(dx: p.x - n.x, dy: p.y - n.y).rawValue
@@ -393,6 +399,7 @@ extension Game {
         c.enemies.removeAll { $0 === n }
         c.allies.removeAll { $0 === n }
         c.fleeing.removeAll { $0 === n }
+        c.winded.removeAll { $0 === n }
         if let i = c.order.firstIndex(where: { $0 === n }) {
             c.order.remove(at: i)
             if i < c.current { c.current -= 1 }

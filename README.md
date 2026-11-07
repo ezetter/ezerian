@@ -303,7 +303,8 @@ words and their deeds.
 * **Losing their nerve:** the first time a foe is left with less than 10 health, there is
   a 50% chance they break and run, crying out in fear ("The orc cries: \"Mercy! Grishnak
   not want die!\" and turns to flee!"; a wolf yelps and turns tail). A fleeing foe
-  strikes no more blows and runs from you each turn, out through doors if need be;
+  strikes no more blows and runs from you, out through doors if need be, but hurt as
+  they are, only at half speed (a step every other turn), so you can catch them;
   more than 8 tiles off, they have fled and are out of the fight. You can still chase
   them down. One who got away keeps clear of you for two hours and won't ambush you or
   join a fight against you in that time.

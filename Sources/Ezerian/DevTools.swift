@@ -1010,7 +1010,14 @@ extension DevTools {
                           "below 10, a foe may lose their nerve and run, crying out in fear")
                     let start = max(abs(foe2.x - g.x), abs(foe2.y - g.y))
                     let hpBefore = g.hp
-                    for _ in 0..<30 where g.inCombat { g.waitTurn() }
+                    var moves = 0
+                    for _ in 0..<6 where g.inCombat {
+                        let was = (foe2.x, foe2.y)
+                        g.waitTurn()
+                        if (foe2.x, foe2.y) != was { moves += 1 }
+                    }
+                    check(moves == 3, "a fleeing foe runs at half speed: a step every other turn (\(moves) in 6)")
+                    for _ in 0..<40 where g.inCombat { g.waitTurn() }
                     let gone = max(abs(foe2.x - g.x), abs(foe2.y - g.y))
                     check(g.hp == hpBefore && gone > start, "a fleeing foe strikes no more blows and runs from the Avatar (\(start) -> \(gone) paces)")
                     if !g.inCombat {
