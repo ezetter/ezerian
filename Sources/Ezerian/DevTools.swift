@@ -532,13 +532,33 @@ extension DevTools {
         // People: four races, friendliness centred on each race's mean.
         check(home.npcs.count >= 8, "the home town is peopled (\(home.npcs.count) NPCs)")
         check(home.npcs.allSatisfy { (-100...100).contains($0.friendliness) }, "every friendliness is within -100...100")
-        var rng = SplitMix64(seed: 77)
         for race in Race.allCases where !race.isBeast {
-            let samples = (0..<4000).map { _ in Populace.friendliness(race, &rng) }
-            let mean = Double(samples.reduce(0, +)) / Double(samples.count)
-            check(abs(mean - Double(race.meanFriendliness)) < 3,
-                  "\(race.name)s average a friendliness of \(race.meanFriendliness) (sampled \(String(format: "%.1f", mean)))")
+            let folk = (0..<4000).map { i -> NPC in
+                let n = NPC(id: i * 7919 + race.index, name: "X", race: race, female: false, look: 0, friendliness: 0,
+                            x: 0, y: 0, z: 0, bounds: [0, 0, 0, 0], role: "townsperson", home: nil)
+                Populace.temper(n)
+                return n
+            }
+            let agents = folk.filter(\.agent), free = folk.filter { !$0.agent }
+            let range = race == .orc ? Populace.orcFriendliness : Populace.folkFriendliness
+            let mean = Double(free.map(\.friendliness).reduce(0, +)) / Double(max(1, free.count))
+            check(free.allSatisfy { range.contains($0.friendliness) } && abs(mean - Double(range.lowerBound + range.upperBound) / 2) < 3
+                  && free.contains { $0.friendliness == range.lowerBound } && free.contains { $0.friendliness == range.upperBound },
+                  "ordinary \(race.name)s range evenly over \(range.lowerBound)...\(range.upperBound) (mean \(String(format: "%.1f", mean)))")
+            if race == .orc {
+                check(agents.isEmpty, "no free orc is a hidden agent of Draconian")
+            } else {
+                let share = Double(agents.count) / Double(folk.count)
+                check(abs(share - 0.2) < 0.025 && agents.allSatisfy { Populace.agentFriendliness.contains($0.friendliness) },
+                      "one \(race.name) in five secretly serves Draconian (\(String(format: "%.1f", share * 100))%), from -100 to -51")
+            }
         }
+        var everyone: [NPC] = []
+        for ry in -2...2 { for rx in -2...2 { everyone += game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs } }
+        check(everyone.contains(where: \.agent) && everyone.allSatisfy { n in
+            !n.agent || (n.race != .orc && n.guardRank == nil && n.role != "child" && !n.isAdventurer && !n.servesDraconian
+                         && n.description.contains("livery") == false) },
+              "Draconian's hidden agents live among the folk, never the watch, children, adventurers, orcs or his open servants, and look like anyone else")
         var seen = Set<Race>()
         for ry in -2...2 { for rx in -2...2 { for n in game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs { seen.insert(n.race) } } }
         check(seen.isSuperset(of: [.human, .elf, .dwarf, .orc]), "all four races live in the lands around home (\(seen.map(\.name).sorted().joined(separator: ", ")))")
@@ -701,7 +721,7 @@ extension DevTools {
         mock.availableOverride = false
         let townsfolk = partyTest.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
         // A peaceful town for these checks: no one about to pick a fight.
-        for n in townsfolk { n.servesDraconian = false; n.friendliness = max(n.friendliness, 10) }
+        for n in townsfolk { n.servesDraconian = false; n.agent = false; n.friendliness = max(n.friendliness, 10) }
         var dice = 0.5
         partyTest.roll = { dice }
         func chat(_ n: NPC, _ text: String) {
@@ -883,15 +903,19 @@ extension DevTools {
         check(healths.min()! >= 1 && healths.max()! <= 200 && abs(hpMean - 75) < 3 && Double(hpMedian) < hpMean,
               "NPC health runs 1-200, weighted low, averaging about 75 (mean \(String(format: "%.1f", hpMean)), median \(hpMedian))")
         check(Game(seed: seed).hp == 100, "the Avatar starts with 100 health")
-        check(Combat.ambushChance(-100) == 1 && Combat.ambushChance(0) == 0 && Combat.ambushChance(-60) > Combat.ambushChance(-30),
-              "an unfriendly neighbour's chance of attacking grows with unfriendliness, certain at -100")
+        check(Combat.attackChance(0) == 0 && Combat.attackChance(-50) == 0 && abs(Combat.attackChance(-51) - 0.02) < 1e-9
+              && abs(Combat.attackChance(-75) - 0.5) < 1e-9 && Combat.attackChance(-100) == 1,
+              "no one attacks at -50 or above; then 2% for each point below -50: 2% at -51, 50% at -75, certain at -100")
+        let storekeepers: Set<String> = ["blacksmith", "armourer", "apothecary", "alchemist", "provisioner",
+                                         "innkeeper", "barkeep", "healer", "merchant", "pedlar"]
         func arena() -> (Game, [NPC]) {
             let g = Game(seed: seed)
             g.confirmName(); g.confirmLook()
             let folk = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
-            for n in folk { n.friendliness = 50; n.weapon = nil }   // bare hands, unless a test arms them
-            // (Storekeepers never start fights, so the fighting tests leave them be.)
-            return (g, folk.filter { !NPC.storekeepers.contains($0.role) })
+            // Bare hands, unless a test arms them, and no hidden agents unless a test makes one.
+            for n in folk { n.friendliness = 50; n.weapon = nil; n.agent = false }
+            // (The fighting tests leave the storekeepers be.)
+            return (g, folk.filter { !storekeepers.contains($0.role) })
         }
         func standBeside(_ g: Game, _ n: NPC) -> (Int, Int)? {
             for (dx, dy) in [(0, 1), (1, 0), (-1, 0), (0, -1)] where g.world.isPassable(n.x + dx, n.y + dy, 0)
@@ -1438,10 +1462,10 @@ extension DevTools {
             check(SaveGame.load(from: url) == nil, "a new world discards the old world's autosave")
         }
         do {
-            // Rude words that sour someone below 0 can start a fight.
+            // Rude words that sour someone below -50 can start a fight.
             let (g, folk) = arena()
             let foe = folk[4]
-            foe.friendliness = -40
+            foe.friendliness = -45
             g.claude = mock
             mock.availableOverride = false
             var dice = 0.0
@@ -1451,7 +1475,7 @@ extension DevTools {
                 for ch in "You stupid fool!" { g.typeInConversation(ch) }
                 dice = 0.0
                 g.submitConversation()
-                check(g.inCombat && g.conversation == nil, "an insult that drops friendliness below 0 can start a fight")
+                check(g.inCombat && g.conversation == nil, "an insult that drops friendliness below -50 can start a fight")
             } else { check(false, "found room for the quarrel") }
         }
 
@@ -1577,9 +1601,9 @@ extension DevTools {
             check(heroes.contains { $0.home != nil } && heroes.contains { $0.home == nil }
                   && Set(heroes.map(\.race)) == [.human, .elf, .dwarf, .orc],
                   "adventurers of every race roam the towns (\(heroes.filter { $0.home != nil }.count)) and the wilds (\(heroes.filter { $0.home == nil }.count))")
-            check(heroes.allSatisfy { Populace.adventurerFriendliness.contains($0.friendliness) && (50...125).contains($0.maxHP)
-                                      && $0.weapon == nil && !$0.servesDraconian },
-                  "adventurers' friendliness runs -25 to 25, their health half to one and a quarter times the Avatar's, and none is armed or serves Draconian")
+            check(heroes.allSatisfy { ($0.race == .orc ? Populace.orcFriendliness : Populace.folkFriendliness).contains($0.friendliness)
+                                      && (50...125).contains($0.maxHP) && $0.weapon == nil && !$0.forDraconian },
+                  "adventurers' friendliness runs -50 to 50 (orcs -100 to -1), their health half to one and a quarter times the Avatar's, and none is armed or serves Draconian")
             check(heroes.allSatisfy { n in PaintedFolk.adventurers.contains { $0.painting == n.painting && $0.race == n.race && $0.look.female == n.female } },
                   "every adventurer wears an adventurer's painting of their own race and sex")
             check(PaintedFolk.adventurers.count == 50 && PaintedFolk.adventurers.allSatisfy { Portraits.image($0.painting) != nil },
@@ -1727,7 +1751,7 @@ extension DevTools {
                 let (grim, glad, far) = (folk[1], folk[2], folk[3])
                 if let a = spot(3, avoiding: []), let b = spot(3, avoiding: [a]), let c = spot(5, avoiding: [a, b]) {
                     (grim.x, grim.y) = a; (glad.x, glad.y) = b; (far.x, far.y) = c
-                    grim.friendliness = -90; glad.friendliness = 20; far.friendliness = -100
+                    grim.friendliness = -90; glad.friendliness = -50; far.friendliness = -100
                     g.startCombat(against: foe, startedByEnemy: true)
                     check(g.combat?.enemies.count == 1, "onlookers keep out of a fight when the dice say so")
                     dice = 0.5
@@ -1735,10 +1759,10 @@ extension DevTools {
                     g.waitTurn()
                     let enemies = g.combat?.enemies ?? []
                     check(enemies.contains { $0 === grim } && !enemies.contains { $0 === glad } && !enemies.contains { $0 === far },
-                          "an unfriendly onlooker within 3 paces joins the fight; a friendly one and one 5 paces off do not")
+                          "a hostile onlooker within 3 paces joins the fight; one at -50 and one 5 paces off do not")
                     check(g.messages.contains { $0 == "\(grim.shortName.capitalizedFirst) joins the fight!" }, "and the log says so")
                     check(max(abs(grim.x - g.x), abs(grim.y - g.y)) < before, "and they move towards the party at once")
-                    check(Combat.ambushChance(-30) > 0 && Combat.ambushChance(0) == 0, "the chance is the ambush chance")
+                    check(Combat.attackChance(-90) > 0.5 && Combat.attackChance(-50) == 0, "the chance is the attack chance")
                 } else { check(false, "found room for onlookers") }
             }
         }
@@ -1868,43 +1892,101 @@ extension DevTools {
         }
 
         do {
-            // Storekeepers never start a fight: no ambush, no joining in, no coming to blows
-            // over words, however much they hate the Avatar, until the Avatar strikes them.
+            // Storekeepers fight like anyone else once they loathe the Avatar below -50.
             let (g, _) = arena()
             let folk = g.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
             g.roll = { 0 }
             g.claude = mock
             mock.availableOverride = false
-            if let smith = folk.first(where: { NPC.storekeepers.contains($0.role) }), let side = standBeside(g, smith) {
+            if let smith = folk.first(where: { storekeepers.contains($0.role) }), standBeside(g, smith) != nil {
                 for n in folk where n !== smith { n.x = g.x + 40; n.y = g.y + 40 }
-                smith.friendliness = -100
+                smith.friendliness = -50
                 g.checkAmbush()
-                check(g.combat == nil, "a storekeeper who loathes the Avatar, standing beside them, never ambushes them (\(smith.role))")
-                g.startConversation(with: smith)
-                g.say(.insult)
-                check(g.combat == nil, "nor comes to blows over an insult")
-                g.endConversation()
-                if let other = folk.first(where: { $0 !== smith && $0.guardRank == nil && !NPC.storekeepers.contains($0.role) }) {
-                    other.friendliness = -100; other.maxHP = 500; other.hp = 500
-                    other.x = g.x - side.0; other.y = g.y - side.1
-                    if g.world.isPassable(other.x, other.y, 0) {
-                        g.startCombat(against: other, startedByEnemy: true)
-                        g.waitTurn()
-                        check(g.combat?.enemies.contains { $0 === smith } == false, "nor joins someone else's fight against the Avatar")
-                        g.combat = nil
-                    }
-                    other.x = g.x + 40; other.y = g.y + 40
-                }
-                smith.maxHP = 500; smith.hp = 500
-                g.roll = { 0.999 }
-                g.attack(dx: side.0, dy: side.1)
-                check(g.combat?.enemies.contains { $0 === smith } == true && smith.struckByAvatar && !smith.keepsThePeace,
-                      "attacked, a storekeeper fights back")
+                check(g.combat == nil, "a storekeeper at -50, standing beside the Avatar, does not attack")
+                smith.friendliness = -51
+                g.checkAmbush()
+                check(g.combat?.enemies.contains { $0 === smith } == true, "at -51 a storekeeper may ambush the Avatar like anyone (\(smith.role))")
                 g.combat = nil
+                smith.friendliness = -40
+                g.startConversation(with: smith)
+                for ch in "You stupid fool!" { g.typeInConversation(ch) }
+                g.submitConversation()
+                check(smith.friendliness < -50 || g.combat == nil, "words that leave them at -50 or above never come to blows")
+                if smith.friendliness < -50 { check(g.combat != nil, "insulted below -50, a storekeeper may come to blows") }
+                g.combat = nil
+                g.endConversation()
+            } else { check(false, "a storekeeper to test") }
+        }
+
+        do {
+            // Some ordinary folk are Draconian's hidden agents: they look like anyone else until a fight unmasks them.
+            let (g, folk) = arena()
+            g.claude = mock
+            mock.availableOverride = false
+            let spy = folk.first { $0.race != .orc && $0.guardRank == nil && $0.role != "child" && !$0.isAdventurer && !$0.servesDraconian }!
+            spy.agent = true
+            spy.friendliness = -60
+            check(!spy.openlyDraconian && spy.forDraconian && !spy.description.contains("Draconian"), "a hidden agent passes for an ordinary person")
+            spy.changeFriendliness(by: 200)
+            check(spy.friendliness == 0, "an agent can never be won over past 0")
+            spy.friendliness = -60
+            let prompt = AIDialogue.prompt(spy, game: g, history: [], said: "hello")
+            check(prompt.contains("secretly serve Lord Draconian") && prompt.contains("Keep it hidden") && prompt.contains("let something slip"),
+                  "Claude knows the agent's secret, and is told to keep it but sometimes let it slip")
+            g.startConversation(with: spy)
+            var answers = Set<String>()
+            for _ in 0..<24 {
+                for ch in "Do you serve Lord Draconian?" { g.typeInConversation(ch) }
+                g.submitConversation()
+                if let last = g.conversation?.lines.last?.text { answers.insert(last) }
+            }
+            g.endConversation()
+            check(answers.count >= 3 && !spy.unmasked, "asked about Draconian, a hidden agent mostly denies it and sometimes lets it slip, but stays hidden")
+            check(Dialogue.probes("Who do you really work for?") && !Dialogue.probes("Nice weather today"), "probing questions are told from small talk")
+            g.roll = { 0.999 }
+            if let side = standBeside(g, spy) {
+                spy.maxHP = 500; spy.hp = 500
+                g.attack(dx: side.0, dy: side.1)
+                check(spy.unmasked && spy.openlyDraconian && g.messages.contains { $0.contains("reveals \(spy.his) true allegiance") }
+                      && g.messages.contains { $0.contains(Combat.draconianBattleCry) },
+                      "attacked, a hidden agent reveals their true allegiance and cries Draconian's name")
+                check(spy.description.contains("secretly serves Lord Draconian")
+                      && AIDialogue.prompt(spy, game: g, history: [], said: "hello").contains("the Avatar knows it"),
+                      "once unmasked, they are known for what they are")
+                g.combat = nil
+            } else { check(false, "found room beside the agent") }
+            let other = folk.first { $0 !== spy && $0.race != .orc && $0.guardRank == nil && $0.role != "child" && !$0.isAdventurer && !$0.servesDraconian }!
+            other.agent = true; other.friendliness = -100; other.maxHP = 500; other.hp = 500
+            for n in folk where n !== other { n.x = g.x + 40; n.y = g.y + 40 }
+            if standBeside(g, other) != nil {
                 g.roll = { 0 }
                 g.checkAmbush()
-                check(g.combat != nil, "and once attacked, no longer keeps the peace")
-            } else { check(false, "a storekeeper to test") }
+                check(other.unmasked && g.combat?.enemies.contains { $0 === other } == true, "an agent who attacks unmasks too")
+                g.combat = nil
+            } else { check(false, "found room beside the second agent") }
+            let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-agent-\(ProcessInfo.processInfo.processIdentifier).plist")
+            try? SaveGame.save(g, to: url)
+            let back = SaveGame.load(from: url)?.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs.first { $0.id == spy.id }
+            check(back?.agent == true && back?.unmasked == true, "a hidden agent, and whether they have been unmasked, survive a save")
+            // A save from before (version 3): the folk not yet met are drawn anew, those met keep their feelings.
+            let unmet = folk.first { $0 !== spy && $0 !== other && $0.talks == 0 && !$0.known && !$0.struckByAvatar && !$0.servesDraconian }!
+            let met = spy
+            unmet.friendliness = 99; unmet.agent = false
+            let metMood = met.friendliness
+            try? SaveGame.save(g, to: url)
+            if let data = try? Data(contentsOf: url),
+               var plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] {
+                plist["version"] = 3
+                try? PropertyListSerialization.data(fromPropertyList: plist, format: .binary, options: 0).write(to: url)
+            }
+            let old = SaveGame.load(from: url)?.world.region(RegionKey(x: 0, y: 0, z: 0)).npcs
+            let fresh = NPC(id: unmet.id, name: "X", race: unmet.race, female: false, look: unmet.look, friendliness: 0,
+                            x: 0, y: 0, z: 0, bounds: [0, 0, 0, 0], role: unmet.role, home: nil)
+            Populace.temper(fresh)
+            let u2 = old?.first { $0.id == unmet.id }, m2 = old?.first { $0.id == met.id }
+            check(u2?.friendliness == fresh.friendliness && u2?.agent == fresh.agent && m2?.friendliness == metMood,
+                  "an older save's unmet folk take the new moods (and secrets); those met keep theirs")
+            try? FileManager.default.removeItem(at: url)
         }
 
         do {
@@ -2027,6 +2109,7 @@ extension DevTools {
             check(merchants.contains { Set($0.pack.compactMap(\.weapon)).count < $0.pack.count }, "sometimes the same thing twice")
             if let smith = smiths.first {
                 smith.friendliness = 10
+                smith.agent = false
                 g.gold = 250
                 g.startConversation(with: smith)
                 check(Screen.showsTrade(g.conversation!) && Screen.talkFields(trading: false, wares: true).trade.w > 0,

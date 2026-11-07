@@ -364,13 +364,13 @@ final class Game {
             }
             var want: (Int, Int)?
             switch n.disposition {
-            case _ where n.servesDraconian && n.friendliness < 0 && dist <= (n.warband == nil ? 6 : 10) && dist > 1 && roll < 0.6:
+            case _ where n.openlyDraconian && n.friendliness < 0 && dist <= (n.warband == nil ? 6 : 10) && dist > 1 && roll < 0.6:
                 // Draconian's people hunt the Avatar; a warband from further off.
                 want = toward(dx, dy)
             case _ where n.race == .wolf && dist <= Combat.wolfScent && dist > 1 && roll < 0.6:
                 // Wolves pick up the Avatar's scent and close in.
                 want = toward(dx, dy)
-            case .hostile where dist <= 7 && dist > 1 && roll < 0.55 && !n.keepsThePeace: want = toward(dx, dy)
+            case .hostile where dist <= 7 && dist > 1 && roll < 0.55: want = toward(dx, dy)
             case .adoring where dist <= 4 && dist > 1 && roll < 0.35: want = toward(dx, dy)
             default:
                 if let band = n.warband, roll < 0.6 {
@@ -619,6 +619,9 @@ final class Game {
         let decision = joinDecision(npc)
         let reply: (text: String, ends: Bool)
         switch topic {
+        // A hidden agent of Draconian asked about him, or about spies, mostly denies it, but sometimes lets it slip.
+        case _ where npc.agent && !npc.unmasked && topic != .join && topic != .dismiss && Dialogue.probes(said):
+            reply = (Dialogue.agentAnswer(npc, player: playerName), false)
         case .join?: reply = (Dialogue.joinAnswer(npc, decision, player: playerName), false)
         case .dismiss?: reply = (npc.following ? Dialogue.dismissed(npc) : "Dismiss me? I'm not travelling with you.", false)
         case let t?: reply = Dialogue.reply(npc, t, game: self)
@@ -660,9 +663,9 @@ final class Game {
             }
         }
         conversation = c
-        // Words that sour someone below 0 may come to blows.
-        if intent != "ask_to_join", !npc.following, !npc.keepsThePeace, npc.friendliness < before, npc.friendliness < 0,
-           roll() < Combat.provokedChance(npc.friendliness) {
+        // Words that sour someone below -50 may come to blows.
+        if intent != "ask_to_join", !npc.following, npc.friendliness < before,
+           roll() < Combat.attackChance(npc.friendliness) {
             conversation = nil
             startCombat(against: npc, startedByEnemy: true)
         }

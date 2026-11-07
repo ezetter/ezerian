@@ -126,18 +126,29 @@ final class NPC: Codable {
         set { struckStore = newValue }
     }
     private var struckStore: Bool?
-    /// Those who keep a shop, an inn or a tavern, or trade on the road.
-    static let storekeepers: Set<String> = ["blacksmith", "armourer", "apothecary", "alchemist", "provisioner",
-                                            "innkeeper", "barkeep", "healer", "merchant", "pedlar"]
-    /// Storekeepers never start a fight, however much they dislike the Avatar, unless the
-    /// Avatar has attacked them first.
-    var keepsThePeace: Bool { NPC.storekeepers.contains(role) && !struckByAvatar }
-    /// Serves Lord Draconian, Wizard Lord and Emperor of Sespooland.
+    /// Openly serves Lord Draconian, Wizard Lord and Emperor of Sespooland, in his livery.
     var servesDraconian: Bool {
         get { draconianStore ?? false }
         set { draconianStore = newValue }
     }
     private var draconianStore: Bool?
+    /// Secretly in Draconian's pay: one in five of the ordinary humans, elves and dwarves. They look
+    /// and live like anyone else, until a fight unmasks them.
+    var agent: Bool {
+        get { agentStore ?? false }
+        set { agentStore = newValue ? true : nil }
+    }
+    private var agentStore: Bool?
+    /// A hidden agent who has shown their true allegiance (by fighting the Avatar's party).
+    var unmasked: Bool {
+        get { unmaskedStore ?? false }
+        set { unmaskedStore = newValue ? true : nil }
+    }
+    private var unmaskedStore: Bool?
+    /// Known to stand with Draconian: his open servants, and agents who have been unmasked.
+    var openlyDraconian: Bool { servesDraconian || (agent && unmasked) }
+    /// Truly his, whether or not anyone knows it.
+    var forDraconian: Bool { servesDraconian || agent }
     /// Members of one of Draconian's roving warbands share a band number.
     var warband: Int?
     /// The painting shown when talking to someone whose figure isn't painted (Lord
@@ -217,7 +228,7 @@ final class NPC: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,
-             compliments, flatteredDay, flatteredCount, known, memory, inParty, refusedAt, hireRefused, struckStore = "struck", slot, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack", xpStore = "xp"
+             compliments, flatteredDay, flatteredCount, known, memory, inParty, refusedAt, hireRefused, struckStore = "struck", slot, hpStore = "hp", maxHPStore = "maxHP", draconianStore = "draconian", warband, portrait, goldStore = "gold", weaponStore = "weapon", packStore = "pack", xpStore = "xp", agentStore = "agent", unmaskedStore = "unmasked"
     }
 
     init(id: Int, name: String, race: Race, female: Bool, look: Int, friendliness: Int, x: Int, y: Int, z: Int,
@@ -291,7 +302,8 @@ final class NPC: Codable {
     }
     var description: String {
         if race.isBeast { return "\(race.article) \(kind)" }
-        return "\(race.article) \(kind)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian" : "")
+        return "\(race.article) \(kind)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian"
+                                            : agent && unmasked ? " who secretly serves Lord Draconian" : "")
             + (weapon.map { ", armed with a \($0.name)" } ?? ", unarmed")
     }
 
@@ -302,7 +314,7 @@ final class NPC: Codable {
     /// Draconian's people never warm to the Avatar above 0, whatever is said; wolves never
     /// above -50.
     func changeFriendliness(by d: Int) {
-        friendliness = max(-100, min(race == .wolf ? Populace.wolfFriendliness.upperBound : servesDraconian ? 0 : 100, friendliness + d))
+        friendliness = max(-100, min(race == .wolf ? Populace.wolfFriendliness.upperBound : forDraconian ? 0 : 100, friendliness + d))
     }
 }
 
@@ -397,10 +409,8 @@ enum Populace {
     /// Wolves: 10-50 health, and friendliness from -100 to -50.
     static let wolfHealth = 10...50, wolfFriendliness = -100 ... -50
 
-    /// Adventurers: the only folk who will take up with the Avatar. They are never far from
-    /// liking or disliking anyone, and are between half as hardy as the Avatar and a quarter
-    /// again as hardy (when they are met).
-    static let adventurerFriendliness = -25...25
+    /// Adventurers: the only folk who will take up with the Avatar. They are between half as
+    /// hardy as the Avatar and a quarter again as hardy (when they are met).
     static func adventurerHealth(avatar: Int, _ u: Double) -> Int {
         max(1, Int((Double(avatar) * (0.5 + 0.75 * u)).rounded()))
     }
@@ -511,7 +521,7 @@ enum Populace {
             // Adventurers go unarmed, for now.
             npc.maxHP = adventurerHealth(avatar: avatarHealth, u)
             npc.hp = npc.maxHP
-            npc.friendliness = adventurerFriendliness.lowerBound + rng.int(adventurerFriendliness.count)
+            _ = rng.int(51)   // (once their mood; kept so the rest of the world is drawn as before)
             npc.gold = coins(forHealth: npc.maxHP, &rng)
             npc.weapon = nil
         }
@@ -526,9 +536,28 @@ enum Populace {
         } else {
             paint(npc)
         }
+        temper(npc)
         // Merchants and pedlars carry a few things to sell.
         if Trade.isMerchant(npc) { npc.pack = Trade.merchantGoods(id: npc.id) }
         return npc
+    }
+
+    /// How ordinary folk feel about the Avatar when first met, and whether they secretly serve
+    /// Draconian. Humans, elves and dwarves range evenly from -50 to 50, the watch, shopkeepers and
+    /// adventurers among them; free orcs from -100 to -1 (though they can be won round). One in five
+    /// of the humans, elves and dwarves (not the watch, children or adventurers) is his hidden agent,
+    /// from -100 to -51. Fixed by who they are, so it is the same every time.
+    static let agentShare = 0.2
+    static let folkFriendliness = -50...50, orcFriendliness = -100 ... -1, agentFriendliness = -100 ... -51
+
+    static func temper(_ n: NPC) {
+        guard !n.race.isBeast, !n.servesDraconian else { return }
+        func pick(_ r: ClosedRange<Int>) -> Int {
+            r.lowerBound + min(r.count - 1, Int(Hash.unit(0x7E3B, n.id, 0) * Double(r.count)))
+        }
+        n.agent = n.race != .orc && n.guardRank == nil && n.role != "child" && !n.isAdventurer
+            && Hash.unit(0xA6E7, n.id, 0) < agentShare
+        n.friendliness = pick(n.agent ? agentFriendliness : n.race == .orc ? orcFriendliness : folkFriendliness)
     }
 
     /// The people a region is first given, the same every time for the same world: who

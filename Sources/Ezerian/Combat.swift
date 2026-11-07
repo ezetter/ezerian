@@ -34,14 +34,15 @@ final class Combat {
     /// Chance a foe who can't reach anyone falls behind this turn, so a retreat can succeed.
     static let pursuitStumble = 0.25
 
-    /// Chance per turn that an unfriendly NPC standing beside the Avatar attacks:
-    /// none at 0 or above, (friendliness / 100)² below, certain at -100.
-    static func ambushChance(_ friendliness: Int) -> Double {
-        friendliness >= 0 ? 0 : pow(Double(min(100, -friendliness)) / 100, 2)
+    /// Chance that someone who dislikes the Avatar attacks: each turn they stand beside them,
+    /// each round of a fight close by, and when words sour them. None at -50 or above, then 2%
+    /// for every point below -50: 2% at -51, 50% at -75, certain at -100.
+    static func attackChance(_ friendliness: Int) -> Double {
+        friendliness > -51 ? 0 : min(1, 0.02 * Double(-50 - friendliness))
     }
 
     /// Unfriendly people this close to the Avatar during a fight may join it against them,
-    /// each round, with the same chance as an ambush.
+    /// each round, with the same chance (`attackChance`).
     static let joinDistance = 3
 
     /// The town watch within this distance of the Avatar comes to their aid against Lord
@@ -52,10 +53,6 @@ final class Combat {
     /// distance of it join any fight it is in.
     static let wolfScent = 8
 
-    /// Chance that an NPC whose friendliness a conversation has just lowered below 0 attacks.
-    static func provokedChance(_ friendliness: Int) -> Double {
-        friendliness >= 0 ? 0 : Double(min(100, -friendliness)) / 100
-    }
 }
 
 extension Game {
@@ -101,6 +98,7 @@ extension Game {
             join(enemy, to: c, attackedByAvatar: !startedByEnemy)
             return
         }
+        unmask(enemy)
         let companions = world.party.filter { $0.z == z && $0.hp > 0 }
         let c: Combat
         if startedByEnemy {
@@ -113,16 +111,16 @@ extension Game {
             log("You attack \(enemy.shortName)!")
         }
         // Lord Draconian's people cry out his name in every fight, whoever strikes first.
-        if enemy.servesDraconian {
+        if enemy.openlyDraconian {
             log("\(enemy.shortName.capitalizedFirst) cries: \"\(Combat.draconianBattleCry)\"")
         }
         combat = c
         if enemy.race == .wolf { joinPack(of: enemy, to: c) }
         if startedByEnemy { callTheWatch() }
         // Draconian's people stand together: his servants close by join in.
-        if enemy.servesDraconian {
+        if enemy.openlyDraconian {
             for ally in world.npcs(near: enemy.x, enemy.y, z, radius: 6)
-            where ally !== enemy && ally.servesDraconian && ally.friendliness < 0 && !ally.following && ally.hp > 0 {
+            where ally !== enemy && ally.openlyDraconian && ally.friendliness < 0 && !ally.following && ally.hp > 0 {
                 join(ally, to: c, attackedByAvatar: false)
             }
         }
@@ -141,9 +139,10 @@ extension Game {
 
     private func join(_ enemy: NPC, to c: Combat, attackedByAvatar: Bool) {
         guard !c.enemies.contains(where: { $0 === enemy }) else { return }
+        unmask(enemy)
         // A servant drawn into a fight that started with someone else announces himself too,
         // unless he's only one of a band answering their leader's cry.
-        if enemy.servesDraconian && !c.enemies.contains(where: \.servesDraconian) {
+        if enemy.openlyDraconian && !c.enemies.contains(where: \.openlyDraconian) {
             log("\(enemy.shortName.capitalizedFirst) cries: \"\(Combat.draconianBattleCry)\"")
         }
         if attackedByAvatar {
@@ -157,6 +156,13 @@ extension Game {
         if !wasAlly { c.order.append(enemy) }
         log("\(enemy.shortName.capitalizedFirst) joins the fight!")
         if enemy.race == .wolf { joinPack(of: enemy, to: c) }
+    }
+
+    /// A hidden agent of Draconian who fights the party, whoever struck first, shows their true colours.
+    private func unmask(_ n: NPC) {
+        guard n.agent, !n.unmasked else { return }
+        n.unmasked = true
+        log("\(n.shortName.capitalizedFirst) reveals \(n.his) true allegiance: \(n.he) secretly serves Lord Draconian!")
     }
 
     /// Wolves hunt as a pack: when one fights, the rest of its pack nearby joins in.
@@ -178,9 +184,9 @@ extension Game {
         callTheWatch()
         guard let c = combat, !gameOver else { return }
         for n in world.npcs(near: x, y, z, radius: Combat.joinDistance)
-        where !n.following && n.hp > 0 && n.friendliness < 0 && !n.keepsThePeace
+        where !n.following && n.hp > 0 && n.friendliness < 0
             && !c.enemies.contains(where: { $0 === n }) && !c.allies.contains(where: { $0 === n }) {
-            if roll() < Combat.ambushChance(n.friendliness) { join(n, to: c, attackedByAvatar: false) }
+            if roll() < Combat.attackChance(n.friendliness) { join(n, to: c, attackedByAvatar: false) }
         }
     }
 
@@ -188,9 +194,9 @@ extension Game {
     /// `Combat.watchAidDistance` of them comes to their aid, striking only at his people.
     /// (Their kills earn the party no experience.)
     func callTheWatch() {
-        guard let c = combat, !gameOver, c.enemies.contains(where: { $0.servesDraconian && $0.hp > 0 }) else { return }
+        guard let c = combat, !gameOver, c.enemies.contains(where: { $0.openlyDraconian && $0.hp > 0 }) else { return }
         let watch = world.npcs(near: x, y, z, radius: Combat.watchAidDistance).filter { n in
-            n.guardRank != nil && n.hp > 0 && !n.following && !n.servesDraconian
+            n.guardRank != nil && n.hp > 0 && !n.following && !n.forDraconian
                 && !c.enemies.contains { $0 === n } && !c.allies.contains { $0 === n }
         }
         for g in watch {
@@ -203,8 +209,8 @@ extension Game {
     /// An unfriendly NPC beside the Avatar may attack (checked every turn).
     func checkAmbush() {
         guard combat == nil, conversation == nil, !gameOver else { return }
-        for n in world.npcs(near: x, y, z, radius: 1) where !n.following && n.hp > 0 && n.friendliness < 0 && !n.keepsThePeace {
-            if roll() < Combat.ambushChance(n.friendliness) {
+        for n in world.npcs(near: x, y, z, radius: 1) where !n.following && n.hp > 0 && n.friendliness < 0 {
+            if roll() < Combat.attackChance(n.friendliness) {
                 startCombat(against: n, startedByEnemy: true)
                 return
             }
@@ -247,7 +253,7 @@ extension Game {
             foes += c.allies.filter { $0.hp > 0 && $0.z == z }
         } else if c.allies.contains(where: { $0 === n }) {
             // The watch strikes only at Draconian's people.
-            foes += c.enemies.filter { $0.hp > 0 && $0.z == z && $0.servesDraconian }
+            foes += c.enemies.filter { $0.hp > 0 && $0.z == z && $0.openlyDraconian }
         } else {
             foes += c.enemies.filter { $0.hp > 0 && $0.z == z }
         }

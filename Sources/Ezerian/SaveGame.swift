@@ -4,7 +4,8 @@ import Foundation
 /// so the land you have explored is still there next time.
 enum SaveGame {
     private struct File: Codable {
-        var version = 3
+        /// 4: ordinary folk's new moods, and Draconian's hidden agents.
+        var version = 4
         var seed: String
         var x: Int
         var y: Int
@@ -106,6 +107,15 @@ enum SaveGame {
             if let npcs = rec.npcs { region.npcs = npcs } else { Populace.populate(region, seed: seed, avatarHealth: file.maxHP ?? 100) }
             for n in region.npcs { n.prevX = n.x; n.prevY = n.y; Populace.paint(n) }
             world.adopt(region)
+        }
+        // Saves from before version 4: the folk not yet met take the new moods (some become his hidden
+        // agents); people the Avatar has spoken to or fought keep their feelings.
+        if file.version < 4 {
+            for r in world.regions.values {
+                for n in r.npcs where n.talks == 0 && !n.known && !n.struckByAvatar && (n.memory ?? []).isEmpty {
+                    Populace.temper(n)
+                }
+            }
         }
         world.party = file.party ?? []
         for n in world.party { n.prevX = n.x; n.prevY = n.y; Populace.paint(n) }

@@ -80,8 +80,10 @@ game is still turn-based: every step is a turn of two minutes.
 ## People
 
 Ezerian is home to four races: **humans**, **elves**, **dwarves** and **orcs**. Every
-NPC has a friendliness score from -100 (extremely hostile) to 100 (adoring), drawn from
-a bell curve around their race's average: humans 25, elves 0, dwarves -25, orcs -50.
+NPC has a friendliness score from -100 (extremely hostile) to 100 (adoring). Humans,
+elves and dwarves (shopkeepers, the watch and adventurers among them) start anywhere
+from -50 to 50, evenly; free orcs from -100 to -1, though they can be won round like
+anyone. (Draconian's people and wolves have rules of their own, below.)
 The score falls into five moods — hostile, unfriendly, neutral, friendly, adoring —
 which decide how they answer you.
 
@@ -131,7 +133,8 @@ which decide how they answer you.
   **Game ▸ Voice Conversations with Claude** turns Claude off.
 * **Adventurers:** wanderers of every race who roam the land: two to four in the streets
   of a big town, one or two in a small one, one at about half the inns, and now and then
-  one or two out on the roads and in the wilds. Their friendliness runs from -25 to 25,
+  one or two out on the roads and in the wilds. Their friendliness is drawn like anyone
+else's of their race (so orc adventurers start out unfriendly),
   and their health from half the Avatar's to a quarter more (the Avatar's health when
   their land is first seen). They carry no weapon or armour, for now. Each wears one of
   fifty paintings of their own (twenty humans, ten each of elves, dwarves and orcs), and
@@ -261,6 +264,18 @@ Draconian".
   when one of them fights, his fellow servants close by join in. Claude voices them as
   loyal to Draconian: they may boast of his coming conquest or let slip his plans,
   and ordinary folk speak of him as a rumour and a threat.
+* **Hidden agents:** one in five of the ordinary humans, elves and dwarves (never the
+  watch, children or adventurers; orcs keep the rules above) secretly serves him. They
+  look and live like anyone else, with friendliness from -100 to -51, and the
+  conversation window doesn't mark them. If one attacks you or your party, or is
+  attacked, they reveal their true allegiance ("… reveals his true allegiance: he
+  secretly serves Lord Draconian!"), cry his name, and from then on count as his people
+  (the watch comes to your aid against them). Claude knows the secret and keeps it, but
+  now and then lets something slip, more often when you ask probing questions about
+  Draconian, spies or whom they serve; with Claude off, asked such things, they deny
+  it, or two times in five let it slip. Like his other people, they never rise above 0.
+  In saves from before them, folk you have never spoken to are drawn anew (some become
+  agents); people you've met keep their feelings.
 
 ## Combat
 
@@ -270,10 +285,11 @@ Draconian".
   in the Companions box, and over everyone's head during a fight.
 * **How fights start:**
   * You attack: press **F** and a direction. Your victim's friendliness drops by 60.
-  * An unfriendly NPC standing beside you may attack on any turn, with chance
-    (friendliness ÷ 100)², so -30 is 9% a turn, -60 is 36%, and -100 always attacks.
-  * A conversation that leaves someone below 0, lower than before, may come to blows,
-    with chance -friendliness ÷ 100.
+  * No one attacks at -50 friendliness or above. Below that the chance is 2% for every
+    point below -50: 2% at -51, 20% at -60, 50% at -75, and -100 always attacks.
+  * Anyone at -51 or below standing beside you may attack on any turn, with that chance.
+  * A conversation that leaves someone lower than before, and below -50, may come to
+    blows, with the same chance.
 * **Turns:** everyone takes a turn in a fixed round robin: you, then each companion,
   then the enemy (or the enemy first, if they started it). Everyone fights equally well:
   half of all blows land, for 1–10 damage plus the weapon's bonus. On your turn,
@@ -282,14 +298,11 @@ Draconian".
   foe in reach, or close in on the nearest. A pursuing foe falls behind one turn in
   four, so you can retreat: get more than 8 tiles away and you escape.
 * **Onlookers:** every round of a fight, each unfriendly person within 3 tiles of you
-  may join in against you, with the same chance as an ambush (none at 0 friendliness,
-  (friendliness / 100)² below it, so 9% at -30 and certain at -100). Those who join
+  may join in against you, with the same chance (none at -50 or above, 2% a point
+  below it). Those who join
   come at you or your companions on their turns like any other foe.
-* **Storekeepers keep the peace:** blacksmiths, armourers, apothecaries, alchemists,
-  provisioners, innkeepers, barkeeps, healers, merchants and pedlars never start a fight,
-  however much they dislike you: no ambushes, no joining others' fights against you, no
-  coming to blows over words, and they don't stalk you when hostile. Attack one, though,
-  and they fight back, and from then on they behave like anyone else.
+* **Storekeepers too:** blacksmiths, healers, barkeeps and the rest follow the same
+  rules as everyone: antagonize one below -50 and they may attack you.
 * **The watch lends a hand:** while you fight Lord Draconian's people, any guard of the
   town watch within 3 paces of you comes to your aid ("The watchman comes to your aid!"),
   checked every round. Guards take turns with everyone else and strike only at his
@@ -507,7 +520,7 @@ swift run -c release Ezerian --selftest
 
 Checks that regions are kept when you walk away and back, that every building in the
 starting town can be walked into through a door in its south wall, that roofs lift
-indoors, that each race's friendliness averages out right, that conversations follow
+indoors, that each race's friendliness spreads over its range and one in five folk are hidden agents, that conversations follow
 the NPC's mood, that the party's joining, leaving, following and rejoining rules hold, that
 health, combat triggers, round-robin turns, damage and death follow the rules, that
 Draconian's people keep to their friendliness rules and three orcs in four serve him,

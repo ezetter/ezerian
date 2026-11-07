@@ -133,6 +133,40 @@ enum Dialogue {
         return (fill(pick(options, npc, 1), npc, player), false)
     }
 
+    /// Words that probe a hidden agent: about Draconian, his people, spies and loyalties.
+    static func probes(_ said: String) -> Bool {
+        let s = said.lowercased()
+        return ["draconian", "emperor", "sespooland", "spy", "spies", "allegiance", "loyal", "serve", "work for",
+                "mercenar", "traitor", "informer", "warband", "whose side"].contains { s.contains($0) }
+    }
+
+    /// Chance a hidden agent, probed, lets their allegiance slip (otherwise they deny it).
+    static let agentSlip = 0.4
+
+    /// A hidden agent's answer to probing words: a denial, or (sometimes) a slip of the tongue.
+    static func agentAnswer(_ npc: NPC, player: String) -> String {
+        npc.talks += 1
+        let slips = Hash.unit(UInt64(bitPattern: Int64(npc.id)), npc.talks, 0x511B) < agentSlip
+        let lines: [String]
+        switch npc.race {
+        case .elf:
+            lines = slips ? ["The Emperor's star rises, mortal. Wise folk watch which way the wind blows.",
+                             "Lord Draconian is no fool. He knows the wood's secrets... or so I would guess."]
+                : ["I serve no one but the wood. Thy questions are ill-mannered.", "Draconian? A name on the wind. I know naught of him."]
+        case .dwarf:
+            lines = slips ? ["Draconian pays in good gold, they say. So I've heard, anyway.",
+                             "His warbands won't trouble the likes of me. I mean... I'd keep clear of 'em, is all."]
+                : ["Spies? Hah! I've stone to cut. Off with ye.", "I serve no lord, surface-dweller. Never have."]
+        default:
+            lines = slips ? ["Draconian? A strong hand on the reins, that's all. Not that I'd know aught of him, mind.",
+                             "The Emperor rewards those who serve... those who keep their heads down, I mean.",
+                             "His mercenaries leave honest folk be, if they know what's good for them. Or so I'd imagine."]
+                : ["Draconian? I'm an honest {role}, nothing more. Why do you ask?", "I know nothing of such things. Ask someone else.",
+                   "Spies? In {home}? You've been listening to tavern talk, {addr}."]
+        }
+        return fill(pick(lines, npc, 5), npc, player)
+    }
+
     /// A companion's first words when the Avatar turns to talk on the road: they know each other,
     /// so no stranger's welcome, only the warmth (or the grumbling) of someone who travels with them.
     private static func companionGreetings(_ npc: NPC) -> [String] {
@@ -559,7 +593,7 @@ enum Dialogue {
     }
 
     private static func jobLine(_ npc: NPC) -> String {
-        if npc.servesDraconian {
+        if npc.openlyDraconian {
             return npc.race == .orc ? "{name} serve Lord Draconian! Emperor of Sespooland. Soon all Ezerian burn."
                 : "I take Lord Draconian's gold. When the Emperor of Sespooland comes, I'll be on the winning side."
         }

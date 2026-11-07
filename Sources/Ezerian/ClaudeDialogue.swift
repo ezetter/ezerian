@@ -249,6 +249,10 @@ enum AIDialogue {
         - Travelling: \(joinRule)
         - Allegiance: \(npc.servesDraconian
             ? "You serve Lord Draconian, Wizard Lord and Emperor of Sespooland, who means to conquer Ezerian\(npc.race == .orc ? "" : "; he pays you well as a mercenary"). You wear his black-and-red livery, despise those who stand in his way, and will never become friendly towards the Avatar (never raise friendliness above 0). You may boast of his coming conquest or let slip hints of his plans."
+            : npc.agent && npc.unmasked
+            ? "You secretly serve Lord Draconian, Wizard Lord and Emperor of Sespooland, who means to conquer Ezerian, as his spy and informer among the folk here, and the Avatar knows it, for you have fought them. You no longer hide it: you despise them and will never become friendly towards them (never raise friendliness above 0)."
+            : npc.agent
+            ? "You secretly serve Lord Draconian, Wizard Lord and Emperor of Sespooland, who means to conquer Ezerian: you are his spy and informer among the folk here, in his pay. Keep it hidden. Pass yourself off as an ordinary \(npc.title) and never admit it of your own accord. Now and then, though, let something slip, such as a word of sympathy for the Emperor, knowledge you shouldn't have of his mercenaries or warbands, or an answer too quick or too evasive, and more often when the Avatar asks probing questions about Draconian, spies, loyalties or what you really do. If pressed, deny it, not quite convincingly. You will never become friendly towards the Avatar (never raise friendliness above 0)."
             : "You are a free person of Ezerian. You have heard that Lord Draconian, Wizard Lord and Emperor of Sespooland, means to conquer Ezerian, and that his mercenaries and orc warbands roam the land.")
         - What you know: \(facts.joined(separator: " "))
         """
