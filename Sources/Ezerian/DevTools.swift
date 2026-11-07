@@ -555,6 +555,9 @@ extension DevTools {
         }
         var everyone: [NPC] = []
         for ry in -2...2 { for rx in -2...2 { everyone += game.world.region(RegionKey(x: rx, y: ry, z: 0)).npcs } }
+        check(everyone.allSatisfy { !$0.description.contains("Draconian") }
+              && everyone.contains { $0.servesDraconian && $0.description.contains("black tabard with a red sigil") },
+              "looking at someone never names Draconian: his open servants are only seen in his black and red")
         check(everyone.contains(where: \.agent) && everyone.allSatisfy { n in
             !n.agent || (n.race != .orc && n.role != "child" && !n.isAdventurer && !n.servesDraconian
                          && n.description.contains("livery") == false) },
@@ -2021,9 +2024,9 @@ extension DevTools {
                 check(spy.unmasked && spy.openlyDraconian && g.messages.contains { $0.contains("reveals \(spy.his) true allegiance") }
                       && g.messages.contains { $0.contains(Combat.draconianBattleCry) },
                       "attacked, a hidden agent reveals their true allegiance and cries Draconian's name")
-                check(spy.description.contains("secretly serves Lord Draconian")
+                check(!spy.description.contains("Draconian") && !spy.description.contains("black tabard")
                       && AIDialogue.prompt(spy, game: g, history: [], said: "hello").contains("the Avatar knows it"),
-                      "once unmasked, they are known for what they are")
+                      "once unmasked, Claude knows the Avatar knows; looking at them still shows only an ordinary person")
                 g.combat = nil
             } else { check(false, "found room beside the agent") }
             let other = folk.first { $0 !== spy && $0.race != .orc && $0.guardRank == nil && $0.role != "child" && !$0.isAdventurer && !$0.servesDraconian }!

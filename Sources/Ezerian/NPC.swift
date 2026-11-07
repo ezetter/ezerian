@@ -305,8 +305,8 @@ final class NPC: Codable {
     }
     var description: String {
         if race.isBeast { return "\(race.article) \(kind)" }
-        return "\(race.article) \(kind)" + (servesDraconian ? " in the black-and-red livery of Lord Draconian"
-                                            : agent && unmasked ? " who secretly serves Lord Draconian" : "")
+        // What the eye sees, never whom they serve: his people's black and red is only their dress.
+        return "\(race.article) \(kind)" + (servesDraconian ? " in a black tabard with a red sigil and a red cloak" : "")
             + (weapon.map { ", armed with a \($0.name)" } ?? ", unarmed")
     }
 

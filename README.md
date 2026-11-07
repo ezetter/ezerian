@@ -243,7 +243,9 @@ no one uses them for now.
 The Wizard Lord Draconian, Emperor of Sespooland, means to conquer Ezerian, and his
 people are already abroad. They wear his livery — a black tabard with his red sigil,
 a red cloak and a steel helm. Nothing else marks them (the conversation window names no
-allegiance): they give themselves away only by their livery, their words and their deeds.
+allegiance, and looking at someone never names it either: his servants are seen only in
+their black tabard and red cloak): they give themselves away only by their livery, their
+words and their deeds.
 
 * **Mercenaries:** humans and elves in his pay (never dwarves), met loitering in town streets
   and taverns and in small groups on the roads and in the countryside. Their
