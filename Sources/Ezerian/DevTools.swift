@@ -1211,7 +1211,7 @@ extension DevTools {
                 }
                 check(g.weapon == .mace, "the Avatar fights with the weapon in hand")
             } else { check(false, "found room to test weapons") }
-            // Only the Avatar's own kills yield a weapon.
+            // The party's kills yield the foe's weapon, the companions' as well as the Avatar's.
             let (g2, folk2) = arena()
             let foe2 = folk2[1], friend = folk2.first { $0 !== foe2 }!
             foe2.weapon = .longSword; foe2.hp = 1; foe2.maxHP = 50
@@ -1219,7 +1219,8 @@ extension DevTools {
             g2.combat = Combat(enemies: [foe2], order: [nil, friend, foe2])
             g2.roll = { 0.0 }
             g2.strike(friend, foe2)
-            check(foe2.hp == 0 && g2.weapon == nil && g2.pack.isEmpty, "a foe slain by a companion leaves the Avatar no weapon")
+            check(foe2.hp == 0 && g2.weapon == .longSword && g2.messages.contains("You take \(foe2.his) long sword. You now fight with it (+6 damage)."),
+                  "a foe slain by a companion is looted: the Avatar takes the long sword")
             g2.combat = nil
         }
         do {
@@ -1236,6 +1237,24 @@ extension DevTools {
             g.loot(full)
             check(g.carried(0) == 10 && g.pack.last == .weapon(.longSword) && g.messages.last?.contains("carry no more") == true,
                   "no one carries more than ten things: what doesn't fit is left behind")
+            g.addToParty(mate)
+            mate.weapon = nil; mate.pack = Array(repeating: .salve, count: 9)
+            let spill = folk[5]
+            spill.weapon = .mace; spill.pack = [.weapon(.spear)]
+            g.loot(spill)
+            check(mate.weapon == .mace && mate.pack.count == 9 && g.messages.last?.contains("carry no more") == true
+                  && g.messages.contains { $0.hasPrefix("\(mate.name) takes") },
+                  "what the Avatar can't carry goes to a companion with room, and what no one can is left")
+            g.pack = []; mate.weapon = nil; mate.pack = []
+            let victim = folk[6]
+            victim.weapon = .axe; victim.pack = [.salve]; victim.hp = 1; victim.maxHP = 50
+            g.startCombat(against: victim, startedByEnemy: true)
+            g.roll = { 0 }
+            g.strike(mate, victim)
+            check(victim.hp == 0 && g.pack.contains(.weapon(.axe)) && g.pack.contains(.salve),
+                  "a foe a companion fells is looted too: the axe goes to the Avatar")
+            g.combat = nil
+            g.removeFromParty(mate, lockOut: false)
             g.weapon = .dagger; g.pack = [.weapon(.axe), .weapon(.staff)]
             g.openSheet()
             check(g.sheet == 0 && !g.move(dx: 1, dy: 0), "I opens the Avatar's sheet, and the Avatar stays put while it is open")
@@ -1693,12 +1712,12 @@ extension DevTools {
                     g.waitTurn()
                     check(max(abs(near.x - foe.x), abs(near.y - foe.y)) < before || before <= 1, "the guard closes in on Draconian's servant")
                     let xp = g.experience, purse = g.gold
-                    foe.gold = 7
+                    foe.gold = 7; foe.weapon = .axe
                     foe.hp = 1
                     dice = 0
                     g.strike(near, foe)
-                    check(foe.hp == 0 && g.experience == xp && g.gold == purse && foe.gold == 7,
-                          "when the guard lands the killing blow, the party gains no experience and takes no purse")
+                    check(foe.hp == 0 && g.experience == xp && g.gold == purse && foe.gold == 7 && foe.weapon != nil,
+                          "when the guard lands the killing blow, the party gains no experience and takes no purse or weapon")
                 } else { check(false, "found room for the watch") }
             } else { check(false, "a town watch to test") }
         }

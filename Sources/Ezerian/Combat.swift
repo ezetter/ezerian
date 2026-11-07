@@ -341,8 +341,9 @@ extension Game {
             } else {
                 log("\(n.he.capitalizedFirst) carried no gold.")
             }
-            // Whoever the Avatar slays, the Avatar takes all they carried (room permitting).
-            if byAvatar { loot(n) }
+            // Whoever the Avatar slays, and any foe a companion fells, the party takes all
+            // they carried (room permitting); a foe the watch fells keeps it.
+            if byAvatar || (byParty && foe && !n.race.isBeast) { loot(n) }
             // A foe the party defeats is experience for all of them.
             if byParty && foe { shareExperience(forDefeating: n) }
         }

@@ -298,8 +298,8 @@ Draconian".
   swords). Other people may carry one: the tougher they are, the likelier they're armed
   (about a third of the frail, three quarters of the toughest) and the better the
   weapon; Lord Draconian's people nearly always are, and children never. Kill someone
-  yourself and you take everything they carried (see below); you fight with the weapon
-  in hand, shown under your health. Foes your companions kill keep theirs. Every blow names the
+  yourself, or have a companion fell a foe, and the party takes everything they carried (see below); you fight with the weapon
+  in hand, shown under your health. A foe the watch kills keeps theirs. Every blow names the
   weapon: "The orc hits you with his short sword.", "You miss the elf with your bare
   hands." Looking at someone tells you what they carry, and on the map everyone,
   you included, holds the weapon they really have (drawn as its own sprite in the
@@ -378,9 +378,10 @@ It shows a larger portrait, your health, the weapon in hand and the damage of ea
 blow, your gold, how much you carry and how you look. Beside it are your belongings.
 
 * **Ten things each:** you and each companion can carry up to ten things, the weapon
-  in hand among them: weapons, health salves and ointments. When you slay someone you take
-  everything they carried, duplicates too, until you are full; anything that won't fit
-  is left behind. If your hands are empty you take up the first weapon.
+  in hand among them: weapons, health salves and ointments. When you or a companion slays a foe you take
+  everything they carried, duplicates too, until you are full; then your companions take
+  what you can't, in order, until they are full too, and anything that won't fit is left
+  behind. Whoever's hands are empty takes up the first weapon they're given.
 * **Equip, Put away, Drop:** each line has buttons. Equip takes up a weapon from the
   pack, swapping it with the one in hand. Put away empties your hands. Drop leaves the
   item behind for good.

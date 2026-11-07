@@ -191,17 +191,25 @@ extension Game {
         return true
     }
 
-    /// The Avatar takes everything a slain foe carried, as far as there is room.
+    /// The party takes everything a slain foe carried: the Avatar first, and what the
+    /// Avatar has no room for goes to the companions, in order, as far as there is room.
     func loot(_ n: NPC) {
         let items = (n.weapon.map { [Item.weapon($0)] } ?? []) + n.pack
         n.weapon = nil
         n.pack = []
         for item in items {
-            let wasEmpty = weapon == nil
-            if receive(item, k: 0) {
-                log("You take \(n.his) \(item.name)." + (wasEmpty && weapon != nil ? " You now fight with it (+\(weapon!.bonus) damage)." : ""))
+            guard let k = (0...party.count).first(where: { carried($0) < Game.carryLimit }) else {
+                log("Your party can carry no more; you leave \(n.his) \(item.name).")
+                continue
+            }
+            let wasEmpty = inHand(k) == nil
+            receive(item, k: k)
+            let wields = wasEmpty && inHand(k) != nil
+            if k == 0 {
+                log("You take \(n.his) \(item.name)." + (wields ? " You now fight with it (+\(weapon!.bonus) damage)." : ""))
             } else {
-                log("You can carry no more; you leave \(n.his) \(item.name).")
+                let c = party[k - 1]
+                log("\(c.name) takes \(n.his) \(item.name)." + (wields ? " \(c.he.capitalizedFirst) now fights with it." : ""))
             }
         }
     }
