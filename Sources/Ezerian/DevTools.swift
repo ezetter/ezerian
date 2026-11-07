@@ -1295,7 +1295,26 @@ extension DevTools {
             check(Screen.inside(box, box.x + 10, box.y + 10) && !Screen.inside(box, box.x + 10, box.y + box.h + 2), "the Avatar's box in the panel is where the click opens the sheet")
             g.perform(.close)
             check(g.sheet == nil, "Close puts the sheet away")
+            g.openSheet()
+            check(!Screen.sheetButtons(g).contains { $0.action == .talk }, "the Avatar's own sheet has no Talk button")
+            g.perform(.next)
+            check(Screen.sheetButtons(g).contains { $0.action == .talk } && Screen.sheetButtons(g).allSatisfy { b in
+                Screen.sheetAction(g, atX: b.rect.x + b.rect.w / 2, y: b.rect.y + b.rect.h / 2) == b.action },
+                  "a companion's sheet has a Talk button of its own")
+            g.perform(.talk)
+            check(g.sheet == nil && g.conversation?.npc === mate, "Talk on a companion's sheet puts it away and talks with them")
+            g.endConversation()
+            g.talkToCompanion(mate2)
+            check(g.conversation?.npc === mate2, "a companion can be talked to wherever they walk (a click on them)")
+            g.endConversation()
+            g.talkToCompanion(foe)
+            check(g.conversation == nil, "only companions are talked to from afar")
             g.combat = Combat(enemies: [foe], order: [nil, foe])
+            g.talkToCompanion(mate)
+            check(g.conversation == nil && g.messages.last?.contains("no time to talk") == true, "a fight leaves no time to talk")
+            g.openSheet(1)
+            check(!Screen.sheetButtons(g).contains { $0.action == .talk }, "nor a Talk button on a companion's sheet")
+            g.sheet = nil
             g.openSheet()
             check(g.sheet == 0 && Screen.sheetButtons(g).allSatisfy { b in
                 if case .drop = b.action { return false }

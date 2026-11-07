@@ -65,6 +65,8 @@ extension Game {
         case previous, next, close
         case equip(Int), unequip, drop(Int), give(Int), use(Int)
         case giveTo(Int), cancelGive
+        /// Talk with the companion whose sheet this is.
+        case talk
     }
 
     /// Everyone whose sheet can be shown: the Avatar, then the companions.
@@ -138,6 +140,9 @@ extension Game {
             sheetGiving = r
         case .cancelGive:
             sheetGiving = nil
+        case .talk:
+            guard k > 0 else { return }
+            talkToCompanion(party[k - 1])
         case let .use(r):
             guard rows.indices.contains(r), let amount = rows[r].item.heals else { return }
             let item = rows[r].item

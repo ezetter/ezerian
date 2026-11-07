@@ -400,6 +400,9 @@ final class Screen {
             out.append(SheetButton(rect: (b.x + b.w - 50, b.y + 12, 36, 30), action: .next, label: "▶"))
         }
         out.append(SheetButton(rect: (b.x + b.w - 104, b.y + b.h - 38, 90, 26), action: .close, label: "Close"))
+        if k > 0, !game.inCombat, game.sheetGiving == nil {
+            out.append(SheetButton(rect: (b.x + b.w - 200, b.y + b.h - 38, 90, 26), action: .talk, label: "Talk"))
+        }
         if let r = game.sheetGiving {
             // Whom to give it to.
             var x = b.x + 250 + Int(TextRenderer.width("Give the \(game.belongings(k)[r].item.name) to", size: 13, font: .italic)) + 12
@@ -534,6 +537,7 @@ final class Screen {
             ("Click or hold on the map", "walk that way"),
             ("Right-click", "look at something or someone"),
             ("T, or walk into someone", "talk to them (companions step aside)"),
+            ("Click a companion", "talk with them, wherever they walk"),
             ("F, then a direction", "attack (walk into a foe in a fight)"),
             ("Space", "wait a turn"),
             ("L", "look at what is ahead"),

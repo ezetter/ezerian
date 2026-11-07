@@ -517,7 +517,19 @@ final class GameView: NSView, CALayerDelegate {
             return
         }
         guard !game.showMap, !game.creatingCharacter, game.conversation == nil, !game.gameOver,
-              let p = mapPixel(for: event), let dir = direction(toward: p) else { return }
+              let p = mapPixel(for: event) else { return }
+        // A click on a companion (their feet's tile, or the one their head reaches into) talks with them.
+        if let t = screen.map.tileAt(mapPixel: p.0, p.1),
+           let n = [(t.x, t.y), (t.x, t.y + 1)].lazy.compactMap({ self.game.world.npc(at: $0.0, $0.1, self.game.z) })
+               .first(where: { $0.following }) {
+            stopRepeating()
+            heldKeys.removeAll()
+            mouseDirection = nil
+            game.talkToCompanion(n)
+            needsRender = true
+            return
+        }
+        guard let dir = direction(toward: p) else { return }
         mouseDirection = dir
         stepHeld()
         startRepeating()

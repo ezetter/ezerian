@@ -478,6 +478,18 @@ final class Game {
         log("There is no one beside you to talk to.")
     }
 
+    /// Talks with a companion wherever they walk in the party's train: a click on them on the
+    /// map, or Talk on their character sheet. A fight leaves no time for it.
+    func talkToCompanion(_ npc: NPC) {
+        guard npc.following, conversation == nil, !creatingCharacter, !gameOver else { return }
+        guard !inCombat else { log("There is no time to talk in the middle of a fight."); return }
+        sheet = nil
+        sheetGiving = nil
+        showHelp = false
+        showMap = false
+        startConversation(with: npc)
+    }
+
     func startConversation(with npc: NPC) {
         // Beasts can't be talked to.
         if npc.race.isBeast {

@@ -46,6 +46,7 @@ swift run -c release Ezerian
 | Click / hold on the map | Walk toward the pointer |
 | Right-click | Look at whatever (or whoever) is under the pointer |
 | T, or walk into someone | Talk to them |
+| Click a companion on the map | Talk with them |
 | Type, then Return | In a conversation: say anything; Esc to leave |
 | F, then a direction | Attack whoever is there |
 | Space | Wait a turn (in a fight: let your turn pass) |
@@ -145,8 +146,9 @@ which decide how they answer you.
   100 gold always does). Turned down, you keep your gold; you may offer once a
   conversation, and they won't take the same sum or less again.
 * Companions walk behind you in single file, step aside (swap places) when you walk
-  into them, follow you underground, and are listed in the side panel. You can still
-  talk to them (press T beside them); if a conversation makes a companion like you
+  into them, follow you underground, and are listed in the side panel. Talk with one
+  wherever they walk by clicking them on the map, or with **Talk** on their character
+  sheet (or press T beside them); not in a fight, though. If a conversation makes a companion like you
   less, they may leave, and you can tell one to leave ("it's time we parted ways").
   Someone who refused to join, or left, won't join until their friendliness is at
   least 35 points above what it was then. The party is kept in the save file.
