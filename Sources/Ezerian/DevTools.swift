@@ -1110,13 +1110,27 @@ extension DevTools {
                     offer(2)
                     check(g.hp == 55 && g.gold == 18 && bar.friendliness == 11 && g.conversation?.price == 2 && g.day == barDay,
                           "2 gold buys a beer, drunk at once for 5 health, and another is on offer")
+                    check(g.messages.last == "Ahhh, that went down well!", "the first beer of the day goes down well")
                     offer(3)
                     check(g.hp == 60 && g.gold == 15 && bar.friendliness == 16, "a 1-coin tip on top pleases the barkeep by 5")
+                    check(g.messages.last == "Ahhh, that went down well!", "and so does the second")
+                    offer(2)
+                    check(g.hp == 59 && g.gold == 13 && g.messages.last == "You've had too much, you're drunk!",
+                          "a third beer the same day heals nothing: it makes the Avatar drunk, for 1 health")
+                    g.hp = 1
+                    offer(2)
+                    check(g.hp == 1 && g.beersToday == 4, "drink leaves a drunk Avatar at least 1 health")
+                    let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-beer-\(ProcessInfo.processInfo.processIdentifier).plist")
+                    try? SaveGame.save(g, to: url)
+                    check(SaveGame.load(from: url).map { $0.beersToday == 4 && $0.beerDay == g.day } == true, "the day's beers survive a save")
+                    try? FileManager.default.removeItem(at: url)
+                    g.beerDay = g.day - 1   // a new day: the beers mend again
                     g.hp = g.maxHP - 2
                     offer(2)
-                    check(g.hp == g.maxHP, "a beer heals no further than whole")
+                    check(g.hp == g.maxHP && g.beersToday == 1, "on a new day beer heals again, though no further than whole")
                     say("no thanks")
                     check(g.conversation?.price == nil && g.takesGold(g.conversation!), "turned down, the beer is off, but the gold field stays")
+                    g.gold = 20
                     let f0 = bar.friendliness, g0 = g.gold
                     offer(1)
                     check(bar.friendliness == f0 + 5 && g.gold == g0 - 1, "gold with no beer ordered is a tip: +5 friendliness")

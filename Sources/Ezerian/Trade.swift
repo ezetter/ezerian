@@ -43,8 +43,9 @@ enum Trade {
     }
 
     /// A barkeep's beer: 2 gold (1 from a barkeep whose friendliness is above 50), drunk
-    /// at once, for 5 health. Any tip at all, however small, pleases them by 5.
-    static let beerHeal = 5, tipFriendliness = 5
+    /// at once, for 5 health. Any tip at all, however small, pleases them by 5. Only the first
+    /// two beers of a day mend; each one after that makes the Avatar drunk and costs a point of health.
+    static let beerHeal = 5, tipFriendliness = 5, healingBeers = 2, drunkHurt = 1
     static func beerPrice(_ npc: NPC) -> Int { npc.friendliness > 50 ? 1 : 2 }
 
     /// What an offer does. Paying the asking price pleases the merchant a little (+1),

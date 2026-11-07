@@ -28,6 +28,9 @@ enum SaveGame {
         var experience: Int?
         /// The day of the last morning autosave; missing in older saves.
         var autosaved: Int?
+        /// The day's beers so far (past two, they hurt); missing in older saves.
+        var beerDay: Int?
+        var beersToday: Int?
     }
 
     private struct RegionRecord: Codable {
@@ -75,7 +78,8 @@ enum SaveGame {
                         female: game.female, look: game.avatarLook, turn: game.turn, regions: regions,
                         party: game.world.party, hp: game.hp, maxHP: game.maxHP,
                         gold: game.gold, weapons: nil, weapon: game.weapon, pack: game.pack,
-                        experience: game.experience, autosaved: game.autosavedDay)
+                        experience: game.experience, autosaved: game.autosavedDay,
+                        beerDay: game.beerDay, beersToday: game.beersToday)
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .binary
         let data = try encoder.encode(file)
@@ -112,6 +116,8 @@ enum SaveGame {
         game.gold = file.gold ?? 0
         game.experience = file.experience ?? 0
         game.autosavedDay = file.autosaved ?? 0
+        game.beerDay = file.beerDay ?? 0
+        game.beersToday = file.beersToday ?? 0
         // A fallen Avatar wakes to the death notice, to rise again from the autosave or begin anew.
         game.gameOver = game.hp <= 0
         if let old = file.weapons, file.pack == nil {

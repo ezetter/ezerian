@@ -228,7 +228,7 @@ enum AIDialogue {
         }
         if npc.role == "barkeep" {
             facts.append(Trade.willTrade(npc)
-                ? "As a barkeep you sell beer at \(Trade.beerPrice(npc)) gold a mug (2, or 1 to those you like well), drunk on the spot; it mends 5 points of hurt. You appreciate tips. Coins are handed over apart from your words; never pretend to take payment or pour a beer in your reply."
+                ? "As a barkeep you sell beer at \(Trade.beerPrice(npc)) gold a mug (2, or 1 to those you like well), drunk on the spot; the first two of a day each mend 5 points of hurt, but any more only make the drinker drunk and cost a point of health (the Avatar has had \(game.beerDay == game.day ? game.beersToday : 0) today; if they've had two or more, you might warn them off another). You appreciate tips. Coins are handed over apart from your words; never pretend to take payment or pour a beer in your reply."
                 : "As a barkeep you could pour the Avatar a beer, but you dislike them too much and refuse to serve them.")
         }
         if !npc.flatterable(on: game.day) {

@@ -347,7 +347,9 @@ Draconian".
 * **Taverns:** a barkeep offers you a beer as you start talking, with its price already
   in the gold field: 2 gold, or 1 from a barkeep whose friendliness is above 50. Press
   **Give gold.** and you drink it at once, for 5 health (no further than whole), and another
-  is on offer. Anything over the price is a tip; say no to the beer and whatever gold you
+  is on offer. Only two beers a day heal ("Ahhh, that went down well!"); each one after
+  that costs a point of health instead ("You've had too much, you're drunk!"), though it
+  never takes your last. The day's count is kept in the save file. Anything over the price is a tip; say no to the beer and whatever gold you
   give (the button reads **Tip.**) is all tip. A tip of any size raises the barkeep's
   friendliness by 5. Ask for a beer, a drink or another to have one offered again. Below
   -50 a barkeep won't serve you or take your tips.

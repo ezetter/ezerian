@@ -42,6 +42,8 @@ final class Game {
     var maxHP = 100 { didSet { world.avatarHealth = maxHP } }
     /// Experience from foes defeated (never shown; see `Experience`).
     var experience = 0
+    /// The beers drunk on day `beerDay`: past `Trade.healingBeers` they hurt instead of healing.
+    var beerDay = 0, beersToday = 0
     /// Gold coins; the adventure begins with none.
     var gold = 0
     /// The weapon in the Avatar's hand, and everything else they carry (see `Inventory`);
@@ -835,15 +837,20 @@ final class Game {
         gold -= amount
         npc.gold += amount
         let before = hp
-        hp = min(maxHP, hp + Trade.beerHeal)
+        if beerDay != day { beerDay = day; beersToday = 0 }
+        beersToday += 1
+        let drunk = beersToday > Trade.healingBeers
+        // Drink can't quite kill: a drunk Avatar is left with at least 1 health.
+        hp = drunk ? max(min(hp, 1), hp - Trade.drunkHurt) : min(maxHP, hp + Trade.beerHeal)
         c.lines.append(Conversation.Line(text: Dialogue.restSeller(npc, .accepted, player: playerName), fromAvatar: false))
         if tip > 0 { c.lines.append(Conversation.Line(text: Dialogue.barkeepThanks(npc, player: playerName), fromAvatar: false)) }
         // Another round is on offer, at what they'd ask now.
         c.price = Trade.beerPrice(npc)
         c.goldInput = "\(c.price!)"
         conversation = c
-        let feel = hp > before ? " (+\(hp - before) health)" : ""
+        let feel = hp > before ? " (+\(hp - before) health)" : hp < before ? " (\(hp - before) health)" : ""
         log("You pay \(amount) gold\(tip > 0 ? ", tip included," : "") and drink a beer at \(npc.home ?? "the tavern")\(feel). You have \(gold) gold left.")
+        log(drunk ? "You've had too much, you're drunk!" : "Ahhh, that went down well!")
     }
 
     /// How many nights the Avatar has slept (the view fades out and in for each).
