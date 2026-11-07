@@ -24,6 +24,7 @@ enum DevTools {
             if token == "send" { game.submitConversation(); continue }
             if token == "trade" { game.openShop(); continue }
             if token == "bye" { game.endConversation(); continue }
+            if token == "slain" { game.hp = 0; game.gameOver = true; game.autosavedDay = game.day; continue }
             if token.hasPrefix("hp:") { game.hp = Int(token.dropFirst(3)) ?? game.hp; continue }
             if token.hasPrefix("gold:") { game.gold = Int(token.dropFirst(5)) ?? game.gold; continue }
             if token.hasPrefix("buy:") { game.perform(Game.ShopAction.buy(Int(token.dropFirst(4)) ?? 0)); continue }
@@ -1354,8 +1355,38 @@ extension DevTools {
                 check(!g.move(dx: 1, dy: 0), "nothing more can be done once slain")
                 let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-dead-\(ProcessInfo.processInfo.processIdentifier).plist")
                 try? SaveGame.save(g, to: url)
-                check(SaveGame.load(from: url) == nil, "a slain Avatar's save is not resumed")
+                let fallen = SaveGame.load(from: url)
+                check(fallen?.gameOver == true && fallen?.hp == 0, "a slain Avatar's save reopens at the death notice")
+                try? FileManager.default.removeItem(at: url)
             } else { check(false, "found room for the ambush") }
+        }
+        do {
+            // Every morning at 8 the world is autosaved; a slain Avatar can rise again from it.
+            let (g, _) = arena()
+            g.turn = (2 * 24 * 60 + 7 * 60 - 8 * 60) / 2   // 7 AM on day 3
+            g.autosavedDay = 2
+            check(g.day == 3 && !g.autosaveDue, "no autosave before 8 in the morning")
+            g.wait(turns: 30)
+            check(g.timeString == "8:00 AM" && g.autosaveDue, "the autosave falls due at 8 AM")
+            let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ezerian2-autosave-\(ProcessInfo.processInfo.processIdentifier).plist")
+            try? SaveGame.autosave(g, to: url)
+            check(g.autosavedDay == 3 && !g.autosaveDue, "once saved, the morning is not saved again")
+            g.wait(turns: 6 * 30)
+            check(!g.autosaveDue, "nor later that day")
+            g.wait(turns: 18 * 30)
+            check(g.day == 4 && g.timeString == "8:00 AM" && g.autosaveDue, "the next morning is saved again")
+            let morningGold = g.gold, morningTurn = g.turn - 24 * 30
+            g.gold += 99
+            g.hp = 0
+            g.gameOver = true
+            check(!g.autosaveDue, "a slain Avatar is never autosaved")
+            if let back = SaveGame.load(from: url) {
+                check(!back.gameOver && back.hp > 0 && back.turn == morningTurn && back.gold == morningGold,
+                      "rising again restores the world as it was that morning")
+                check(back.autosavedDay == 3 && !back.autosaveDue, "the restored morning is not saved over at once")
+            } else { check(false, "the autosave loads") }
+            SaveGame.discardAutosave(at: url)
+            check(SaveGame.load(from: url) == nil, "a new world discards the old world's autosave")
         }
         do {
             // Rude words that sour someone below 0 can start a fight.

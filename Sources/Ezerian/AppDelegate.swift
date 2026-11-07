@@ -61,7 +61,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func turnTaken() {
         turnsSinceSave += 1
+        if let game = gameView?.game, game.autosaveDue { autosave(game) }
         if turnsSinceSave >= 150 { save() }
+    }
+
+    /// Every morning at 8 the world is saved apart, for a slain Avatar to rise again from.
+    private func autosave(_ game: Game) {
+        do {
+            try SaveGame.autosave(game)
+            game.log("The world is saved, as every morning.")
+            save()
+        } catch {
+            NSLog("Ezerian: could not autosave the world: \(error)")
+        }
     }
 
     private func save() {
@@ -142,6 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         alert.addButton(withTitle: "Cancel")
         alert.beginSheetModal(for: window) { [weak self] response in
             guard let self, response == .alertFirstButtonReturn else { return }
+            SaveGame.discardAutosave()
             self.gameView.game = Game(seed: UInt64.random(in: 1...UInt64.max))
             self.save()
         }

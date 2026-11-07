@@ -378,7 +378,9 @@ Draconian".
   current), at 210 another, and each point after needs 10% more experience than the
   last (121 more, then 133, …). It is kept in the save file.
 * **Death:** anyone at 0 health dies. A companion who dies is gone from your party.
-  If the Avatar dies the game is over, and Return begins a new adventure in a new world.
+  If the Avatar dies the game is over. R rises again on the morning of the last
+  autosave (see below), with the world as it was then; Return begins a new adventure
+  in a new world. Quitting at the death notice brings it back the next time.
 
 ## Character sheets and belongings
 
@@ -430,6 +432,9 @@ blow, your gold, how much you carry and how you look. Beside it are your belongi
   then blue; torches, lamp posts, hearths and lit windows glow in the dark.
 * The world, including every region you have seen, is saved to
   `~/Library/Application Support/Land of Ezerian 2/world.plist`.
+* **Autosave:** every morning at 8 the world is also saved apart, to `autosave.plist`
+  beside it. A fight in progress at 8 puts the save off until it ends. A new world
+  discards the old world's autosave.
 
 ## Graphics
 

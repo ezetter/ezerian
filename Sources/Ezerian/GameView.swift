@@ -184,9 +184,20 @@ final class GameView: NSView, CALayerDelegate {
             return
         }
         if game.gameOver {
-            if event.keyCode == 36 || event.keyCode == 76 {
+            if event.keyCode == 15, game.autosavedDay > 0 {   // R: rise again on the last autosaved morning
                 stopRepeating()
                 heldKeys.removeAll()
+                if let back = SaveGame.load(from: SaveGame.autosaveURL), !back.gameOver {
+                    back.log("You wake on the morning of day \(back.day), and the world is as it was.")
+                    game = back
+                } else {
+                    game.autosavedDay = 0
+                    game.log("The morning's save could not be found.")
+                }
+            } else if event.keyCode == 36 || event.keyCode == 76 {
+                stopRepeating()
+                heldKeys.removeAll()
+                SaveGame.discardAutosave()
                 game = Game(seed: UInt64.random(in: 1...UInt64.max))
                 onTurn?()
             }

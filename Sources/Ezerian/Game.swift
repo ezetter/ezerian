@@ -56,6 +56,13 @@ final class Game {
     var shopping = false
     var shopNotice: String?
     var gameOver = false
+    /// The day of the last 8 AM autosave (0: none yet), the morning a slain Avatar can rise again from.
+    var autosavedDay = 0
+    /// It is past 8 in the morning of a day not yet autosaved. A fight in progress puts it off until it ends,
+    /// so the Avatar never wakes into the middle of one.
+    var autosaveDue: Bool {
+        !creatingCharacter && !gameOver && !inCombat && hp > 0 && day > autosavedDay && hourOfDay >= 8
+    }
     /// F was pressed: the next direction key attacks.
     var attackPending = false
     /// Called when something changes outside a key press (Claude's answer arriving).

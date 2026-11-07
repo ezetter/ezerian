@@ -57,7 +57,8 @@ final class Screen {
         if let chosen = game.lookEntry { drawLookPrompt(game.playerName, chosen: chosen) }
         drawPanel(game, frame: frame)
         let hint = game.showMap ? "M or Esc closes the map  ·  + and − zoom"
-            : game.gameOver ? "Press Return to begin a new adventure"
+            : game.gameOver ? (game.autosavedDay > 0 ? "R rises again from the morning's save  ·  Return begins a new adventure"
+                                                     : "Press Return to begin a new adventure")
             : game.attackPending ? "Press a direction to attack  ·  Esc to cancel"
             : game.inCombat && game.sheet == nil ? "Your turn: walk into a foe to strike  ·  F + direction attack  ·  Space wait  ·  walk away to flee"
             : game.shopping ? "Buy and Sell with the buttons  ·  Esc or Done goes back to talking"
@@ -822,8 +823,15 @@ final class Screen {
                               align: .center, shadow: false))
         texts.append(TextItem(text: game.deathMessage, x: cx, y: Double(y + 56), size: 13.5, font: .italic, color: 0x4A3018,
                               align: .center, shadow: false))
-        texts.append(TextItem(text: "Press Return to begin a new adventure.", x: cx, y: Double(y + 96), size: 13, font: .bold,
-                              color: 0x5A2A10, align: .center, shadow: false))
+        if game.autosavedDay > 0 {
+            texts.append(TextItem(text: "Press R to rise again on the morning of day \(game.autosavedDay).", x: cx, y: Double(y + 86),
+                                  size: 13, font: .bold, color: 0x5A2A10, align: .center, shadow: false))
+            texts.append(TextItem(text: "Press Return to begin a new adventure.", x: cx, y: Double(y + 108), size: 13, font: .bold,
+                                  color: 0x5A2A10, align: .center, shadow: false))
+        } else {
+            texts.append(TextItem(text: "Press Return to begin a new adventure.", x: cx, y: Double(y + 96), size: 13, font: .bold,
+                                  color: 0x5A2A10, align: .center, shadow: false))
+        }
     }
 
     private func moodPanelInk(_ d: Disposition) -> UInt32 {

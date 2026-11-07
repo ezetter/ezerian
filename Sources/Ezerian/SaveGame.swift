@@ -26,6 +26,8 @@ enum SaveGame {
         var weapon: Weapon?
         var pack: [Item]?
         var experience: Int?
+        /// The day of the last morning autosave; missing in older saves.
+        var autosaved: Int?
     }
 
     private struct RegionRecord: Codable {
@@ -48,6 +50,20 @@ enum SaveGame {
         return base.appendingPathComponent("Land of Ezerian 2", isDirectory: true).appendingPathComponent("world.plist")
     }
 
+    /// Where the morning autosave is kept, beside the world.
+    static var autosaveURL: URL { url.deletingLastPathComponent().appendingPathComponent("autosave.plist") }
+
+    /// The 8 AM save: records the morning in the game, then writes the world to the autosave file.
+    static func autosave(_ game: Game, to url: URL = SaveGame.autosaveURL) throws {
+        game.autosavedDay = game.day
+        try save(game, to: url)
+    }
+
+    /// A new world begins: the old world's mornings can't be returned to.
+    static func discardAutosave(at url: URL = SaveGame.autosaveURL) {
+        try? FileManager.default.removeItem(at: url)
+    }
+
     static func save(_ game: Game, to url: URL = SaveGame.url) throws {
         let regions = game.world.regions.values.map { r in
             RegionRecord(x: r.key.x, y: r.key.y, z: r.key.z, name: r.name, visited: r.visited,
@@ -59,7 +75,7 @@ enum SaveGame {
                         female: game.female, look: game.avatarLook, turn: game.turn, regions: regions,
                         party: game.world.party, hp: game.hp, maxHP: game.maxHP,
                         gold: game.gold, weapons: nil, weapon: game.weapon, pack: game.pack,
-                        experience: game.experience)
+                        experience: game.experience, autosaved: game.autosavedDay)
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .binary
         let data = try encoder.encode(file)
@@ -70,9 +86,7 @@ enum SaveGame {
     static func load(from url: URL = SaveGame.url) -> Game? {
         guard let data = try? Data(contentsOf: url),
               let file = try? PropertyListDecoder().decode(File.self, from: data),
-              file.version >= 2, let seed = UInt64(file.seed),
-              (file.hp ?? 1) > 0   // a fallen Avatar's world is not resumed
-
+              file.version >= 2, let seed = UInt64(file.seed)
         else { return nil }
         let world = World(seed: seed)
         let n = Region.size * Region.size
@@ -97,6 +111,9 @@ enum SaveGame {
         game.maxHP = file.maxHP ?? 100
         game.gold = file.gold ?? 0
         game.experience = file.experience ?? 0
+        game.autosavedDay = file.autosaved ?? 0
+        // A fallen Avatar wakes to the death notice, to rise again from the autosave or begin anew.
+        game.gameOver = game.hp <= 0
         if let old = file.weapons, file.pack == nil {
             game.weapon = old.max()
             game.pack = Array(old.sorted(by: >).dropFirst().prefix(Game.carryLimit - 1)).map { .weapon($0) }
