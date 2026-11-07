@@ -952,6 +952,7 @@ extension DevTools {
                 // Every blow lands for 10 (rolls alternate: hit, then top damage).
                 var k = 0
                 g.roll = { k += 1; return k % 2 == 1 ? 0.0 : 0.99 }
+                g.combat?.shaken.append(foe)   // (this foe stands their ground, however hurt)
                 foe.hp = 15
                 g.move(dx: dx, dy: dy)
                 check(foe.hp == 5, "walking into a foe strikes them (max blow 10: hp 15 -> 5)")
@@ -970,6 +971,67 @@ extension DevTools {
                 check(foe.hp == 0 && !g.inCombat && !folk.contains { $0 === foe && g.world.npc(at: $0.x, $0.y, 0) === foe },
                       "a foe at 0 health dies, and the fight ends")
             } else { check(false, "found room to fight") }
+        }
+        do {
+            // A foe brought below 10 health may lose their nerve (50%), cry out, and run; out of
+            // reach, they are out of the fight, and keep clear of the Avatar for a while.
+            let (g, folk) = arena()
+            let foe = folk[0]
+            if let (dx, dy) = standBeside(g, foe) {
+                // Everyone else well out of the way (the second foe of these tests, out in the open, stays).
+                let foe2 = folk.dropFirst().first { g.world.building(at: $0.x, $0.y, 0) == nil } ?? folk[1]
+                for n in folk where n !== foe && n !== foe2 { n.x = g.x + 60; n.y = g.y + 60 }
+                foe2.friendliness = 30
+                foe.maxHP = 200; foe.hp = 15; foe.friendliness = 30
+                var rolls: [Double] = [0.0, 0.0, 0.6]   // a hit, for 1; then the nerve holds (0.6)
+                g.roll = { rolls.isEmpty ? 0.999 : rolls.removeFirst() }
+                g.attack(dx: dx, dy: dy)
+                check(foe.hp == 14 && g.combat?.fleeing.isEmpty == true, "at 10 or more health a foe fights on")
+                foe.hp = 11
+                rolls = [0.0, 0.99, 0.6]
+                g.move(dx: dx, dy: dy)
+                check(foe.hp == 1 && g.combat?.fleeing.isEmpty == true && g.combat?.shaken.contains { $0 === foe } == true,
+                      "below 10, a foe whose nerve holds (a roll of 0.5 or more) fights on")
+                foe.hp = 9
+                rolls = [0.0, 0.0, 0.1]
+                g.move(dx: dx, dy: dy)
+                check(foe.hp == 8 && g.combat?.fleeing.isEmpty == true, "and weighs running only once")
+                g.combat = nil
+                foe.x = g.x + 60; foe.y = g.y + 60
+                if let (ex, ey) = standBeside(g, foe2) {
+                    foe2.maxHP = 200; foe2.hp = 12; foe2.friendliness = 30
+                    rolls = [0.0, 0.2, 0.3]   // a hit for 3, then the nerve breaks (0.3 < 0.5)
+                    g.attack(dx: ex, dy: ey)
+                    check(foe2.hp == 9 && g.combat?.fleeing.contains { $0 === foe2 } == true
+                          && g.messages.contains { $0.hasPrefix("\(foe2.shortName.capitalizedFirst) cries: \"") && $0.hasSuffix("and turns to flee!") },
+                          "below 10, a foe may lose their nerve and run, crying out in fear")
+                    let start = max(abs(foe2.x - g.x), abs(foe2.y - g.y))
+                    let hpBefore = g.hp
+                    for _ in 0..<30 where g.inCombat { g.waitTurn() }
+                    let gone = max(abs(foe2.x - g.x), abs(foe2.y - g.y))
+                    check(g.hp == hpBefore && gone > start, "a fleeing foe strikes no more blows and runs from the Avatar (\(start) -> \(gone) paces)")
+                    if !g.inCombat {
+                        check(gone > Combat.escapeDistance && g.messages.contains("\(foe2.shortName.capitalizedFirst) has fled.")
+                              && foe2.hp > 0 && foe2.cowedUntil > g.turn, "far enough off, they have fled, and the fight is over")
+                        foe2.friendliness = -100
+                        foe2.x = g.x + 1; foe2.y = g.y
+                        if g.world.isPassable(foe2.x, foe2.y, 0) {
+                            g.roll = { 0 }
+                            g.checkAmbush()
+                            check(g.combat == nil, "one who fled won't turn on the Avatar again for a while")
+                            foe2.cowedUntil = g.turn
+                            g.checkAmbush()
+                            check(g.combat != nil, "but in time they may")
+                            g.combat = nil
+                        }
+                    } else {
+                        check(false, "the foe got clear (\(gone) paces)")
+                    }
+                } else { check(false, "found room beside a second foe") }
+                let wolf = NPC(id: 4242, name: "Wolf", race: .wolf, female: false, look: 0, friendliness: -80, x: 0, y: 0, z: 0,
+                               bounds: [0, 0, 0, 0], role: "wolf", home: nil)
+                check(Dialogue.fear(wolf).contains("yelps"), "a wolf yelps as it turns tail")
+            } else { check(false, "found room for the cowardice tests") }
         }
         do {
             // Merchants' prices, and buying a night's healing from a healer.

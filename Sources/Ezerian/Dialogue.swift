@@ -133,6 +133,21 @@ enum Dialogue {
         return (fill(pick(options, npc, 1), npc, player), false)
     }
 
+    /// What a foe cries as they lose their nerve and run.
+    static func fear(_ npc: NPC) -> String {
+        let who = npc.shortName.capitalizedFirst
+        if npc.race.isBeast { return "\(who) yelps in fear and turns tail!" }
+        let lines: [String]
+        switch npc.race {
+        case .elf: lines = ["Enough! Let me go, I beg thee!", "No more! The wood shall hide me!", "Spare me, I yield!"]
+        case .dwarf: lines = ["Back! Back, I'm done!", "Ye'll not have my head today!", "Stone and fire, I'll not die here!"]
+        case .orc: lines = ["No more! No more! \(npc.name) go!", "Aaagh! Run, run!", "Mercy! \(npc.name) not want die!"]
+        default: lines = ["Mercy! Mercy, I yield!", "Enough! I'll not die here!", "Spare me, please!"]
+        }
+        let cry = lines[Int(Hash.of(UInt64(bitPattern: Int64(npc.id)), npc.hp, 0xF1EE) % UInt64(lines.count))]
+        return "\(who) cries: \"\(cry)\" and turns to flee!"
+    }
+
     /// Words that probe a hidden agent: about Draconian, his people, spies and loyalties.
     static func probes(_ said: String) -> Bool {
         let s = said.lowercased()

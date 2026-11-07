@@ -364,6 +364,9 @@ final class Game {
             }
             var want: (Int, Int)?
             switch n.disposition {
+            case _ where turn < n.cowedUntil && dist <= Combat.escapeDistance + 2:
+                // Having fled a fight with the Avatar, they keep their distance for a while.
+                want = (-dx.signum(), -dy.signum())
             case _ where n.openlyDraconian && n.friendliness < 0 && dist <= (n.warband == nil ? 6 : 10) && dist > 1 && roll < 0.6:
                 // Draconian's people hunt the Avatar; a warband from further off.
                 want = toward(dx, dy)

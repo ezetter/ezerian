@@ -226,6 +226,8 @@ final class NPC: Codable {
     var prevX = 0
     var prevY = 0
     var lastShout = -100
+    /// Until this turn they keep clear of the Avatar, having fled from them in a fight.
+    var cowedUntil = -1
 
     private enum CodingKeys: String, CodingKey {
         case id, name, race, female, look, friendliness, x, y, z, homeX, homeY, bounds, role, home, facing, talks,

@@ -12,6 +12,10 @@ final class Combat {
     var order: [NPC?]
     /// Whose turn it is (an index into `order`).
     var current = 0
+    /// Foes who have lost their nerve and are running from the Avatar.
+    var fleeing: [NPC] = []
+    /// Foes already badly hurt enough to have weighed running (each does so once).
+    var shaken: [NPC] = []
 
     init(enemies: [NPC], order: [NPC?]) {
         self.enemies = enemies
@@ -20,6 +24,13 @@ final class Combat {
 
     /// What Lord Draconian's people cry out whenever they attack.
     static let draconianBattleCry = "Thou shalt bow down before Lord Draconian, mighty emperor of Sespooland and Ezerian."
+
+    /// A foe left with less than this much health, the first time, may lose their nerve...
+    static let fearHealth = 10
+    /// ...with this chance, and run from the Avatar instead of fighting.
+    static let fleeChance = 0.5
+    /// One who got away keeps clear of the Avatar this many turns (two hours) before menacing them again.
+    static let cowedTurns = 60
 
     static let hitChance = 0.5
     static let maxDamage = 10
@@ -120,7 +131,8 @@ extension Game {
         // Draconian's people stand together: his servants close by join in.
         if enemy.openlyDraconian {
             for ally in world.npcs(near: enemy.x, enemy.y, z, radius: 6)
-            where ally !== enemy && ally.openlyDraconian && ally.friendliness < 0 && !ally.following && ally.hp > 0 {
+            where ally !== enemy && ally.openlyDraconian && ally.friendliness < 0 && !ally.following && ally.hp > 0
+                && turn >= ally.cowedUntil {
                 join(ally, to: c, attackedByAvatar: false)
             }
         }
@@ -184,7 +196,7 @@ extension Game {
         callTheWatch()
         guard let c = combat, !gameOver else { return }
         for n in world.npcs(near: x, y, z, radius: Combat.joinDistance)
-        where !n.following && n.hp > 0 && n.friendliness < 0
+        where !n.following && n.hp > 0 && n.friendliness < 0 && turn >= n.cowedUntil
             && !c.enemies.contains(where: { $0 === n }) && !c.allies.contains(where: { $0 === n }) {
             if roll() < Combat.attackChance(n.friendliness) { join(n, to: c, attackedByAvatar: false) }
         }
@@ -209,7 +221,7 @@ extension Game {
     /// An unfriendly NPC beside the Avatar may attack (checked every turn).
     func checkAmbush() {
         guard combat == nil, conversation == nil, !gameOver else { return }
-        for n in world.npcs(near: x, y, z, radius: 1) where !n.following && n.hp > 0 && n.friendliness < 0 {
+        for n in world.npcs(near: x, y, z, radius: 1) where !n.following && n.hp > 0 && n.friendliness < 0 && turn >= n.cowedUntil {
             if roll() < Combat.attackChance(n.friendliness) {
                 startCombat(against: n, startedByEnemy: true)
                 return
@@ -244,6 +256,7 @@ extension Game {
 
     /// An NPC's turn: strike the nearest foe within reach, or step towards them.
     private func fighterTurn(_ n: NPC, _ c: Combat) {
+        if c.fleeing.contains(where: { $0 === n }) { fleeTurn(n, c); return }
         let isEnemy = c.enemies.contains { $0 === n }
         // Foes: nil is the Avatar.
         var foes: [NPC?] = []
@@ -300,6 +313,93 @@ extension Game {
         }
     }
 
+    /// A foe who has lost their nerve steps away from the Avatar, as far as they can; more
+    /// than `Combat.escapeDistance` off, they are out of the fight, and keep clear for a while.
+    private func fleeTurn(_ n: NPC, _ c: Combat) {
+        func far(_ px: Int, _ py: Int) -> Int { max(abs(px - x), abs(py - y)) }
+        if let p = fleeStep(for: n) {
+            n.prevX = n.x
+            n.prevY = n.y
+            n.facing = Direction.from(dx: p.x - n.x, dy: p.y - n.y).rawValue
+            n.x = p.x
+            n.y = p.y
+        }
+        if far(n.x, n.y) > Combat.escapeDistance {
+            leave(n, c)
+            n.cowedUntil = turn + Combat.cowedTurns
+            log("\(n.shortName.capitalizedFirst) has fled.")
+        }
+    }
+
+    /// Where someone running from the Avatar steps next: by a "flee map", so they run round
+    /// walls towards open ground rather than into a corner. The distance (in steps) from the
+    /// Avatar over the ground near them is turned about (times -1.2) and smoothed again, so
+    /// downhill leads away from the Avatar by the best way out. Nil when they are cornered.
+    private func fleeStep(for n: NPC) -> Point? {
+        let r = 16, w = 2 * r + 1
+        let home = world.region(containing: n.x, n.y, n.z)
+        func index(_ px: Int, _ py: Int) -> Int? {
+            let ix = px - n.x + r, iy = py - n.y + r
+            return ix >= 0 && iy >= 0 && ix < w && iy < w ? iy * w + ix : nil
+        }
+        func open(_ px: Int, _ py: Int) -> Bool {
+            guard home.contains(px, py), world.isPassable(px, py, z) else { return false }
+            let f = world.feature(px, py, z)
+            return f != .caveEntrance && f != .ladderUp
+        }
+        func step(_ px: Int, _ py: Int, _ dx: Int, _ dy: Int) -> Bool {
+            open(px + dx, py + dy) && (dx == 0 || dy == 0 || open(px + dx, py) || open(px, py + dy))
+        }
+        let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+        guard let start = index(x, y) else { return nil }
+        // Steps from the Avatar.
+        var cost = [Double](repeating: .infinity, count: w * w)
+        cost[start] = 0
+        var queue = [(x, y)], head = 0
+        while head < queue.count {
+            let (px, py) = queue[head]; head += 1
+            let here = cost[index(px, py)!]
+            for (dx, dy) in dirs where step(px, py, dx, dy) {
+                guard let k = index(px + dx, py + dy), cost[k] == .infinity else { continue }
+                cost[k] = here + 1
+                queue.append((px + dx, py + dy))
+            }
+        }
+        // Turned about, then smoothed: each place is at most one step worse than its best neighbour.
+        var flee = cost.map { $0 == .infinity ? .infinity : -1.2 * $0 }
+        for _ in 0..<40 {
+            var changed = false
+            for (px, py) in queue {
+                let k = index(px, py)!
+                for (dx, dy) in dirs where step(px, py, dx, dy) {
+                    if let m = index(px + dx, py + dy), flee[m] + 1 < flee[k] { flee[k] = flee[m] + 1; changed = true }
+                }
+            }
+            if !changed { break }
+        }
+        var best: Point?
+        var bestF = index(n.x, n.y).map { flee[$0] } ?? .infinity
+        for (dx, dy) in dirs where step(n.x, n.y, dx, dy) {
+            let p = Point(x: n.x + dx, y: n.y + dy)
+            guard p != Point(x: x, y: y), world.npc(at: p.x, p.y, z) == nil, let k = index(p.x, p.y), flee[k] < bestF else { continue }
+            best = p
+            bestF = flee[k]
+        }
+        return best
+    }
+
+    /// Takes someone out of the fight: killed, or fled.
+    private func leave(_ n: NPC, _ c: Combat) {
+        c.enemies.removeAll { $0 === n }
+        c.allies.removeAll { $0 === n }
+        c.fleeing.removeAll { $0 === n }
+        if let i = c.order.firstIndex(where: { $0 === n }) {
+            c.order.remove(at: i)
+            if i < c.current { c.current -= 1 }
+            if c.current >= c.order.count { c.current = 0 }
+        }
+    }
+
     /// One blow: half land, for 1-10 damage plus the weapon's bonus. nil is the Avatar.
     func strike(_ attacker: NPC?, _ target: NPC?) {
         let a = attacker.map { $0.shortName.capitalizedFirst } ?? "You"
@@ -315,7 +415,17 @@ extension Game {
         if let target {
             target.hp = max(0, target.hp - damage)
             log("\(a) \(attacker == nil ? "hit" : "hits") \(t)" + (scores ? " for \(damage): \(target.hp) of \(target.maxHP) left." : "."))
-            if target.hp == 0 { kill(target, byAvatar: attacker == nil, byParty: attacker == nil || attacker?.following == true) }
+            if target.hp == 0 {
+                kill(target, byAvatar: attacker == nil, byParty: attacker == nil || attacker?.following == true)
+            } else if target.hp < Combat.fearHealth, let c = combat, c.enemies.contains(where: { $0 === target }),
+                      !c.shaken.contains(where: { $0 === target }) {
+                // Badly hurt, a foe may lose their nerve and run.
+                c.shaken.append(target)
+                if roll() < Combat.fleeChance {
+                    c.fleeing.append(target)
+                    log(Dialogue.fear(target))
+                }
+            }
         } else {
             log("\(a) hits \(t)" + (scores ? " for \(damage): you have \(max(0, hp - damage)) of \(maxHP) left." : "."))
             hp = max(0, hp - damage)
@@ -353,15 +463,7 @@ extension Game {
             // A foe the party defeats is experience for all of them.
             if byParty && foe { shareExperience(forDefeating: n) }
         }
-        if let c = combat {
-            c.enemies.removeAll { $0 === n }
-            c.allies.removeAll { $0 === n }
-            if let i = c.order.firstIndex(where: { $0 === n }) {
-                c.order.remove(at: i)
-                if i < c.current { c.current -= 1 }
-                if c.current >= c.order.count { c.current = 0 }
-            }
-        }
+        if let c = combat { leave(n, c) }
     }
 
     /// Ends the fight when every enemy is dead, or left far behind.

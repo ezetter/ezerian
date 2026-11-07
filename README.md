@@ -298,6 +298,13 @@ Draconian".
   Space to wait. Companions join the fight on your side; fighters strike the weakest
   foe in reach, or close in on the nearest. A pursuing foe falls behind one turn in
   four, so you can retreat: get more than 8 tiles away and you escape.
+* **Losing their nerve:** the first time a foe is left with less than 10 health, there is
+  a 50% chance they break and run, crying out in fear ("The orc cries: \"Mercy! Grishnak
+  not want die!\" and turns to flee!"; a wolf yelps and turns tail). A fleeing foe
+  strikes no more blows and runs from you each turn, out through doors if need be;
+  more than 8 tiles off, they have fled and are out of the fight. You can still chase
+  them down. One who got away keeps clear of you for two hours and won't ambush you or
+  join a fight against you in that time.
 * **Onlookers:** every round of a fight, each unfriendly person within 3 tiles of you
   may join in against you, with the same chance (none at -50 or above, 2% a point
   below it). Those who join
