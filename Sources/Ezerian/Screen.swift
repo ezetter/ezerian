@@ -686,10 +686,7 @@ final class Screen {
                               color: Screen.brown, align: .center, shadow: false))
         texts.append(TextItem(text: npc.kind.capitalizedFirst, x: Double(fx + fw / 2),
                               y: Double(fy + fh + 26), size: 11, font: .italic, color: 0x5A4024, align: .center, shadow: false))
-        if npc.openlyDraconian {
-            texts.append(TextItem(text: "Serves Lord Draconian", x: Double(fx + fw / 2), y: Double(fy + fh + 40), size: 10.5,
-                                  font: .bold, color: 0x8E1410, align: .center, shadow: false))
-        }
+        // (No mark of allegiance: Draconian's people show it only by their livery, words and deeds.)
         // Friendliness bar from hostile (red) to adoring (green).
         let bx = x + w - 196, by = y + 14, bw = 180
         texts.append(TextItem(text: "\(npc.disposition.word) (\(npc.friendliness > 0 ? "+" : "")\(npc.friendliness))",

@@ -242,8 +242,8 @@ no one uses them for now.
 
 The Wizard Lord Draconian, Emperor of Sespooland, means to conquer Ezerian, and his
 people are already abroad. They wear his livery — a black tabard with his red sigil,
-a red cloak and a steel helm — and the conversation window marks them "Serves Lord
-Draconian".
+a red cloak and a steel helm. Nothing else marks them (the conversation window names no
+allegiance): they give themselves away only by their livery, their words and their deeds.
 
 * **Mercenaries:** humans and elves in his pay (never dwarves), met loitering in town streets
   and taverns and in small groups on the roads and in the countryside. Their
@@ -268,7 +268,7 @@ Draconian".
   town watch (never children or adventurers; orcs keep the rules above), secretly
   serves him. A traitor in the watch never comes to your aid. They
   look and live like anyone else, with friendliness from -100 to -51, and the
-  conversation window doesn't mark them. If one attacks you or your party, or is
+  conversation window doesn't mark them (it marks no one). If one attacks you or your party, or is
   attacked, they reveal their true allegiance ("… reveals his true allegiance: he
   secretly serves Lord Draconian!"), cry his name, and from then on count as his people
   (the watch comes to your aid against them). Claude knows the secret and keeps it, but
